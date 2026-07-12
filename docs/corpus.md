@@ -92,12 +92,15 @@ duplicated tables:
   (`vib~2,4,5,7,8,14,15,22,29` in Final_Axel) and mislabels note jumps as
   `porta+59904`. Vibrato is an instrument property (rate+depth); tying it to the
   instrument would dedup it across repeated notes.
-* **Missing detune abstraction.** The single global `offset` scalar actually
-  stacks three detunes -- video standard (+-35.37c PAL/NTSC), per-tracker table
-  detuning, and per-song finetune -- and a fourth (per-voice chorus detune, e.g.
-  Arc of Yesod's fixed 16-unit voice offset) is hidden by keeping a full note
-  table *per voice*. Factoring these apart (shared table + per-voice detune +
-  explicit clock axis) is the same lever as the generator above.
+* **Detune, now factored.** The single global `offset` scalar stacked several
+  detunes -- video standard (+-35.37c PAL/NTSC), per-tracker table detuning, and
+  per-song finetune -- and a per-voice chorus detune was hidden by keeping a full
+  note table *per voice*. The video standard is now split off into `grid.clock`
+  (see the tracker finding), and `pitch.PitchGrid` factors the per-voice tables
+  into a shared note table plus an explicit per-voice `detune` constant (Arc of
+  Yesod recovers `[0, 16, 0]`), keeping reconstruction exact via a small
+  exceptions set. What remains in `offset` is genuine tuning (table detune +
+  per-song finetune).
 
 ### Pitch offset is a per-tracker constant -- and a clock fingerprint (`tests/test_trackers.py`)
 
