@@ -96,15 +96,49 @@ duplicated tables:
   (`vib~2,4,5,7,8,14,15,22,29` in Final_Axel) and mislabels note jumps as
   `porta+59904`. Vibrato is an instrument property (rate+depth); tying it to the
   instrument would dedup it across repeated notes.
-* **Detune, now factored.** The single global `offset` scalar stacked several
-  detunes -- video standard (+-35.37c PAL/NTSC), per-tracker table detuning, and
-  per-song finetune -- and a per-voice chorus detune was hidden by keeping a full
-  note table *per voice*. The video standard is now split off into `grid.clock`
-  (see the tracker finding), and `pitch.PitchGrid` factors the per-voice tables
-  into a shared note table plus an explicit per-voice `detune` constant (Arc of
-  Yesod recovers `[0, 16, 0]`), keeping reconstruction exact via a small
-  exceptions set. What remains in `offset` is genuine tuning (table detune +
-  per-song finetune).
+* **Detune, now factored; the pitch table is global.** There is no per-tune (let
+  alone per-voice) pitch table: the note -> register mapping is the one A440/12-TET
+  formula (`pitch.note_freq`), parameterised only by a per-tune `offset` and
+  `clock`. The video standard is split into `grid.clock` (see the tracker finding);
+  each voice carries a constant `detune` (Arc of Yesod recovers `[0, 16, 0]`); and
+  only genuine non-12-TET tracker values are stored as a small `exceptions` set
+  (Earth 21 observed notes -> 11 stored). Reconstruction stays exact.
+
+### Note transforms, surveyed from the p-code (`tests/corpus/survey_transforms.py`)
+
+Rather than guess the generator's vocabulary from the register output, the survey
+steps each playroutine through the 6510 lifter and tracks the provenance of every
+value written to a frequency register (threading provenance through memory, so a
+note staged in zero-page is followed). Over a 16-tune sample (7966 writes):
+
+| transform | share | meaning |
+|---|---|---|
+| `table[sequence]` | 36.6% | note index walks a table (wavetable / note-list) |
+| `table[note]` | 31.0% | plain note -> freq table lookup |
+| `table+table/const` | 24.2% | table value plus an add -> vibrato / detune |
+| `table[arp/transpose]` | 8.2% | table indexed by a note **+ offset** -> arpeggio |
+
+So frequency is overwhelmingly a **note-indexed pitch-table lookup** (~68%), with
+**additive vibrato/detune** (~24%) and **index-offset arpeggio** (~8%) on top --
+all standard tracker primitives. This grounds a two-level generator:
+
+1. **Tier 1 -- recover from the p-code.** Fold the base note into the note events
+   and express frequency as `note_freq(base + arp_offset) + vibrato_layer`,
+   competing per voice against the raw accumulator and kept lossless by the
+   residual. *Measured:* with the global pitch table this is only ~1% smaller than
+   the raw accumulator on the frequency columns -- the bounded accumulator already
+   captures periodic arpeggios exactly and absorbs vibrato for free, so the
+   competition falls back to it on every vibrato-heavy voice. Not integrated as a
+   codec change; the accumulator is near-optimal for frequency. The base-note +
+   offset form remains useful as a *semantic* (transcription) view.
+2. **Tier 2 -- optimize the IR.** A pass over the note-with-pitch IR factors
+   *transposed* repetition -- a phrase written out longhand a fifth up becomes
+   `pattern N transposed +7` -- catching structure the code never expressed as a
+   transform. Extends the existing exact-pattern factoring (`factor.py`).
+
+Both encode the melody's structure, never a tune's generative algorithm (a
+procedural tune such as "A Mind Is Born" is stored as its aperiodic note stream +
+residual, losslessly, even if that is larger than the original code).
 
 ### Pitch offset is a per-tracker constant -- and a clock fingerprint (`tests/test_trackers.py`)
 
