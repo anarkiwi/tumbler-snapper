@@ -81,12 +81,16 @@ factored per-instrument *generator* or *detune* model, so several distinct
 musical ideas collapse into one raw per-voice accumulator "layer" or into
 duplicated tables:
 
-* **Missing arpeggiator / generator.** Earth voice 0 arpeggiates A-3 <-> E-4 (a
-  +7 semitone offset) every 2-3 frames (1189/2499 jump-frames), shredded across
-  the frequency accumulator, the note track, and the ctrl "release" literal. A
-  frame-indexed generator (base note + cyclic offset table + period) -- the
-  "clock-indexed table generator" the README promises but `melody.py` never
-  implements -- collapses it to ~5 tokens.
+* **Arpeggio / wavetable, run-length coded.** Earth voice 0 arpeggiates A-3 <->
+  E-4 (a +7 semitone offset) every 2-3 frames (1189/2499 jump-frames), shredded
+  across the frequency accumulator, the note track, and the ctrl "release" literal.
+  Measured, the release pool was **56% of Earth's container** (14.5 KB) because
+  `_write_rows` stored one row per frame -- a 94-frame hold as 94 identical rows.
+  The container now run-length codes those row sequences, cutting Earth 10.28 ->
+  5.50, Extreme_01 7.84 -> 3.79 and Arc of Yesod 5.14 -> 0.58 bytes/frame,
+  losslessly. Still ahead: a semantic base-note + cyclic-offset-table generator
+  (the README's "clock-indexed table generator") to fold the frequency-accumulator
+  and note-track halves of the arpeggio together.
 * **Vibrato at the wrong level.** `vib~N` is just the fitted *period* of the raw
   per-note frequency deviation, re-derived independently every note, so it wobbles
   (`vib~2,4,5,7,8,14,15,22,29` in Final_Axel) and mislabels note jumps as

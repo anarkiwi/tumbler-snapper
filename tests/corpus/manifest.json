@@ -35,9 +35,9 @@
       "PSID"
     ],
     "bytes_per_frame": {
-      "min": 0.268,
-      "mean": 3.082,
-      "max": 10.275
+      "min": 0.063,
+      "mean": 2.591,
+      "max": 6.454
     },
     "tok_per_frame": {
       "min": 0.059,
@@ -57,7 +57,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.6824,
+      "bytes_per_frame": 3.6744,
       "tok_per_frame": 0.4544,
       "residual_changepoints": 13,
       "grid_sha256": "7dcc1f066b7405afe20434fa868ec12c2bc9931a1c8f17eac4d970d6ca694406",
@@ -67,11 +67,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9033,
-        "compile_s": 0.7282,
-        "play_s": 0.0189,
-        "grid_fps": 2767.7,
-        "codec_fps": 3346.2
+        "grid_fps": 2836.8,
+        "codec_fps": 3413.8,
+        "play_fps": 133432.1
       }
     },
     {
@@ -85,7 +83,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.974,
+      "bytes_per_frame": 5.98,
       "tok_per_frame": 0.6056,
       "residual_changepoints": 2,
       "grid_sha256": "23d9bb6bc4f173ecaaac6bca35d99385e7c8cb5680096758c097cd94c9d978f4",
@@ -95,11 +93,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.0987,
-        "compile_s": 0.8114,
-        "play_s": 0.0249,
-        "grid_fps": 1191.2,
-        "codec_fps": 2989.6
+        "grid_fps": 942.1,
+        "codec_fps": 3336.3,
+        "play_fps": 105546.8
       }
     },
     {
@@ -113,7 +109,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.5116,
+      "bytes_per_frame": 4.5148,
       "tok_per_frame": 0.358,
       "residual_changepoints": 1,
       "grid_sha256": "dcd73d807a124a55da7e46596572d9e9a0c87e61f813cfdaf81cc4b45c63882d",
@@ -123,11 +119,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.7156,
-        "compile_s": 0.7333,
-        "play_s": 0.0186,
-        "grid_fps": 1457.2,
-        "codec_fps": 3324.8
+        "grid_fps": 1595.6,
+        "codec_fps": 3418.9,
+        "play_fps": 149036.5
       }
     },
     {
@@ -141,7 +135,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.6824,
+      "bytes_per_frame": 0.676,
       "tok_per_frame": 0.1248,
       "residual_changepoints": 5,
       "grid_sha256": "6a45c765bbd6f84144f4c8bac0748f016431cfc3f5042d8bee50d740ae8aa095",
@@ -151,11 +145,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.1401,
-        "compile_s": 0.7479,
-        "play_s": 0.0079,
-        "grid_fps": 1168.2,
-        "codec_fps": 3307.4
+        "grid_fps": 1053.7,
+        "codec_fps": 3173.8,
+        "play_fps": 294081.2
       }
     },
     {
@@ -169,7 +161,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.8456,
+      "bytes_per_frame": 3.5208,
       "tok_per_frame": 0.5448,
       "residual_changepoints": 20,
       "grid_sha256": "e755adb07db60256c72d81c4696e57067e5d1d99161f4f14bd381d08fdf6bc84",
@@ -179,11 +171,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 2.2362,
-        "compile_s": 0.7262,
-        "play_s": 0.0179,
-        "grid_fps": 1118.0,
-        "codec_fps": 3360.0
+        "grid_fps": 1169.7,
+        "codec_fps": 3287.7,
+        "play_fps": 149153.1
       }
     },
     {
@@ -197,7 +187,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 6.3572,
+      "bytes_per_frame": 4.5036,
       "tok_per_frame": 1.1608,
       "residual_changepoints": 2,
       "grid_sha256": "2fe91c50aa528dba6660cf2226b44f83f09ebdc16d63da17f102534ed74538ca",
@@ -207,11 +197,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.0101,
-        "compile_s": 0.7501,
-        "play_s": 0.0212,
-        "grid_fps": 2475.0,
-        "codec_fps": 3241.5
+        "grid_fps": 2870.4,
+        "codec_fps": 3505.2,
+        "play_fps": 104287.1
       }
     },
     {
@@ -225,7 +213,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.3468,
+      "bytes_per_frame": 4.346,
       "tok_per_frame": 0.3028,
       "residual_changepoints": 4,
       "grid_sha256": "eab03762d4aec5d50dc57f8d815151e5e81972de7347dbc2f5b68a9395b48bb7",
@@ -235,11 +223,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 7.4381,
-        "compile_s": 0.7465,
-        "play_s": 0.0195,
-        "grid_fps": 336.1,
-        "codec_fps": 3263.6
+        "grid_fps": 353.6,
+        "codec_fps": 3370.0,
+        "play_fps": 129281.5
       }
     },
     {
@@ -253,7 +239,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.5876,
+      "bytes_per_frame": 3.5528,
       "tok_per_frame": 0.4916,
       "residual_changepoints": 11,
       "grid_sha256": "8fc95aa7761194a5583f164e1ee61c9dbcc99e97a1ac231b9cbeef45fd2b557d",
@@ -263,11 +249,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.3373,
-        "compile_s": 0.8258,
-        "play_s": 0.0199,
-        "grid_fps": 1069.6,
-        "codec_fps": 2956.1
+        "grid_fps": 1218.6,
+        "codec_fps": 3180.4,
+        "play_fps": 133700.9
       }
     },
     {
@@ -281,7 +265,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.544,
+      "bytes_per_frame": 2.4824,
       "tok_per_frame": 1.1908,
       "residual_changepoints": 6,
       "grid_sha256": "4df0b3e6828b8c505677075ecc1b816b8e363f6fab3440a91139d910e93d1e7f",
@@ -291,11 +275,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9978,
-        "compile_s": 0.7279,
-        "play_s": 0.0125,
-        "grid_fps": 2505.6,
-        "codec_fps": 3376.5
+        "grid_fps": 2538.0,
+        "codec_fps": 3448.2,
+        "play_fps": 208992.1
       }
     },
     {
@@ -309,7 +291,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.5472,
+      "bytes_per_frame": 1.518,
       "tok_per_frame": 0.3312,
       "residual_changepoints": 24,
       "grid_sha256": "40c3395c55d7ef0923761821a9f57c0252ee8db091e32c6d76910e9232db851d",
@@ -319,11 +301,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.6579,
-        "compile_s": 0.7893,
-        "play_s": 0.0131,
-        "grid_fps": 1507.9,
-        "codec_fps": 3115.6
+        "grid_fps": 1656.3,
+        "codec_fps": 3227.4,
+        "play_fps": 186128.9
       }
     },
     {
@@ -337,7 +317,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 7.8412,
+      "bytes_per_frame": 3.7904,
       "tok_per_frame": 1.972,
       "residual_changepoints": 2,
       "grid_sha256": "f0e2df57576b87a00d28cba04f73a33cce3ea8d4bce2f1cbb40efdb98e99fe63",
@@ -347,11 +327,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9567,
-        "compile_s": 0.7219,
-        "play_s": 0.0198,
-        "grid_fps": 2613.2,
-        "codec_fps": 3370.6
+        "grid_fps": 2272.5,
+        "codec_fps": 3430.9,
+        "play_fps": 135790.7
       }
     },
     {
@@ -365,7 +343,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.5412,
+      "bytes_per_frame": 2.4504,
       "tok_per_frame": 0.3972,
       "residual_changepoints": 24,
       "grid_sha256": "41a81bddb7e68d5e99ea8645f2aa676357a935e6977769c6a83188baeb6b7c1c",
@@ -375,11 +353,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.5634,
-        "compile_s": 0.7495,
-        "play_s": 0.0159,
-        "grid_fps": 1599.1,
-        "codec_fps": 3266.3
+        "grid_fps": 1660.8,
+        "codec_fps": 3522.5,
+        "play_fps": 153148.3
       }
     },
     {
@@ -393,7 +369,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.2596,
+      "bytes_per_frame": 0.744,
       "tok_per_frame": 0.3536,
       "residual_changepoints": 24,
       "grid_sha256": "78f414fb62681e1fe8d47a87efa5b53b54cade21cf10e0c5ce8ef305820b21ca",
@@ -403,11 +379,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9082,
-        "compile_s": 0.8687,
-        "play_s": 0.0119,
-        "grid_fps": 2752.8,
-        "codec_fps": 2839.0
+        "grid_fps": 2815.0,
+        "codec_fps": 3329.9,
+        "play_fps": 230289.2
       }
     },
     {
@@ -421,7 +395,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.3944,
+      "bytes_per_frame": 3.3888,
       "tok_per_frame": 0.4104,
       "residual_changepoints": 7,
       "grid_sha256": "0985bdb53e1993d73baea68e9ce5bd4e3846dd00046d74ef73018af7771baa1d",
@@ -431,11 +405,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.0406,
-        "compile_s": 0.7876,
-        "play_s": 0.0168,
-        "grid_fps": 2402.4,
-        "codec_fps": 3107.9
+        "grid_fps": 2451.6,
+        "codec_fps": 3189.5,
+        "play_fps": 146888.2
       }
     },
     {
@@ -449,7 +421,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.8372,
+      "bytes_per_frame": 3.8396,
       "tok_per_frame": 0.4284,
       "residual_changepoints": 3,
       "grid_sha256": "bfe21e5d3266f9e264e74308e665e8f88929ab7b9f0fbca19465dd3f4f544e22",
@@ -459,11 +431,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.8968,
-        "compile_s": 0.7256,
-        "play_s": 0.0196,
-        "grid_fps": 2787.6,
-        "codec_fps": 3355.0
+        "grid_fps": 2948.4,
+        "codec_fps": 3445.2,
+        "play_fps": 121824.0
       }
     },
     {
@@ -477,7 +447,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.7688,
+      "bytes_per_frame": 1.766,
       "tok_per_frame": 0.5604,
       "residual_changepoints": 4,
       "grid_sha256": "578c78b1ed4ea58fe5831b63a47977f2193ce2bc63f7e70ddf68d8d335d29c44",
@@ -487,11 +457,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.5025,
-        "compile_s": 1.6234,
-        "play_s": 0.0144,
-        "grid_fps": 999.0,
-        "codec_fps": 1526.5
+        "grid_fps": 1048.7,
+        "codec_fps": 1618.2,
+        "play_fps": 167667.5
       }
     },
     {
@@ -505,7 +473,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.1368,
+      "bytes_per_frame": 2.946,
       "tok_per_frame": 0.4052,
       "residual_changepoints": 15,
       "grid_sha256": "6cb92c71b0244d6f3bfca38fcc4e2a742fe114eb50a769826b69b1ed55697121",
@@ -515,11 +483,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.1184,
-        "compile_s": 0.7248,
-        "play_s": 0.0152,
-        "grid_fps": 1180.1,
-        "codec_fps": 3378.5
+        "grid_fps": 1229.2,
+        "codec_fps": 3367.3,
+        "play_fps": 160048.8
       }
     },
     {
@@ -533,7 +499,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.0172,
+      "bytes_per_frame": 2.7888,
       "tok_per_frame": 0.4632,
       "residual_changepoints": 17,
       "grid_sha256": "9248c9ec74cfa44628bfec4e54fb0c874d290d401a2c811c507ba4417ce509a1",
@@ -543,11 +509,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.7034,
-        "compile_s": 0.7067,
-        "play_s": 0.0176,
-        "grid_fps": 1467.7,
-        "codec_fps": 3451.6
+        "grid_fps": 1499.5,
+        "codec_fps": 3502.8,
+        "play_fps": 142282.0
       }
     },
     {
@@ -561,7 +525,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.7444,
+      "bytes_per_frame": 0.5876,
       "tok_per_frame": 0.2044,
       "residual_changepoints": 2,
       "grid_sha256": "3d524e1f6960a84400ccc83b739c30573f968935a3918452738d6b83c6bebdad",
@@ -571,11 +535,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.6673,
-        "compile_s": 0.7858,
-        "play_s": 0.0095,
-        "grid_fps": 3746.4,
-        "codec_fps": 3143.7
+        "grid_fps": 4083.0,
+        "codec_fps": 3272.0,
+        "play_fps": 246857.4
       }
     },
     {
@@ -589,7 +551,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.696,
+      "bytes_per_frame": 2.668,
       "tok_per_frame": 0.48,
       "residual_changepoints": 6,
       "grid_sha256": "9a0fa339bfc0db2b9d02374224d25e96d901593af0a84c1041b342c8fe76c475",
@@ -599,11 +561,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.8363,
-        "compile_s": 0.8452,
-        "play_s": 0.0238,
-        "grid_fps": 1361.4,
-        "codec_fps": 2876.6
+        "grid_fps": 1490.3,
+        "codec_fps": 2997.8,
+        "play_fps": 143936.3
       }
     },
     {
@@ -617,7 +577,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.8952,
+      "bytes_per_frame": 0.83,
       "tok_per_frame": 0.2192,
       "residual_changepoints": 27,
       "grid_sha256": "a45fb24a29828de2b78b91c4019c0d8c07d39f841bb66120898ffa5d39e4b845",
@@ -627,11 +587,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.7106,
-        "compile_s": 0.7538,
-        "play_s": 0.0115,
-        "grid_fps": 3518.1,
-        "codec_fps": 3266.6
+        "grid_fps": 4029.8,
+        "codec_fps": 3217.1,
+        "play_fps": 219413.3
       }
     },
     {
@@ -645,7 +603,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.7676,
+      "bytes_per_frame": 5.7784,
       "tok_per_frame": 0.6592,
       "residual_changepoints": 4,
       "grid_sha256": "0ba57caa9279c7d99c39e1ae7e3a6ebcbd2034c179a215971caf6dcf9a8c7d42",
@@ -655,11 +613,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 3.9683,
-        "compile_s": 1.5085,
-        "play_s": 0.0227,
-        "grid_fps": 630.0,
-        "codec_fps": 1632.8
+        "grid_fps": 642.1,
+        "codec_fps": 1729.0,
+        "play_fps": 114042.6
       }
     },
     {
@@ -673,7 +629,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 8.7672,
+      "bytes_per_frame": 5.6772,
       "tok_per_frame": 1.9268,
       "residual_changepoints": 2,
       "grid_sha256": "a380f27fa4103ffd1515c2fabfa75a40feb6ebb735983644a5a1a4b85674d8b5",
@@ -683,11 +639,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.0094,
-        "compile_s": 0.742,
-        "play_s": 0.0296,
-        "grid_fps": 2476.8,
-        "codec_fps": 3239.9
+        "grid_fps": 2703.7,
+        "codec_fps": 3191.3,
+        "play_fps": 108576.3
       }
     },
     {
@@ -701,7 +655,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.0892,
+      "bytes_per_frame": 3.0944,
       "tok_per_frame": 0.4708,
       "residual_changepoints": 19,
       "grid_sha256": "1a0a715c9c38d3720f5fe13cad2876d58a41c1c6e6c37eee977a0a20d18c7324",
@@ -711,11 +665,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.7489,
-        "compile_s": 0.7697,
-        "play_s": 0.018,
-        "grid_fps": 1429.5,
-        "codec_fps": 3173.6
+        "grid_fps": 1463.4,
+        "codec_fps": 3439.6,
+        "play_fps": 136788.0
       }
     },
     {
@@ -729,7 +681,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.5056,
+      "bytes_per_frame": 3.0412,
       "tok_per_frame": 0.6884,
       "residual_changepoints": 8,
       "grid_sha256": "81bbeacb87da15be6274a8b2223f405004ba84f934e99adec3d04f0c66ff3dbd",
@@ -739,11 +691,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.8376,
-        "compile_s": 0.9209,
-        "play_s": 0.0194,
-        "grid_fps": 2984.8,
-        "codec_fps": 2658.8
+        "grid_fps": 3346.7,
+        "codec_fps": 3241.3,
+        "play_fps": 128115.7
       }
     },
     {
@@ -757,7 +707,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.076,
+      "bytes_per_frame": 0.9452,
       "tok_per_frame": 0.2604,
       "residual_changepoints": 1,
       "grid_sha256": "137beb35f4fe99189d5f0ae62771d383f7abc780ff09ecb50988d606ce7402de",
@@ -767,11 +717,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.613,
-        "compile_s": 0.8413,
-        "play_s": 0.0103,
-        "grid_fps": 1549.9,
-        "codec_fps": 2935.4
+        "grid_fps": 1621.8,
+        "codec_fps": 3176.9,
+        "play_fps": 247434.0
       }
     },
     {
@@ -785,7 +733,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.5984,
+      "bytes_per_frame": 1.5952,
       "tok_per_frame": 0.1684,
       "residual_changepoints": 8,
       "grid_sha256": "5a533d5c37651428cc67263268422e27e71db9fc1d7d4628248bbbc66c2ce008",
@@ -795,11 +743,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.6635,
-        "compile_s": 0.7747,
-        "play_s": 0.018,
-        "grid_fps": 938.6,
-        "codec_fps": 3153.5
+        "grid_fps": 954.1,
+        "codec_fps": 3419.7,
+        "play_fps": 217854.2
       }
     },
     {
@@ -813,7 +759,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 7.32,
+      "bytes_per_frame": 0.9624,
       "tok_per_frame": 2.3216,
       "residual_changepoints": 19,
       "grid_sha256": "c5ef8de4559529c077ba14718da645ab125e9026c630a4e77894042c570b45ab",
@@ -823,11 +769,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1318,
-        "compile_s": 0.7777,
-        "play_s": 0.0148,
-        "grid_fps": 18970.1,
-        "codec_fps": 3154.3
+        "grid_fps": 18347.4,
+        "codec_fps": 3290.8,
+        "play_fps": 200067.9
       }
     },
     {
@@ -841,7 +785,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.058,
+      "bytes_per_frame": 1.0384,
       "tok_per_frame": 0.1684,
       "residual_changepoints": 2,
       "grid_sha256": "cdf60e16c2f46e615cd08cce17347efb5a8efc7da95a77ba881164f6615be77d",
@@ -851,11 +795,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 2.2193,
-        "compile_s": 0.725,
-        "play_s": 0.0106,
-        "grid_fps": 1126.5,
-        "codec_fps": 3399.0
+        "grid_fps": 1194.6,
+        "codec_fps": 3529.3,
+        "play_fps": 233853.6
       }
     },
     {
@@ -869,7 +811,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.262,
+      "bytes_per_frame": 3.1564,
       "tok_per_frame": 0.4544,
       "residual_changepoints": 8,
       "grid_sha256": "673dac3d82e05f9733888bb5cd6110dadb824b2187b6f24dfc71b52c205ada4c",
@@ -879,11 +821,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.0367,
-        "compile_s": 0.7289,
-        "play_s": 0.0161,
-        "grid_fps": 1227.5,
-        "codec_fps": 3355.9
+        "grid_fps": 1438.4,
+        "codec_fps": 3345.0,
+        "play_fps": 132810.2
       }
     },
     {
@@ -897,7 +837,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.7048,
+      "bytes_per_frame": 3.5976,
       "tok_per_frame": 0.5204,
       "residual_changepoints": 1,
       "grid_sha256": "2746470986556df884baf12bd8779c9d0ff2068b59578a289dfe9cae0d308182",
@@ -907,11 +847,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.8653,
-        "compile_s": 0.7394,
-        "play_s": 0.0202,
-        "grid_fps": 2889.3,
-        "codec_fps": 3291.3
+        "grid_fps": 3029.9,
+        "codec_fps": 3458.6,
+        "play_fps": 121088.3
       }
     },
     {
@@ -925,7 +863,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.544,
+      "bytes_per_frame": 0.4396,
       "tok_per_frame": 0.1468,
       "residual_changepoints": 20,
       "grid_sha256": "144076fe73ead2fb51376208bc8b5c13683c0a60631cb9d919d57135e2f55703",
@@ -935,11 +873,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.0902,
-        "compile_s": 0.7381,
-        "play_s": 0.0091,
-        "grid_fps": 27719.9,
-        "codec_fps": 3345.9
+        "grid_fps": 28871.7,
+        "codec_fps": 3345.3,
+        "play_fps": 274187.7
       }
     },
     {
@@ -953,7 +889,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.258,
+      "bytes_per_frame": 0.6548,
       "tok_per_frame": 0.3584,
       "residual_changepoints": 7,
       "grid_sha256": "8af6cae1054f6db1d9e1a00b5bf9c881bb68b2b578d21b50ffeef0c57fe962b5",
@@ -963,11 +899,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1027,
-        "compile_s": 0.7841,
-        "play_s": 0.0099,
-        "grid_fps": 24334.6,
-        "codec_fps": 3148.3
+        "grid_fps": 24904.8,
+        "codec_fps": 3322.6,
+        "play_fps": 258952.4
       }
     },
     {
@@ -981,7 +915,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.8776,
+      "bytes_per_frame": 0.7812,
       "tok_per_frame": 0.2312,
       "residual_changepoints": 19,
       "grid_sha256": "355474a09f29ce09148e8dbf8ca461f2401005f436db26cf38f1f4c9afc97be8",
@@ -991,11 +925,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.238,
-        "compile_s": 1.5564,
-        "play_s": 0.0228,
-        "grid_fps": 10506.3,
-        "codec_fps": 1583.1
+        "grid_fps": 10433.2,
+        "codec_fps": 1996.2,
+        "play_fps": 223134.5
       }
     },
     {
@@ -1009,7 +941,7 @@
       "area": "DEMOS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.042,
+      "bytes_per_frame": 3.9852,
       "tok_per_frame": 0.4232,
       "residual_changepoints": 2,
       "grid_sha256": "2002ead86c47fe43b96580d45e6e025045e062bdd51449db796f09dfea258f07",
@@ -1019,11 +951,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.8168,
-        "compile_s": 0.7549,
-        "play_s": 0.0162,
-        "grid_fps": 1376.0,
-        "codec_fps": 3242.1
+        "grid_fps": 1433.3,
+        "codec_fps": 3140.4,
+        "play_fps": 148757.4
       }
     },
     {
@@ -1047,11 +977,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 216.6897,
-        "compile_s": 0.7076,
-        "play_s": 0.006,
-        "grid_fps": 11.5,
-        "codec_fps": 3503.4
+        "grid_fps": 11.7,
+        "codec_fps": 3509.9,
+        "play_fps": 402478.0
       }
     },
     {
@@ -1065,7 +993,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.1444,
+      "bytes_per_frame": 0.5788,
       "tok_per_frame": 1.6364,
       "residual_changepoints": 5,
       "grid_sha256": "f3f52a6f7a493ee19db79ac214e934019c39d050554f3d5cec60d712e86bd469",
@@ -1075,11 +1003,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.1838,
-        "compile_s": 0.77,
-        "play_s": 0.0125,
-        "grid_fps": 13603.4,
-        "codec_fps": 3194.9
+        "grid_fps": 15717.4,
+        "codec_fps": 3177.9,
+        "play_fps": 237288.1
       }
     },
     {
@@ -1103,11 +1029,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.8789,
-        "compile_s": 0.7393,
-        "play_s": 0.0059,
-        "grid_fps": 2844.5,
-        "codec_fps": 3354.6
+        "grid_fps": 4034.4,
+        "codec_fps": 3464.0,
+        "play_fps": 415689.2
       }
     },
     {
@@ -1121,7 +1045,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.7736,
+      "bytes_per_frame": 0.7576,
       "tok_per_frame": 0.1788,
       "residual_changepoints": 16,
       "grid_sha256": "9836732acb2922d0a23c854c3862cde6371d1f3121b43f4bc64fbb9b86d56faf",
@@ -1131,11 +1055,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1438,
-        "compile_s": 0.8525,
-        "play_s": 0.0097,
-        "grid_fps": 17389.0,
-        "codec_fps": 2899.3
+        "grid_fps": 25384.6,
+        "codec_fps": 3356.1,
+        "play_fps": 255925.0
       }
     },
     {
@@ -1149,7 +1071,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.2116,
+      "bytes_per_frame": 1.1796,
       "tok_per_frame": 0.3036,
       "residual_changepoints": 15,
       "grid_sha256": "ff794b37b263084ad015d3b618b9f699e835c5f298c01fc806296b08fdf22dd1",
@@ -1159,11 +1081,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.3191,
-        "compile_s": 0.898,
-        "play_s": 0.0137,
-        "grid_fps": 7834.3,
-        "codec_fps": 2741.9
+        "grid_fps": 8426.3,
+        "codec_fps": 3018.5,
+        "play_fps": 181279.7
       }
     },
     {
@@ -1177,7 +1097,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.7516,
+      "bytes_per_frame": 0.7188,
       "tok_per_frame": 0.1852,
       "residual_changepoints": 5,
       "grid_sha256": "ebbb66a98ff8cff75e91bc3d7f985df689042853144975cddca2851ee80c3851",
@@ -1187,11 +1107,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.2694,
-        "compile_s": 0.8525,
-        "play_s": 0.0101,
-        "grid_fps": 9279.3,
-        "codec_fps": 2898.1
+        "grid_fps": 9474.0,
+        "codec_fps": 3153.5,
+        "play_fps": 267275.7
       }
     },
     {
@@ -1205,7 +1123,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.688,
+      "bytes_per_frame": 3.4144,
       "tok_per_frame": 0.498,
       "residual_changepoints": 4,
       "grid_sha256": "00299b83d38eab31b006463d6cc30544ff2917021e4d23aa7338d8d3d92776d7",
@@ -1215,11 +1133,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.8505,
-        "compile_s": 0.7221,
-        "play_s": 0.0216,
-        "grid_fps": 2939.4,
-        "codec_fps": 3361.8
+        "grid_fps": 3185.3,
+        "codec_fps": 3449.4,
+        "play_fps": 137248.2
       }
     },
     {
@@ -1233,7 +1149,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.7628,
+      "bytes_per_frame": 2.6024,
       "tok_per_frame": 0.434,
       "residual_changepoints": 1,
       "grid_sha256": "2783483bce2c377503420d7009d84883f095343f52f2d8b1166afff2bda77980",
@@ -1243,11 +1159,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.4466,
-        "compile_s": 0.7391,
-        "play_s": 0.016,
-        "grid_fps": 1728.2,
-        "codec_fps": 3310.8
+        "grid_fps": 1826.0,
+        "codec_fps": 3442.4,
+        "play_fps": 156780.0
       }
     },
     {
@@ -1261,7 +1175,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.6264,
+      "bytes_per_frame": 1.6272,
       "tok_per_frame": 0.316,
       "residual_changepoints": 2,
       "grid_sha256": "fe96cf81de0c34f995a473989c5e30e0c7dea01104ef45783ba52481a4424bd6",
@@ -1271,11 +1185,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.0841,
-        "compile_s": 0.78,
-        "play_s": 0.0158,
-        "grid_fps": 29712.8,
-        "codec_fps": 3141.6
+        "grid_fps": 29780.5,
+        "codec_fps": 3309.3,
+        "play_fps": 150324.9
       }
     },
     {
@@ -1289,7 +1201,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.9356,
+      "bytes_per_frame": 0.7448,
       "tok_per_frame": 0.2488,
       "residual_changepoints": 13,
       "grid_sha256": "935995ac7822d374cc3c135ee8cc3838144389b31afc09177c986006895dc34a",
@@ -1299,11 +1211,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.6395,
-        "compile_s": 0.7647,
-        "play_s": 0.0112,
-        "grid_fps": 3909.2,
-        "codec_fps": 3221.9
+        "grid_fps": 4315.5,
+        "codec_fps": 3343.4,
+        "play_fps": 204968.1
       }
     },
     {
@@ -1317,7 +1227,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.0416,
+      "bytes_per_frame": 0.9056,
       "tok_per_frame": 0.2768,
       "residual_changepoints": 1,
       "grid_sha256": "b771e96c347355441099824efc1a55cd691142201fb6b4e07257cb71e221b2ca",
@@ -1327,11 +1237,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.4838,
-        "compile_s": 0.8225,
-        "play_s": 0.0145,
-        "grid_fps": 1684.9,
-        "codec_fps": 2986.7
+        "grid_fps": 1813.5,
+        "codec_fps": 2997.0,
+        "play_fps": 218676.6
       }
     },
     {
@@ -1345,7 +1253,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.3072,
+      "bytes_per_frame": 1.142,
       "tok_per_frame": 0.364,
       "residual_changepoints": 4,
       "grid_sha256": "d15f523ba695f09777910271b7267b1555164fec06f100d26caefaedcfdb9d71",
@@ -1355,11 +1263,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.671,
-        "compile_s": 0.8509,
-        "play_s": 0.0118,
-        "grid_fps": 3725.7,
-        "codec_fps": 2898.0
+        "grid_fps": 3812.4,
+        "codec_fps": 2942.4,
+        "play_fps": 204241.5
       }
     },
     {
@@ -1373,7 +1279,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.9012,
+      "bytes_per_frame": 2.7988,
       "tok_per_frame": 0.296,
       "residual_changepoints": 1,
       "grid_sha256": "d6f307843b840f9a71ee4d648f4dae911ee30562bd94ae581bffaba661a17376",
@@ -1383,11 +1289,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.343,
-        "compile_s": 0.7614,
-        "play_s": 0.0143,
-        "grid_fps": 7288.2,
-        "codec_fps": 3223.0
+        "grid_fps": 7517.5,
+        "codec_fps": 3389.4,
+        "play_fps": 161277.2
       }
     },
     {
@@ -1401,7 +1305,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.1412,
+      "bytes_per_frame": 3.0668,
       "tok_per_frame": 0.4872,
       "residual_changepoints": 6,
       "grid_sha256": "34abdb5d8e995350f71222e158a2e287d16f3b523407e17bdbd0b3d76b3bc9d8",
@@ -1411,11 +1315,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.8389,
-        "compile_s": 0.7587,
-        "play_s": 0.0173,
-        "grid_fps": 2980.3,
-        "codec_fps": 3221.7
+        "grid_fps": 3090.7,
+        "codec_fps": 3292.5,
+        "play_fps": 141755.0
       }
     },
     {
@@ -1429,7 +1331,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.088,
+      "bytes_per_frame": 1.028,
       "tok_per_frame": 0.2536,
       "residual_changepoints": 1,
       "grid_sha256": "d4b6f8798c63fd51e65e9317abb077d13dc25cdb5a3ae7e8208b14db88b318c6",
@@ -1439,11 +1341,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.6039,
-        "compile_s": 0.8102,
-        "play_s": 0.0103,
-        "grid_fps": 4140.0,
-        "codec_fps": 3047.0
+        "grid_fps": 4269.4,
+        "codec_fps": 3289.6,
+        "play_fps": 242894.6
       }
     },
     {
@@ -1457,7 +1357,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.1528,
+      "bytes_per_frame": 1.1536,
       "tok_per_frame": 0.2216,
       "residual_changepoints": 1,
       "grid_sha256": "f457a743b7115e0c44060150e7a25bee8e17a0d4059b444d8c111856ea11719d",
@@ -1467,11 +1367,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.0881,
-        "compile_s": 1.1408,
-        "play_s": 0.0139,
-        "grid_fps": 28365.0,
-        "codec_fps": 2165.1
+        "grid_fps": 55685.3,
+        "codec_fps": 3218.4,
+        "play_fps": 177706.7
       }
     },
     {
@@ -1485,7 +1383,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.524,
+      "bytes_per_frame": 5.5344,
       "tok_per_frame": 0.7212,
       "residual_changepoints": 12,
       "grid_sha256": "bf9a2ef17f45f15a60751871d175712630bbadc25331877c695af060985785b3",
@@ -1495,11 +1393,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.8169,
-        "compile_s": 0.8561,
-        "play_s": 0.025,
-        "grid_fps": 3060.4,
-        "codec_fps": 2837.3
+        "grid_fps": 3499.3,
+        "codec_fps": 2966.4,
+        "play_fps": 96234.1
       }
     },
     {
@@ -1513,7 +1409,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.2564,
+      "bytes_per_frame": 1.2424,
       "tok_per_frame": 0.1852,
       "residual_changepoints": 6,
       "grid_sha256": "93d6c1b9599be6828985e679308b578a267cd05ffd4db955ca53b711887425d0",
@@ -1523,11 +1419,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.043,
-        "compile_s": 0.7784,
-        "play_s": 0.0136,
-        "grid_fps": 2397.0,
-        "codec_fps": 3156.8
+        "grid_fps": 2581.1,
+        "codec_fps": 3561.9,
+        "play_fps": 218562.6
       }
     },
     {
@@ -1541,7 +1435,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.1416,
+      "bytes_per_frame": 2.1432,
       "tok_per_frame": 0.3996,
       "residual_changepoints": 1,
       "grid_sha256": "46ee09ede1e51d895c08fb2ab3358b2e55b1e04dafebab42f25336833b820729",
@@ -1551,11 +1445,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1356,
-        "compile_s": 0.8791,
-        "play_s": 0.0189,
-        "grid_fps": 18431.0,
-        "codec_fps": 2783.9
+        "grid_fps": 20298.5,
+        "codec_fps": 2967.5,
+        "play_fps": 123215.5
       }
     },
     {
@@ -1569,7 +1461,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.4248,
+      "bytes_per_frame": 0.1736,
       "tok_per_frame": 0.116,
       "residual_changepoints": 2,
       "grid_sha256": "24571fc58b21dc188d095a33088eeb2c6c6dc17294851dbb06541966b43ac444",
@@ -1579,11 +1471,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.2345,
-        "compile_s": 0.8211,
-        "play_s": 0.0074,
-        "grid_fps": 1118.8,
-        "codec_fps": 3017.8
+        "grid_fps": 1350.9,
+        "codec_fps": 3337.1,
+        "play_fps": 362741.2
       }
     },
     {
@@ -1597,7 +1487,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.5612,
+      "bytes_per_frame": 0.5464,
       "tok_per_frame": 0.12,
       "residual_changepoints": 7,
       "grid_sha256": "74e4e644e8c15f23466f5c3c7abe2642383e41453c7a624f592c45eacf463859",
@@ -1607,11 +1497,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.0698,
-        "compile_s": 0.7512,
-        "play_s": 0.0089,
-        "grid_fps": 35792.5,
-        "codec_fps": 3288.8
+        "grid_fps": 41251.5,
+        "codec_fps": 3345.4,
+        "play_fps": 275745.1
       }
     },
     {
@@ -1625,7 +1513,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.02,
+      "bytes_per_frame": 4.4352,
       "tok_per_frame": 0.6196,
       "residual_changepoints": 8,
       "grid_sha256": "fb181a58b21174500c87fbef114057acbb9640cb4ca3d66a0424aba511390de6",
@@ -1635,11 +1523,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.8141,
-        "compile_s": 0.8048,
-        "play_s": 0.0187,
-        "grid_fps": 1378.1,
-        "codec_fps": 3036.0
+        "grid_fps": 1504.4,
+        "codec_fps": 3557.5,
+        "play_fps": 127364.1
       }
     },
     {
@@ -1653,7 +1539,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.0448,
+      "bytes_per_frame": 2.7232,
       "tok_per_frame": 0.5752,
       "residual_changepoints": 1,
       "grid_sha256": "5f46ec3ca7ad224591c2c6e1ae3c51af3174d245053e3a4d45392c46eb435c6d",
@@ -1663,11 +1549,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.6043,
-        "compile_s": 0.8621,
-        "play_s": 0.019,
-        "grid_fps": 1558.3,
-        "codec_fps": 2837.3
+        "grid_fps": 1676.5,
+        "codec_fps": 3292.2,
+        "play_fps": 138095.9
       }
     },
     {
@@ -1681,7 +1565,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.8268,
+      "bytes_per_frame": 4.7228,
       "tok_per_frame": 0.4956,
       "residual_changepoints": 3,
       "grid_sha256": "0764b389549e5f89eee4dbcac96c03ce2b84bd44d7a12c859eebfb1811b10b89",
@@ -1691,11 +1575,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.694,
-        "compile_s": 0.7292,
-        "play_s": 0.0174,
-        "grid_fps": 1475.8,
-        "codec_fps": 3348.7
+        "grid_fps": 1573.2,
+        "codec_fps": 3480.8,
+        "play_fps": 142210.6
       }
     },
     {
@@ -1709,7 +1591,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.342,
+      "bytes_per_frame": 0.0628,
       "tok_per_frame": 0.1024,
       "residual_changepoints": 1,
       "grid_sha256": "2d30d2b9b8240bc1b726cb49248b3eb0dd670418417eb1d4512a12df28b9a5c6",
@@ -1719,11 +1601,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.0616,
-        "compile_s": 1.3518,
-        "play_s": 0.0059,
-        "grid_fps": 40585.8,
-        "codec_fps": 1841.3
+        "grid_fps": 39326.9,
+        "codec_fps": 2734.6,
+        "play_fps": 428199.9
       }
     },
     {
@@ -1737,7 +1617,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 7.9928,
+      "bytes_per_frame": 4.6676,
       "tok_per_frame": 2.6372,
       "residual_changepoints": 1,
       "grid_sha256": "bd5c1e06a7e746b2189846e1862b81151ea195fec4bb553efb1ef772744ff140",
@@ -1747,11 +1627,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.7321,
-        "compile_s": 0.7575,
-        "play_s": 0.011,
-        "grid_fps": 3414.8,
-        "codec_fps": 3252.7
+        "grid_fps": 1863.4,
+        "codec_fps": 1836.0,
+        "play_fps": 241568.4
       }
     },
     {
@@ -1765,7 +1643,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.1904,
+      "bytes_per_frame": 0.6036,
       "tok_per_frame": 0.6692,
       "residual_changepoints": 7,
       "grid_sha256": "5863ca93c189b4ab079dc4536c27faf1def7bc07ad1ac4870d55f8de3a8be69f",
@@ -1775,11 +1653,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 9.3635,
-        "compile_s": 0.757,
-        "play_s": 0.0098,
-        "grid_fps": 267.0,
-        "codec_fps": 3260.2
+        "grid_fps": 289.6,
+        "codec_fps": 3323.4,
+        "play_fps": 264999.4
       }
     },
     {
@@ -1793,7 +1669,7 @@
       "area": "GAMES",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.1896,
+      "bytes_per_frame": 0.762,
       "tok_per_frame": 0.3512,
       "residual_changepoints": 8,
       "grid_sha256": "cd94a9fe2b1a67bcafa34083c4c0ac2559eed8e6c14b4c0d63a3851b86b97415",
@@ -1803,11 +1679,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.4946,
-        "compile_s": 0.7827,
-        "play_s": 0.0098,
-        "grid_fps": 5054.4,
-        "codec_fps": 3154.5
+        "grid_fps": 6211.2,
+        "codec_fps": 3346.2,
+        "play_fps": 255370.3
       }
     },
     {
@@ -1821,7 +1695,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.8992,
+      "bytes_per_frame": 5.81,
       "tok_per_frame": 1.4476,
       "residual_changepoints": 2176,
       "grid_sha256": "c22b62ab58fc92fcf9cd406f8e92f59f040b13154cf16aebb93f437bb2192bb9",
@@ -1831,11 +1705,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.7057,
-        "compile_s": 0.9857,
-        "play_s": 0.0267,
-        "grid_fps": 1465.7,
-        "codec_fps": 2469.4
+        "grid_fps": 1529.2,
+        "codec_fps": 2835.3,
+        "play_fps": 111107.4
       }
     },
     {
@@ -1849,7 +1721,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.4368,
+      "bytes_per_frame": 2.2076,
       "tok_per_frame": 0.414,
       "residual_changepoints": 2,
       "grid_sha256": "a85d4cb9234add526acedd1adb739ced268ec2687cdfce27f4c5a839a444d5ae",
@@ -1859,11 +1731,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.6414,
-        "compile_s": 0.7216,
-        "play_s": 0.0151,
-        "grid_fps": 1523.1,
-        "codec_fps": 3393.3
+        "grid_fps": 1537.3,
+        "codec_fps": 3519.1,
+        "play_fps": 168159.6
       }
     },
     {
@@ -1877,7 +1747,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.2336,
+      "bytes_per_frame": 2.9716,
       "tok_per_frame": 0.4948,
       "residual_changepoints": 5,
       "grid_sha256": "3dcf827321630a6f68413c7a19b59e6bd59108d968dfca0ba95ae208ca89197a",
@@ -1887,11 +1757,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.6922,
-        "compile_s": 0.7236,
-        "play_s": 0.0157,
-        "grid_fps": 1477.4,
-        "codec_fps": 3381.6
+        "grid_fps": 1670.0,
+        "codec_fps": 3531.4,
+        "play_fps": 154390.8
       }
     },
     {
@@ -1905,7 +1773,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.8012,
+      "bytes_per_frame": 4.5832,
       "tok_per_frame": 0.9744,
       "residual_changepoints": 860,
       "grid_sha256": "05602507036c063adca64543f9d009f5a132d708b0cdc52903990633db080f81",
@@ -1915,11 +1783,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.8186,
-        "compile_s": 0.7638,
-        "play_s": 0.0217,
-        "grid_fps": 1374.7,
-        "codec_fps": 3182.5
+        "grid_fps": 1430.5,
+        "codec_fps": 3276.7,
+        "play_fps": 112214.4
       }
     },
     {
@@ -1933,7 +1799,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 6.1084,
+      "bytes_per_frame": 6.092,
       "tok_per_frame": 0.7348,
       "residual_changepoints": 9,
       "grid_sha256": "5b003ab81bf705eaaf6997274fb7ac2064934d748a0f3897efa1dc9bb9e005b4",
@@ -1943,11 +1809,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.5911,
-        "compile_s": 0.8182,
-        "play_s": 0.0236,
-        "grid_fps": 1571.2,
-        "codec_fps": 2969.9
+        "grid_fps": 1647.8,
+        "codec_fps": 3045.2,
+        "play_fps": 101005.3
       }
     },
     {
@@ -1961,7 +1825,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 10.2752,
+      "bytes_per_frame": 5.5048,
       "tok_per_frame": 2.664,
       "residual_changepoints": 7,
       "grid_sha256": "f715bb456899028e0249a0fd788c27a7702e87c9406ca80cbd99298f815b1d60",
@@ -1971,11 +1835,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.0714,
-        "compile_s": 0.808,
-        "play_s": 0.0253,
-        "grid_fps": 2333.4,
-        "codec_fps": 3000.0
+        "grid_fps": 2625.4,
+        "codec_fps": 3466.5,
+        "play_fps": 125028.4
       }
     },
     {
@@ -1989,7 +1851,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.9252,
+      "bytes_per_frame": 4.906,
       "tok_per_frame": 0.5452,
       "residual_changepoints": 9,
       "grid_sha256": "568a677438a107e29853826ec4531bfb6215250e4991175855c42a862df6e439",
@@ -1999,11 +1861,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9351,
-        "compile_s": 0.8245,
-        "play_s": 0.0261,
-        "grid_fps": 2673.6,
-        "codec_fps": 2939.0
+        "grid_fps": 3004.0,
+        "codec_fps": 3456.9,
+        "play_fps": 108451.7
       }
     },
     {
@@ -2017,7 +1877,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.0084,
+      "bytes_per_frame": 3.0132,
       "tok_per_frame": 0.2484,
       "residual_changepoints": 8,
       "grid_sha256": "aea0242cf0288394bdd009dbbe468ea23153fe31eb460bac677e60cc3f7e02f8",
@@ -2027,11 +1887,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.8415,
-        "compile_s": 0.749,
-        "play_s": 0.0111,
-        "grid_fps": 1357.6,
-        "codec_fps": 3288.9
+        "grid_fps": 1497.2,
+        "codec_fps": 3357.9,
+        "play_fps": 225001.8
       }
     },
     {
@@ -2045,7 +1903,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.5344,
+      "bytes_per_frame": 2.5516,
       "tok_per_frame": 0.3652,
       "residual_changepoints": 44,
       "grid_sha256": "b465eb485ab49635544fac6f8a6f9fba6197810072aee04a57fadfa4aa02e426",
@@ -2055,11 +1913,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.0352,
-        "compile_s": 0.7546,
-        "play_s": 0.0144,
-        "grid_fps": 1228.4,
-        "codec_fps": 3251.2
+        "grid_fps": 1359.8,
+        "codec_fps": 3353.6,
+        "play_fps": 185963.9
       }
     },
     {
@@ -2073,7 +1929,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.8796,
+      "bytes_per_frame": 5.8776,
       "tok_per_frame": 1.062,
       "residual_changepoints": 1574,
       "grid_sha256": "6c91d50f2c2181ac7409e1f73a18301d2f31ca9c60c102fcd3f2fe88b82efe05",
@@ -2083,11 +1939,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.1792,
-        "compile_s": 0.7777,
-        "play_s": 0.0208,
-        "grid_fps": 2120.0,
-        "codec_fps": 3131.1
+        "grid_fps": 2137.8,
+        "codec_fps": 3307.3,
+        "play_fps": 115892.9
       }
     },
     {
@@ -2101,7 +1955,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.5256,
+      "bytes_per_frame": 5.3128,
       "tok_per_frame": 1.2808,
       "residual_changepoints": 1718,
       "grid_sha256": "b2f622e1a7eef0d3d14a789f906332bcc4b9480a2e1c238058e9e3a42387b79b",
@@ -2111,11 +1965,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 2.5147,
-        "compile_s": 0.8522,
-        "play_s": 0.02,
-        "grid_fps": 994.2,
-        "codec_fps": 2866.3
+        "grid_fps": 1020.6,
+        "codec_fps": 3045.2,
+        "play_fps": 129367.6
       }
     },
     {
@@ -2129,7 +1981,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.7428,
+      "bytes_per_frame": 3.5724,
       "tok_per_frame": 1.3108,
       "residual_changepoints": 2450,
       "grid_sha256": "9ba352cb74600c1f7b0f791fcbce5237fe39853b52f0163e8e99eb45d2a4f72f",
@@ -2139,11 +1991,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.8129,
-        "compile_s": 0.7485,
-        "play_s": 0.0477,
-        "grid_fps": 3075.3,
-        "codec_fps": 3139.8
+        "grid_fps": 3644.9,
+        "codec_fps": 3358.4,
+        "play_fps": 165385.3
       }
     },
     {
@@ -2157,7 +2007,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.418,
+      "bytes_per_frame": 0.802,
       "tok_per_frame": 0.626,
       "residual_changepoints": 3,
       "grid_sha256": "83f2951d2207e74ce65700d77b78005e1340455ca77237ad1f9e319c70a47732",
@@ -2167,11 +2017,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.491,
-        "compile_s": 1.0731,
-        "play_s": 0.0086,
-        "grid_fps": 1676.7,
-        "codec_fps": 2311.2
+        "grid_fps": 1745.4,
+        "codec_fps": 3380.8,
+        "play_fps": 308668.0
       }
     },
     {
@@ -2185,7 +2033,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.4428,
+      "bytes_per_frame": 1.3308,
       "tok_per_frame": 0.3008,
       "residual_changepoints": 21,
       "grid_sha256": "a399708b6cb12664f861776afa5a0ea510c962db939a673b81a20bf2e6d49054",
@@ -2195,11 +2043,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.3701,
-        "compile_s": 0.7788,
-        "play_s": 0.0103,
-        "grid_fps": 1824.6,
-        "codec_fps": 3168.3
+        "grid_fps": 1902.8,
+        "codec_fps": 3250.0,
+        "play_fps": 242574.3
       }
     },
     {
@@ -2213,7 +2059,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.9,
+      "bytes_per_frame": 1.9012,
       "tok_per_frame": 0.3272,
       "residual_changepoints": 1,
       "grid_sha256": "da2aff064868a2edce275f3f45130bdafcce2c53aac98b891e17fe22d52b79d4",
@@ -2223,11 +2069,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.1695,
-        "compile_s": 0.7649,
-        "play_s": 0.0178,
-        "grid_fps": 14750.7,
-        "codec_fps": 3194.1
+        "grid_fps": 16046.3,
+        "codec_fps": 3304.2,
+        "play_fps": 143628.7
       }
     },
     {
@@ -2241,7 +2085,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.1944,
+      "bytes_per_frame": 1.076,
       "tok_per_frame": 0.276,
       "residual_changepoints": 7,
       "grid_sha256": "95b5042d881be3bcdf154c49597e7698e157dc157042717af874e359021aec3d",
@@ -2251,11 +2095,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1072,
-        "compile_s": 0.7545,
-        "play_s": 0.0123,
-        "grid_fps": 23313.6,
-        "codec_fps": 3260.3
+        "grid_fps": 23506.8,
+        "codec_fps": 3330.2,
+        "play_fps": 195608.0
       }
     },
     {
@@ -2269,7 +2111,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.2676,
+      "bytes_per_frame": 0.1476,
       "tok_per_frame": 0.0744,
       "residual_changepoints": 1,
       "grid_sha256": "de703d105650a652e0e0d5ca872c070d24627336aaf2d57c7f6f1cbc2c9d07f2",
@@ -2279,11 +2121,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.464,
-        "compile_s": 0.8979,
-        "play_s": 0.006,
-        "grid_fps": 1707.7,
-        "codec_fps": 2765.8
+        "grid_fps": 1518.8,
+        "codec_fps": 2544.1,
+        "play_fps": 414015.1
       }
     },
     {
@@ -2297,7 +2137,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.3528,
+      "bytes_per_frame": 1.318,
       "tok_per_frame": 0.2788,
       "residual_changepoints": 15,
       "grid_sha256": "d8c0660ea122e8133f14ad6c0f60661f879b401f17fdd3b317694822617897a2",
@@ -2307,11 +2147,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.8626,
-        "compile_s": 0.7325,
-        "play_s": 0.0125,
-        "grid_fps": 1342.2,
-        "codec_fps": 3355.8
+        "grid_fps": 1381.5,
+        "codec_fps": 3528.2,
+        "play_fps": 196388.3
       }
     },
     {
@@ -2325,7 +2163,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.958,
+      "bytes_per_frame": 0.9568,
       "tok_per_frame": 0.2632,
       "residual_changepoints": 1,
       "grid_sha256": "7f658513b35fcab62aef0837a7eff763b4205f63cb75c02bbb3ab65f05deb88e",
@@ -2335,11 +2173,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.2487,
-        "compile_s": 0.7807,
-        "play_s": 0.0107,
-        "grid_fps": 10052.0,
-        "codec_fps": 3158.9
+        "grid_fps": 10539.6,
+        "codec_fps": 3112.5,
+        "play_fps": 234864.5
       }
     },
     {
@@ -2353,7 +2189,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 6.7652,
+      "bytes_per_frame": 5.764,
       "tok_per_frame": 1.1264,
       "residual_changepoints": 5,
       "grid_sha256": "92e72106e0d37b81293d24dbc4bef57e5ccd8ffa96ff383be478b4ff7920a7d6",
@@ -2363,11 +2199,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.6729,
-        "compile_s": 0.7141,
-        "play_s": 0.0278,
-        "grid_fps": 1494.4,
-        "codec_fps": 3369.9
+        "grid_fps": 1592.7,
+        "codec_fps": 3335.7,
+        "play_fps": 101501.0
       }
     },
     {
@@ -2381,7 +2215,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 6.5384,
+      "bytes_per_frame": 6.454,
       "tok_per_frame": 0.6096,
       "residual_changepoints": 22,
       "grid_sha256": "5b3a5e1078823239bd802f16ea38c5d825ae7fff1daa8b7442dc0bd2eed95e30",
@@ -2391,11 +2225,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 2.5915,
-        "compile_s": 0.7693,
-        "play_s": 0.0229,
-        "grid_fps": 964.7,
-        "codec_fps": 3155.7
+        "grid_fps": 1041.0,
+        "codec_fps": 3247.7,
+        "play_fps": 94904.1
       }
     },
     {
@@ -2409,7 +2241,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.0936,
+      "bytes_per_frame": 2.746,
       "tok_per_frame": 0.4776,
       "residual_changepoints": 9,
       "grid_sha256": "1047805cc85024906ea6e855029689ebde1f2640af51d482aa061fc87a7421dd",
@@ -2419,11 +2251,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.1462,
-        "compile_s": 0.8311,
-        "play_s": 0.0157,
-        "grid_fps": 1164.9,
-        "codec_fps": 2952.4
+        "grid_fps": 1249.2,
+        "codec_fps": 3359.7,
+        "play_fps": 152250.0
       }
     },
     {
@@ -2437,7 +2267,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.388,
+      "bytes_per_frame": 3.3692,
       "tok_per_frame": 0.5632,
       "residual_changepoints": 847,
       "grid_sha256": "e716927943d06028fa7201002c662c580523deae30741a527ea346a1075c416b",
@@ -2447,11 +2277,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.7105,
-        "compile_s": 0.7557,
-        "play_s": 0.0124,
-        "grid_fps": 1461.6,
-        "codec_fps": 3254.8
+        "grid_fps": 1559.8,
+        "codec_fps": 3626.7,
+        "play_fps": 225224.1
       }
     },
     {
@@ -2465,7 +2293,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.792,
+      "bytes_per_frame": 2.9732,
       "tok_per_frame": 0.9928,
       "residual_changepoints": 10,
       "grid_sha256": "43233cfd8e4296187e636ffb320e489c18000f1edc510a8710fa777ad4dbaec8",
@@ -2475,11 +2303,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9482,
-        "compile_s": 0.7181,
-        "play_s": 0.0171,
-        "grid_fps": 2636.5,
-        "codec_fps": 3400.8
+        "grid_fps": 2600.2,
+        "codec_fps": 3246.9,
+        "play_fps": 150049.5
       }
     },
     {
@@ -2493,7 +2319,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.3488,
+      "bytes_per_frame": 3.9804,
       "tok_per_frame": 0.6096,
       "residual_changepoints": 6,
       "grid_sha256": "cbb5a30c508bb6686652f5dcf834d4bbbaf242cec137b735f103ff25763f5d61",
@@ -2503,11 +2329,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9842,
-        "compile_s": 0.8026,
-        "play_s": 0.0271,
-        "grid_fps": 2540.2,
-        "codec_fps": 3013.1
+        "grid_fps": 2051.8,
+        "codec_fps": 3405.1,
+        "play_fps": 123465.0
       }
     },
     {
@@ -2521,7 +2345,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.606,
+      "bytes_per_frame": 2.5736,
       "tok_per_frame": 0.3632,
       "residual_changepoints": 13,
       "grid_sha256": "78801b61e1cab6e23e43c7d644d139cf89dff28054c8873ffa4d4b3bc4ee55d2",
@@ -2531,11 +2355,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1792,
-        "compile_s": 0.7888,
-        "play_s": 0.0162,
-        "grid_fps": 13951.7,
-        "codec_fps": 3105.7
+        "grid_fps": 15094.5,
+        "codec_fps": 3167.4,
+        "play_fps": 157356.4
       }
     },
     {
@@ -2549,7 +2371,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.2224,
+      "bytes_per_frame": 1.7748,
       "tok_per_frame": 0.4632,
       "residual_changepoints": 10,
       "grid_sha256": "8ed748f54a2485139af16f5f84be38c471770fe78ac6a7c6f79c8de6befb6263",
@@ -2559,11 +2381,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1466,
-        "compile_s": 0.8147,
-        "play_s": 0.0125,
-        "grid_fps": 17048.6,
-        "codec_fps": 3022.0
+        "grid_fps": 23276.8,
+        "codec_fps": 3245.6,
+        "play_fps": 200753.6
       }
     },
     {
@@ -2577,7 +2397,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.348,
+      "bytes_per_frame": 5.3052,
       "tok_per_frame": 0.5284,
       "residual_changepoints": 12,
       "grid_sha256": "a43b76925e3bb3079144a844a5d11f5e7eac2e556119b9f0a25a03a900338d01",
@@ -2587,11 +2407,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.5571,
-        "compile_s": 0.7656,
-        "play_s": 0.0213,
-        "grid_fps": 1605.6,
-        "codec_fps": 3177.3
+        "grid_fps": 1711.3,
+        "codec_fps": 3404.7,
+        "play_fps": 103936.7
       }
     },
     {
@@ -2605,7 +2423,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.4,
+      "bytes_per_frame": 1.1968,
       "tok_per_frame": 0.352,
       "residual_changepoints": 3,
       "grid_sha256": "6589ddb83cb2fd7a43bdf5e42176d3392340865c72264cc37b360f58ac290ed9",
@@ -2615,11 +2433,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.273,
-        "compile_s": 0.7891,
-        "play_s": 0.0135,
-        "grid_fps": 9156.8,
-        "codec_fps": 3115.0
+        "grid_fps": 8491.4,
+        "codec_fps": 3087.6,
+        "play_fps": 156021.8
       }
     },
     {
@@ -2633,7 +2449,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.024,
+      "bytes_per_frame": 2.854,
       "tok_per_frame": 0.3668,
       "residual_changepoints": 9,
       "grid_sha256": "d1ad5c99b98e0cba9c4fd5ba8893d55e2cb099dc2987f48cf1a5f9d657d08aea",
@@ -2643,11 +2459,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.5799,
-        "compile_s": 0.7378,
-        "play_s": 0.0159,
-        "grid_fps": 969.0,
-        "codec_fps": 3317.2
+        "grid_fps": 931.5,
+        "codec_fps": 3506.0,
+        "play_fps": 165586.4
       }
     },
     {
@@ -2661,7 +2475,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.2992,
+      "bytes_per_frame": 0.2128,
       "tok_per_frame": 0.4064,
       "residual_changepoints": 5,
       "grid_sha256": "a2809a353464fae69f8a9a0cbf617baed4f63861613ce8751f17e056494aae52",
@@ -2671,11 +2485,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.2905,
-        "compile_s": 0.8298,
-        "play_s": 0.0081,
-        "grid_fps": 8607.1,
-        "codec_fps": 2983.6
+        "grid_fps": 9625.7,
+        "codec_fps": 3339.6,
+        "play_fps": 324295.2
       }
     },
     {
@@ -2689,7 +2501,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.6484,
+      "bytes_per_frame": 1.1632,
       "tok_per_frame": 0.9216,
       "residual_changepoints": 2,
       "grid_sha256": "142dc165ea233f619c0b280a84398fca9b6231d91361f247d5517961e647196a",
@@ -2699,11 +2511,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.3606,
-        "compile_s": 0.7403,
-        "play_s": 0.0099,
-        "grid_fps": 6933.3,
-        "codec_fps": 3332.3
+        "grid_fps": 7414.1,
+        "codec_fps": 3418.1,
+        "play_fps": 261509.8
       }
     },
     {
@@ -2717,7 +2527,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 6.072,
+      "bytes_per_frame": 5.74,
       "tok_per_frame": 0.9992,
       "residual_changepoints": 506,
       "grid_sha256": "5b94d056bd8fc8ab1c072979688ee2d41f8cc9cb1fe2b19645c72fbf61c5b292",
@@ -2727,11 +2537,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.6556,
-        "compile_s": 0.7638,
-        "play_s": 0.0261,
-        "grid_fps": 1510.0,
-        "codec_fps": 3165.0
+        "grid_fps": 1554.6,
+        "codec_fps": 3457.6,
+        "play_fps": 93977.8
       }
     },
     {
@@ -2745,7 +2553,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.9024,
+      "bytes_per_frame": 3.7232,
       "tok_per_frame": 0.9392,
       "residual_changepoints": 2,
       "grid_sha256": "3687b377d0bc6ef5787d5c4080d76a749e869dd78dd70c0f75dde078599c0f0d",
@@ -2755,11 +2563,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.2267,
-        "compile_s": 0.7598,
-        "play_s": 0.0188,
-        "grid_fps": 2037.9,
-        "codec_fps": 3210.8
+        "grid_fps": 2982.4,
+        "codec_fps": 3336.0,
+        "play_fps": 132642.2
       }
     },
     {
@@ -2773,7 +2579,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 7.1612,
+      "bytes_per_frame": 3.7112,
       "tok_per_frame": 1.5232,
       "residual_changepoints": 2,
       "grid_sha256": "7e58e919387e313258a3d4f9ba971547041c0a7268f286b048848d6b94e9a940",
@@ -2783,11 +2589,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.8376,
-        "compile_s": 0.718,
-        "play_s": 0.0167,
-        "grid_fps": 2984.9,
-        "codec_fps": 3402.8
+        "grid_fps": 3128.2,
+        "codec_fps": 3477.2,
+        "play_fps": 164063.0
       }
     },
     {
@@ -2801,7 +2605,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.7916,
+      "bytes_per_frame": 0.9064,
       "tok_per_frame": 0.5468,
       "residual_changepoints": 1,
       "grid_sha256": "477e6c4ffdfc3c424fd27378d76f48729f12fb47726a2e98f0cc6ecfaa73c686",
@@ -2811,11 +2615,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.52,
-        "compile_s": 0.7761,
-        "play_s": 0.0091,
-        "grid_fps": 4807.4,
-        "codec_fps": 3184.0
+        "grid_fps": 4970.5,
+        "codec_fps": 3279.1,
+        "play_fps": 280001.1
       }
     },
     {
@@ -2829,7 +2631,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.3372,
+      "bytes_per_frame": 0.2512,
       "tok_per_frame": 0.0916,
       "residual_changepoints": 1,
       "grid_sha256": "b9d8981ec45aebec0610808b4ed27721114adf0863d4f5de34bd57e19d8ac409",
@@ -2839,11 +2641,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.4402,
-        "compile_s": 0.853,
-        "play_s": 0.0074,
-        "grid_fps": 5679.2,
-        "codec_fps": 2905.4
+        "grid_fps": 6568.6,
+        "codec_fps": 3239.4,
+        "play_fps": 338435.9
       }
     },
     {
@@ -2857,7 +2657,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.4336,
+      "bytes_per_frame": 3.3372,
       "tok_per_frame": 0.2744,
       "residual_changepoints": 2,
       "grid_sha256": "98fb41381672f7dfb6df111eaf4d76257aff35a1fac028a9137031049f737ef3",
@@ -2867,11 +2667,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 2.355,
-        "compile_s": 0.7297,
-        "play_s": 0.014,
-        "grid_fps": 1061.6,
-        "codec_fps": 3361.4
+        "grid_fps": 1219.0,
+        "codec_fps": 3427.0,
+        "play_fps": 176465.6
       }
     },
     {
@@ -2885,7 +2683,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.8824,
+      "bytes_per_frame": 2.2788,
       "tok_per_frame": 0.9672,
       "residual_changepoints": 4,
       "grid_sha256": "d357c9307de4aabdabdc4977697e243c75387a065a043618c9af2d7330fbf66d",
@@ -2895,11 +2693,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 2.2597,
-        "compile_s": 0.7683,
-        "play_s": 0.0163,
-        "grid_fps": 1106.3,
-        "codec_fps": 3186.3
+        "grid_fps": 1196.9,
+        "codec_fps": 3365.0,
+        "play_fps": 156368.5
       }
     },
     {
@@ -2913,7 +2709,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.3284,
+      "bytes_per_frame": 5.3308,
       "tok_per_frame": 0.5464,
       "residual_changepoints": 2,
       "grid_sha256": "313d6188b57f04f08a2c5e79a24749b1071294642a9e5ca5806380f63f434087",
@@ -2923,11 +2719,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9944,
-        "compile_s": 0.7574,
-        "play_s": 0.0216,
-        "grid_fps": 2514.0,
-        "codec_fps": 3208.9
+        "grid_fps": 2675.4,
+        "codec_fps": 3374.6,
+        "play_fps": 113581.8
       }
     },
     {
@@ -2941,7 +2735,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.8936,
+      "bytes_per_frame": 0.836,
       "tok_per_frame": 0.2376,
       "residual_changepoints": 1,
       "grid_sha256": "2e5ebae7f5054ade9019d3179a84f14a74f4910c1073f6c1efb53a9d7bcbf6ef",
@@ -2951,11 +2745,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.2875,
-        "compile_s": 0.7645,
-        "play_s": 0.0111,
-        "grid_fps": 8694.3,
-        "codec_fps": 3223.2
+        "grid_fps": 11969.2,
+        "codec_fps": 3304.5,
+        "play_fps": 231116.6
       }
     },
     {
@@ -2969,7 +2761,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.7728,
+      "bytes_per_frame": 0.6808,
       "tok_per_frame": 0.1964,
       "residual_changepoints": 1,
       "grid_sha256": "c57868587524179aa9ba463ed9eca643e96755e3bf01c21d19550d7d302b89ee",
@@ -2979,11 +2771,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.2078,
-        "compile_s": 0.7784,
-        "play_s": 0.0101,
-        "grid_fps": 12033.4,
-        "codec_fps": 3170.8
+        "grid_fps": 11772.9,
+        "codec_fps": 3282.5,
+        "play_fps": 248177.8
       }
     },
     {
@@ -2997,7 +2787,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.0752,
+      "bytes_per_frame": 2.9076,
       "tok_per_frame": 0.4992,
       "residual_changepoints": 7,
       "grid_sha256": "0b32c438bc184fc9a3e7cd6b2ef98b407c0cdb349885c6cc6e0657b39d9432e8",
@@ -3007,11 +2797,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.8701,
-        "compile_s": 0.7194,
-        "play_s": 0.0194,
-        "grid_fps": 2873.1,
-        "codec_fps": 3383.9
+        "grid_fps": 2873.7,
+        "codec_fps": 3410.1,
+        "play_fps": 127043.1
       }
     },
     {
@@ -3025,7 +2813,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.2816,
+      "bytes_per_frame": 3.288,
       "tok_per_frame": 0.4772,
       "residual_changepoints": 25,
       "grid_sha256": "cd44b844946dd37bb7d9a64ff62c29f87442ccf3b482b90dcae03df79869dc51",
@@ -3035,11 +2823,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.7886,
-        "compile_s": 0.7423,
-        "play_s": 0.0177,
-        "grid_fps": 3170.0,
-        "codec_fps": 3289.5
+        "grid_fps": 3177.2,
+        "codec_fps": 3291.2,
+        "play_fps": 137192.5
       }
     },
     {
@@ -3053,7 +2839,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.8076,
+      "bytes_per_frame": 0.226,
       "tok_per_frame": 0.2528,
       "residual_changepoints": 7,
       "grid_sha256": "8f635c54da1e69ef629e983d583c98414fd064a0d823ce415701c40a35f94cf6",
@@ -3063,11 +2849,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.6644,
-        "compile_s": 0.8371,
-        "play_s": 0.0165,
-        "grid_fps": 3762.7,
-        "codec_fps": 2928.7
+        "grid_fps": 3913.4,
+        "codec_fps": 3357.1,
+        "play_fps": 325099.5
       }
     },
     {
@@ -3081,7 +2865,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.9872,
+      "bytes_per_frame": 2.5252,
       "tok_per_frame": 0.4936,
       "residual_changepoints": 8,
       "grid_sha256": "dc532bbb9837e933e5401f4c12b530dc04a9d0dacdf28a9fc32618d29a8f5bf6",
@@ -3091,11 +2875,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.9958,
-        "compile_s": 0.7229,
-        "play_s": 0.0168,
-        "grid_fps": 2510.4,
-        "codec_fps": 3379.9
+        "grid_fps": 3112.9,
+        "codec_fps": 3420.4,
+        "play_fps": 147890.9
       }
     },
     {
@@ -3109,7 +2891,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.0532,
+      "bytes_per_frame": 1.5336,
       "tok_per_frame": 0.4432,
       "residual_changepoints": 2,
       "grid_sha256": "3ec4c055b6a6bb238ad8c91e884d6edb9beb9f3f0e56798a5af0307d5710fb32",
@@ -3119,11 +2901,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.1838,
-        "compile_s": 0.7343,
-        "play_s": 0.0147,
-        "grid_fps": 2111.8,
-        "codec_fps": 3337.6
+        "grid_fps": 2176.7,
+        "codec_fps": 3447.8,
+        "play_fps": 167584.5
       }
     },
     {
@@ -3137,7 +2917,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.2516,
+      "bytes_per_frame": 2.0624,
       "tok_per_frame": 0.4804,
       "residual_changepoints": 43,
       "grid_sha256": "af4ff79b5c5d6793793e5b9be2b5b066ce6b88788d61a74c96bbc9d77a370358",
@@ -3147,11 +2927,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 0.1124,
-        "compile_s": 0.7637,
-        "play_s": 0.0194,
-        "grid_fps": 22236.3,
-        "codec_fps": 3192.5
+        "grid_fps": 22506.8,
+        "codec_fps": 3318.7,
+        "play_fps": 122761.1
       }
     },
     {
@@ -3165,7 +2943,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.2564,
+      "bytes_per_frame": 5.0296,
       "tok_per_frame": 0.782,
       "residual_changepoints": 9,
       "grid_sha256": "a07372e4b453f5a51b1972feb8dff2fda7e0513437339a5baed44d3222c1c9d2",
@@ -3175,11 +2953,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.2067,
-        "compile_s": 0.768,
-        "play_s": 0.0255,
-        "grid_fps": 2071.8,
-        "codec_fps": 3150.6
+        "grid_fps": 2322.2,
+        "codec_fps": 3302.0,
+        "play_fps": 98380.2
       }
     },
     {
@@ -3193,7 +2969,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.888,
+      "bytes_per_frame": 0.6724,
       "tok_per_frame": 0.2404,
       "residual_changepoints": 19,
       "grid_sha256": "253f602c678e3c299fa0be7c3d311de7bbd2e388207b4587d0f669e7cb00d9e2",
@@ -3203,11 +2979,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.2169,
-        "compile_s": 0.7611,
-        "play_s": 0.0109,
-        "grid_fps": 11527.4,
-        "codec_fps": 3238.4
+        "grid_fps": 12413.2,
+        "codec_fps": 3315.4,
+        "play_fps": 246127.3
       }
     },
     {
@@ -3221,7 +2995,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 5.0376,
+      "bytes_per_frame": 4.942,
       "tok_per_frame": 1.3844,
       "residual_changepoints": 2277,
       "grid_sha256": "092b9ef920963c91f99d107b1d6f736e91684c9eaf7603ca3fd31dd56bb832d5",
@@ -3231,11 +3005,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.9235,
-        "compile_s": 0.8367,
-        "play_s": 0.0248,
-        "grid_fps": 1299.7,
-        "codec_fps": 2901.8
+        "grid_fps": 1335.8,
+        "codec_fps": 3016.5,
+        "play_fps": 125918.8
       }
     },
     {
@@ -3249,7 +3021,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 0.7508,
+      "bytes_per_frame": 0.7384,
       "tok_per_frame": 0.1636,
       "residual_changepoints": 7,
       "grid_sha256": "a17f1e168b3001c4567c667a8faa7016f1f5065befd7e3ad004d5894d4c57b29",
@@ -3259,11 +3031,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.4853,
-        "compile_s": 0.7505,
-        "play_s": 0.0105,
-        "grid_fps": 5151.9,
-        "codec_fps": 3284.9
+        "grid_fps": 5288.4,
+        "codec_fps": 3305.9,
+        "play_fps": 234193.1
       }
     },
     {
@@ -3277,7 +3047,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.6176,
+      "bytes_per_frame": 2.6056,
       "tok_per_frame": 0.386,
       "residual_changepoints": 7,
       "grid_sha256": "6a69d74231e278e810f526f66f18a879e94e9667461f6b2f3b1fae9fe8e53732",
@@ -3287,11 +3057,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.8939,
-        "compile_s": 0.7257,
-        "play_s": 0.0171,
-        "grid_fps": 2796.6,
-        "codec_fps": 3365.9
+        "grid_fps": 2732.1,
+        "codec_fps": 3427.0,
+        "play_fps": 138400.3
       }
     },
     {
@@ -3305,7 +3073,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.6016,
+      "bytes_per_frame": 1.4104,
       "tok_per_frame": 0.2288,
       "residual_changepoints": 10,
       "grid_sha256": "7272639e71cbef71dd266c6220981660ea7a10fc2034ef2757829d929941d756",
@@ -3315,11 +3083,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.563,
-        "compile_s": 0.7473,
-        "play_s": 0.0105,
-        "grid_fps": 1599.5,
-        "codec_fps": 3298.8
+        "grid_fps": 1762.1,
+        "codec_fps": 3609.9,
+        "play_fps": 235360.0
       }
     },
     {
@@ -3333,7 +3099,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.9476,
+      "bytes_per_frame": 2.9532,
       "tok_per_frame": 0.3276,
       "residual_changepoints": 7,
       "grid_sha256": "b21f00205c5b214272c3ac7583f4e13c9836a226fd4d0c9a4a2ebeedd198043d",
@@ -3343,11 +3109,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.7063,
-        "compile_s": 0.7547,
-        "play_s": 0.016,
-        "grid_fps": 3539.4,
-        "codec_fps": 3243.6
+        "grid_fps": 3982.2,
+        "codec_fps": 3295.1,
+        "play_fps": 151837.7
       }
     },
     {
@@ -3361,7 +3125,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.7984,
+      "bytes_per_frame": 4.6884,
       "tok_per_frame": 0.6292,
       "residual_changepoints": 9,
       "grid_sha256": "113ef3311369c3fde97b34b5eb97b2aa0aabdbe54818b15b7928826720afc3df",
@@ -3371,11 +3135,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.4713,
-        "compile_s": 0.8046,
-        "play_s": 0.02,
-        "grid_fps": 1699.2,
-        "codec_fps": 3031.8
+        "grid_fps": 1765.2,
+        "codec_fps": 3064.4,
+        "play_fps": 110567.3
       }
     },
     {
@@ -3389,7 +3151,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.4768,
+      "bytes_per_frame": 0.5516,
       "tok_per_frame": 0.448,
       "residual_changepoints": 16,
       "grid_sha256": "dd6848f2a5095ed3cd3b7e6b004f42f46755c9cf96206b45a9bff3a6513892d2",
@@ -3399,11 +3161,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 0.1062,
-        "compile_s": 0.7681,
-        "play_s": 0.0093,
-        "grid_fps": 23549.3,
-        "codec_fps": 3215.5
+        "grid_fps": 24238.9,
+        "codec_fps": 3353.1,
+        "play_fps": 277173.7
       }
     },
     {
@@ -3417,7 +3177,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.4476,
+      "bytes_per_frame": 3.294,
       "tok_per_frame": 0.4064,
       "residual_changepoints": 5,
       "grid_sha256": "6d562ea16375b6919d4211725dbce2bfcc26665c3665209833d29ebb925480d6",
@@ -3427,11 +3187,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.7388,
-        "compile_s": 0.7094,
-        "play_s": 0.0159,
-        "grid_fps": 912.8,
-        "codec_fps": 3447.0
+        "grid_fps": 940.1,
+        "codec_fps": 3566.0,
+        "play_fps": 153269.2
       }
     },
     {
@@ -3445,7 +3203,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.1136,
+      "bytes_per_frame": 4.0744,
       "tok_per_frame": 0.4612,
       "residual_changepoints": 14,
       "grid_sha256": "1f661a9d9d28f659314e040127ddd882b726827887705aad240b2a0afa39eb60",
@@ -3455,11 +3213,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.2729,
-        "compile_s": 0.738,
-        "play_s": 0.0179,
-        "grid_fps": 1964.1,
-        "codec_fps": 3307.2
+        "grid_fps": 2037.0,
+        "codec_fps": 3258.4,
+        "play_fps": 134372.5
       }
     },
     {
@@ -3473,7 +3229,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 4.0472,
+      "bytes_per_frame": 2.7316,
       "tok_per_frame": 0.7892,
       "residual_changepoints": 2,
       "grid_sha256": "128221925f11ea1a1de418e12323ac5f84812bd6d81fc68fdaa3178228d7f373",
@@ -3483,11 +3239,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.0294,
-        "compile_s": 0.7125,
-        "play_s": 0.0142,
-        "grid_fps": 2428.7,
-        "codec_fps": 3440.1
+        "grid_fps": 2569.5,
+        "codec_fps": 3488.1,
+        "play_fps": 175690.9
       }
     },
     {
@@ -3501,7 +3255,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 2.2064,
+      "bytes_per_frame": 2.2108,
       "tok_per_frame": 0.324,
       "residual_changepoints": 20,
       "grid_sha256": "6c6a183216d7543660b35a2d145f4ca6ce845fa00c68a173438b2aef5a7e2ea8",
@@ -3511,11 +3265,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.4136,
-        "compile_s": 0.7257,
-        "play_s": 0.0157,
-        "grid_fps": 1768.5,
-        "codec_fps": 3372.1
+        "grid_fps": 1965.9,
+        "codec_fps": 3524.7,
+        "play_fps": 161695.0
       }
     },
     {
@@ -3529,7 +3281,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.9128,
+      "bytes_per_frame": 1.9188,
       "tok_per_frame": 0.2888,
       "residual_changepoints": 15,
       "grid_sha256": "b6136a9eecf4bfda88573643880adfd1dae8b1825af66890748424db4b9bf966",
@@ -3539,11 +3291,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.045,
-        "compile_s": 0.8212,
-        "play_s": 0.0133,
-        "grid_fps": 2392.4,
-        "codec_fps": 2995.6
+        "grid_fps": 3133.7,
+        "codec_fps": 3287.4,
+        "play_fps": 192706.9
       }
     },
     {
@@ -3557,7 +3307,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 3.8272,
+      "bytes_per_frame": 3.7688,
       "tok_per_frame": 0.3932,
       "residual_changepoints": 7,
       "grid_sha256": "f8aed3856252343ec259e9fe1485edd9237adfa3ce0edf9dcf7894b89d07cef4",
@@ -3567,11 +3317,9 @@
       "oracle_ok": false,
       "error": "",
       "timings": {
-        "grid_s": 1.4892,
-        "compile_s": 0.9544,
-        "play_s": 0.0309,
-        "grid_fps": 1678.7,
-        "codec_fps": 2537.5
+        "grid_fps": 1554.8,
+        "codec_fps": 2573.5,
+        "play_fps": 150428.4
       }
     },
     {
@@ -3585,7 +3333,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.8692,
+      "bytes_per_frame": 1.838,
       "tok_per_frame": 0.1836,
       "residual_changepoints": 9,
       "grid_sha256": "62e5586b719f0d93c1b2a6f43a6b60f85e714d531b3cb7fdef3b0a5d019eb756",
@@ -3595,11 +3343,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 2.4854,
-        "compile_s": 0.8011,
-        "play_s": 0.0111,
-        "grid_fps": 1005.9,
-        "codec_fps": 3078.1
+        "grid_fps": 1075.6,
+        "codec_fps": 3444.8,
+        "play_fps": 218380.5
       }
     },
     {
@@ -3613,7 +3359,7 @@
       "area": "MUSICIANS",
       "frames": 2500,
       "lossless": true,
-      "bytes_per_frame": 1.806,
+      "bytes_per_frame": 1.6428,
       "tok_per_frame": 0.33,
       "residual_changepoints": 17,
       "grid_sha256": "d836a50895d0cfb0e105b4e645d94e006e78e49281df7cc79284f8533b3da84e",
@@ -3623,11 +3369,9 @@
       "oracle_ok": true,
       "error": "",
       "timings": {
-        "grid_s": 1.022,
-        "compile_s": 0.6921,
-        "play_s": 0.0143,
-        "grid_fps": 2446.2,
-        "codec_fps": 3539.1
+        "grid_fps": 2657.5,
+        "codec_fps": 3626.9,
+        "play_fps": 173295.4
       }
     }
   ]

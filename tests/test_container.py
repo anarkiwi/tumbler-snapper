@@ -50,6 +50,19 @@ def test_structured_grid_roundtrip_and_compact():
     assert len(blob) < grid.size  # smaller than the raw 25-byte-per-frame grid
 
 
+def test_long_held_note_is_run_length_compact():
+    # One voice holds a gated note (constant CTRL/AD/SR) for many frames: the
+    # instrument/release rows must run-length code, not store one row per frame.
+    grid = np.zeros((1000, sidreg.NREGS), np.uint8)
+    grid[1:, sidreg.CTRL] = 0x41  # gate rises at frame 1, then a long constant hold
+    grid[:, sidreg.AD] = 0x0A
+    grid[:, sidreg.SR] = 0xF0
+    grid[:, sidreg.MODE_VOL] = 0x0F
+    blob = container.compile(grid)
+    assert np.array_equal(container.play(blob), grid)
+    assert len(blob) < 200  # a 999-frame hold codes to a handful of runs, not 999 rows
+
+
 def test_rejects_bad_magic():
     with pytest.raises(ValueError):
         container.decode(b"XXXX\x01\x00")

@@ -33,9 +33,9 @@ prints baseline-vs-model tokens/frame plus a bit-exactness check.
 Bit-exact codec at 0.25–0.88 tokens/frame on the sample tunes: bounded-accumulator
 model (pulse width, filter cutoff, oscillator frequency), instrument/wavetable
 induction (control + ADSR) with pattern-factored note events, and a categorical
-filter-mode track (`$D417`/`$D418`). Serialized to a bit-packed `.tsnp` container
-with a reference player that replays the exact register grid (2.0–6.4
-bytes/frame). On
+filter-mode track (`$D417`/`$D418`). Serialized to a run-length-coded bit-packed
+`.tsnp` container with a reference player that replays the exact register grid
+(0.06–6.5 bytes/frame across the corpus, mean 2.6). On
 top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
 tempo/pattern/orderlist structure (`structure`), a single reviewable text
 decompilation (`dump`), and audio playback (`render`, via reSIDfp). Reads real
