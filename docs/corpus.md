@@ -14,7 +14,7 @@ skipping cleanly when it is absent.
 restricts to single-chip PSIDs with a real play address (the front end steps
 `play` directly), and draws a stratified round-robin across
 `(area, format, chip, clock, multi-song)` buckets with a per-composer cap. The
-committed corpus is **128 tunes / 109 composers** spanning MUSICIANS, GAMES and
+committed corpus is **1024 tunes / 712 composers** spanning MUSICIANS, GAMES and
 DEMOS, both SID models, and PAL/NTSC/unspecified clocks. Selection is
 deterministic (a BLAKE2 hash of the relpath breaks ties).
 
@@ -28,7 +28,7 @@ Per tune, independent of any oracle:
 * **losslessness** -- `compile(grid)` -> `play` reconstructs the register grid
   bit-exactly. This is universal (the residual makes it hold for any grid), so a
   failure anywhere is a real codec bug the single-tune test could not surface.
-  **All 128 tunes are lossless.**
+  **All 1024 tunes are lossless.**
 * **front-end regression** -- `grid_from_sid` reproduces the exact grid the
   manifest was measured from (SHA-256), with no Docker needed.
 * **IR efficiency** -- container bytes/frame and model+residual tokens/frame do
@@ -48,9 +48,9 @@ verified only on Grid Runner. Across the diverse corpus:
 
 | oracle status | tunes |
 |---|---|
-| byte-exact (full window) | **66 / 128** |
-| partial (diverges mid-window) | 29 |
-| diverges at frame 0 | 33 |
+| byte-exact (full window) | **567 / 1024** |
+| partial (diverges mid-window) | 212 |
+| diverges at frame 0 | 245 |
 
 Two things the single tune hid:
 
@@ -58,8 +58,8 @@ Two things the single tune hid:
    but start their trace at a different play-call phase -- 0 for Grid Runner, but
    +1/+2/+3 (and once -1) for others. The oracle test aligns on the recorded
    constant offset.
-2. **The gap is NTSC / multispeed cadence.** PAL tunes match 38:16; NTSC tunes
-   only 10:27. The front end runs one `play` per frame with no PAL/NTSC or
+2. **The gap is NTSC / multispeed cadence.** PAL tunes match 303:163; NTSC tunes
+   only 136:196. The front end runs one `play` per frame with no PAL/NTSC or
    multispeed cadence model, so any tune whose real cadence differs drifts out of
    alignment. This is the roadmap's pending "multispeed cadence" item, now
    quantified.
@@ -126,7 +126,7 @@ recovery is *stable* (not overfit) and the clock is recovered as a byproduct.
 ## Regenerating
 
 ```bash
-python tests/corpus/build_manifest.py  --hvsc /scratch/hvsc/C64Music --count 128
+python tests/corpus/build_manifest.py  --hvsc /scratch/hvsc/C64Music --count 1024
 python tests/corpus/build_trackers.py                                          # 8 composers
 TS_HVSC=/scratch/hvsc/C64Music pytest tests/test_corpus.py tests/test_trackers.py
 TS_HVSC=/scratch/hvsc/C64Music pytest -m oracle tests/test_corpus.py           # needs Docker

@@ -337,6 +337,10 @@ def main(argv=None) -> int:
     records.sort(key=lambda r: rank[r["relpath"]])
     final = [r for r in records if r["lossless"]][: args.count]
     final.sort(key=lambda r: r["relpath"])
+    for rec in final:  # drop run-to-run perf noise / empty errors from the committed fixture
+        rec.pop("timings", None)
+        if not rec.get("error"):
+            rec.pop("error", None)
 
     manifest = {
         "hvsc_root": "C64Music",

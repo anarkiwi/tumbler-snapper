@@ -41,9 +41,9 @@ tempo/pattern/orderlist structure (`structure`), a single reviewable text
 decompilation (`dump`), and audio playback (`render`, via reSIDfp). Reads real
 `.sid` tunes directly through deity-informant's 6510 VM.
 
-Validated on a diverse 128-tune HVSC corpus (109 composers): the codec is
-**lossless on all 128**, and the VM front end is byte-exact to the sidplayfp
-oracle (`pysidtracker`'s sidtrace) on 66 of them (at a per-tune frame phase) —
+Validated on a diverse 1024-tune HVSC corpus (712 composers): the codec is
+**lossless on all 1024**, and the VM front end is byte-exact to the sidplayfp
+oracle (`pysidtracker`'s sidtrace) on 567 of them (at a per-tune frame phase) —
 the rest diverge on NTSC / multispeed cadence, not chip emulation. See
 [docs/corpus.md](docs/corpus.md) for the corpus, the IR-convergence review
 (a missing arpeggio/vibrato *generator* and *detune* abstraction), and the
