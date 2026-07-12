@@ -34,6 +34,10 @@ include = ["tumbler_snapper*"]
 [tool.black]
 line-length = 100
 
+[tool.pylint.main]
+# Optional oracle / SID front-end deps, absent in the core (numpy-only) install.
+ignored-modules = ["pygoattracker", "pydefmon", "pysidtracker", "deity_informant"]
+
 [tool.pylint.format]
 max-line-length = 100
 
