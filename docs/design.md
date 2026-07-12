@@ -114,11 +114,23 @@ folded into the codec's token count. Two integrations were tried and measured:
   a *numeric* (accumulator) signal that does not fold into *categorical*
   equality dedup.
 
-So the correct unification is not a categorical channel but an accurate per-frame
-base-note track plus a deduplicated *numeric* pitch-layer pattern per instrument
-(vibrato as a shared accumulator, referenced by note-ons). That is a melody-
-recovery improvement in its own right; until it lands, frequency stays an
-accumulator column and the token results above are unchanged.
+Further attempts settle the question. A per-note (constant) base pitch removes the
+silence artifact but leaves attack transients (the 1-2 hard-restart / previous-note
+frames), which are context-dependent and do not dedup. Deduplicating the *numeric*
+pitch layer per instrument does not beat the frequency accumulators either, nor
+does the analogous per-note pulse-width pattern dedup (current pw accumulators 216
+vs 290 for consultant): every note needs a reference token (one per note), and the
+accumulator already codes each note's trajectory in ~1.5 segments, tighter than a
+reference plus a shared pool.
+
+**Conclusion (measured):** the bounded-accumulator model is at the efficient
+frontier for the numeric register trajectories -- frequency, pulse width, cutoff.
+Note-tied deduplication cannot beat it because per-note reference overhead exceeds
+the pattern-sharing gain. The melody and song-structure layers are genuine musical
+*recovery* (the tracker transcription the decompiler exists to produce), not a
+further token reduction. The token results above (0.27-0.96) are the model's
+frontier; the remaining work is serialization (container + reference player), not
+more compression.
 
 ## Song structure (`song.py`)
 

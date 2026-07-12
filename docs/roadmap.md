@@ -21,10 +21,13 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    and dedups for held voices but regresses on busy voices (portamento/arpeggio
    give huge `pitch_delta`, so no fragment dedup: 0.27 -> 0.71). The blocker is
    base-note-track accuracy plus the fact that pitch deviation is a *numeric*
-   signal, not categorical. **Corrected next step:** an accurate per-frame
-   base-note track (per-note pitch from onset context, not mode-over-segments)
-   plus a deduplicated numeric pitch-layer pattern per instrument (vibrato as a
-   shared accumulator referenced by note-ons).
+   signal, not categorical. Follow-up measurements (per-note base pitch; numeric
+   pitch-layer dedup; per-note pulse-width dedup) all fail the same way: a note
+   reference costs one token per note, and the accumulator already codes each
+   note's trajectory more tightly. **Settled:** the accumulator model is the
+   efficient frontier for the numeric columns; melody and structure are musical
+   recovery, not token reductions. The remaining work is serialization, not more
+   compression.
 
 4. **Done — periodic-loop instrument bodies (`notes.py`).** Generalized the
    held body from a period-1 constant to a periodic loop of any period, so
