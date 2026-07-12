@@ -14,6 +14,11 @@ NREGS = 25  # $D400..$D418
 NVOICES = 3
 VOICE_STRIDE = 7
 
+# Video-standard SID clock rates (Hz) and CPU cycles per replay frame.
+PAL_CLOCK, PAL_FRAME_CYCLES = 985248.0, 19656  # 312 rasterlines x 63 cycles
+NTSC_CLOCK, NTSC_FRAME_CYCLES = 1022727.0, 17095  # 263 x 65
+MODEL_6581, MODEL_8580 = "6581", "8580"
+
 # Per-voice register offsets (add VOICE_STRIDE * voice).
 FREQ_LO, FREQ_HI, PW_LO, PW_HI, CTRL, AD, SR = range(7)
 # Global registers.

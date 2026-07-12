@@ -207,12 +207,24 @@ register grid from the IR (`container.compile` -> `container.play`) and feeds it
 reSIDfp (`pyresidfp`) one frame at a time: write all 25 registers, clock the chip
 for one PAL frame (`19656` cycles), collect samples. reSIDfp's `WritableRegister`
 values are `0..24` in `$D400..` order, so a grid column index maps straight to a
-register. The grid is `sidreg.latch`-normalised first: reSIDfp honours the unused
-upper nibble of the pulse-width-high registers, so an un-latched raw byte
-(e.g. a `$88` store the chip would treat as `$08`) renders the wrong pulse width.
-The concatenated mono 16-bit PCM is written as a WAV (Grid Runner: 50s at
-44.1kHz). Because it renders from the IR, not the captured grid, it also audits
-the whole codec end to end.
+register. Two chip-accuracy details matter for the audio to match sidplayfp:
+
+* **Chip model / clock.** reSIDfp defaults to the 6581; an 8580 tune rendered on
+  the 6581 model is audibly wrong (its filter shape and combined-waveform mixing
+  differ). `capture.sid_render_params` reads the `.sid` header's flags word for the
+  SID model (6581/8580) and video standard (PAL/NTSC clock + cycles-per-frame), and
+  the render uses them. On Grid Runner (an 8580 tune) this is the difference
+  between a −0.18 and a 0.99 waveform correlation to the sidplayfp WAV.
+* **PW-hi latch.** The grid is `sidreg.latch`-normalised first: reSIDfp honours the
+  unused upper nibble of the pulse-width-high registers, so an un-latched raw byte
+  (e.g. a `$88` store the chip treats as `$08`) renders the wrong pulse width.
+
+The concatenated mono 16-bit PCM is written as a WAV (Grid Runner: the whole 5:13
+tune at 44.1kHz). Validated against an actual `sidplayfp -w` render: ~0.99
+correlation on aligned windows, ~0.88 mean across the full tune (the residual is a
+sub-0.3% cumulative timing drift from per-frame vs cycle-exact register writes,
+not a timbre difference). Because it renders from the IR, not the captured grid, it
+also audits the whole codec end to end.
 
 ## Next stages
 

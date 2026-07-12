@@ -79,5 +79,10 @@ Ordered by payoff against the residual measured in [design.md](design.md).
 9. **Done — audio render (`audio.py`).** `tumbler-snapper render` reconstructs the
    exact register grid from the IR (compile -> container -> play) and feeds it to
    reSIDfp (`pyresidfp`) one frame at a time -- writing all 25 registers, clocking
-   one PAL frame, collecting samples -- emitting a mono 16-bit WAV. Closes the
-   loop: `.sid` -> IR -> audio (Grid Runner: 50s at 44.1kHz).
+   one frame, collecting samples -- emitting a mono 16-bit WAV. The render selects
+   the SID model (6581/8580) and PAL/NTSC clock from the `.sid` header
+   (`capture.sid_render_params`); rendering an 8580 tune on the default 6581 model
+   is audibly wrong. Validated against an actual `sidplayfp -w` WAV (Grid Runner,
+   whole 5:13 tune: ~0.99 aligned-window correlation, up from -0.18 on the wrong
+   model). Closes the loop `.sid` -> IR -> audio. **Pending:** cycle-exact
+   intra-frame register writes to remove the residual sub-0.3% timing drift.
