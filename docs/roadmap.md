@@ -59,14 +59,14 @@ Ordered by payoff against the residual measured in [design.md](design.md).
 7. **Done — real SID front end (`capture.grid_from_sid`).** Loads a PSID/RSID
    image (`parse_psid`), places the C64 data at its load address, and drives the
    playroutine through deity-informant's cycle-exact 6510 VM (`init` once with the
-   accumulator selecting the sub-tune, `play` per frame), snapshotting
-   `$D400..$D418` after each call -- so the pipeline reads an arbitrary `.sid`
-   directly (verified on Grid Runner: 2500 frames, 36 instruments, bit-exact at
-   1.14 tok/frame). `capture.grid_from_dump` still frames a pre-captured
-   `(clock, reg, val)` write log (parquet) as an alternative front end; the two
-   agree on ~99% of registers (they diverge only on Voice-1's pulse-width sweep,
-   an emulator-fidelity gap; deity-informant is the sanctioned VM). **Pending:**
-   RSID IRQ-vector play (multispeed cadence), PSID `speed` flag handling.
+   accumulator selecting the sub-tune, `play` per frame), snapshotting and
+   `sidreg.latch`-normalising `$D400..$D418` after each call. **Byte-exact to the
+   sidplayfp oracle:** `pysidtracker.oracle_grid` (the `anarkiwi/sidtrace`
+   container) renders the same `.sid` through `sidplayfp` and `grid_from_sid`
+   matches it register-for-register across the whole tune (Grid Runner, 2500
+   frames; 36 instruments, model at 1.14 tok/frame). `capture.grid_from_dump`
+   frames a generic external `(clock, reg, val)` write log as a secondary front
+   end. **Pending:** RSID IRQ-vector play (multispeed cadence), PSID `speed` flag.
 
 8. **Reviewable text dump (`dump.py`).** `tumbler-snapper dump` renders one
    human-readable decompilation -- header (frames, tuning offset, tempo, token

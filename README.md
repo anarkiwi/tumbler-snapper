@@ -37,8 +37,9 @@ reference player that replays the exact register grid (2.0–6.4 bytes/frame). O
 top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
 tempo/pattern/orderlist structure (`structure`), a single reviewable text
 decompilation (`dump`), and audio playback (`render`, via reSIDfp). Reads real
-`.sid` tunes directly through deity-informant's 6510 VM (verified bit-exact on
-Grid Runner), not only tracker exports.
+`.sid` tunes directly through deity-informant's 6510 VM, byte-exact to the
+sidplayfp oracle (`pysidtracker`'s sidtrace) across the whole tune — verified
+register-for-register on Grid Runner — not only tracker exports.
 
 ```bash
 tumbler-snapper report     TUNE.sng            # token-efficiency + bit-exactness

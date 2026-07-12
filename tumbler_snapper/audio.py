@@ -27,7 +27,7 @@ def render_grid(  # pragma: no cover - reSIDfp integration, exercised when pyres
     from pyresidfp import SoundInterfaceDevice  # noqa: PLC0415 - optional audio dep
     from pyresidfp.registers import WritableRegister  # noqa: PLC0415
 
-    grid = sidreg.as_frames(grid)
+    grid = sidreg.latch(grid)  # reSIDfp honours unused PW-hi bits; the chip doesn't
     sid = SoundInterfaceDevice(clock_frequency=PAL_CLOCK, sampling_frequency=float(rate))
     regs = [WritableRegister(i) for i in range(sidreg.NREGS)]  # value i == $D400+i
     period = timedelta(seconds=frame_cycles / PAL_CLOCK)

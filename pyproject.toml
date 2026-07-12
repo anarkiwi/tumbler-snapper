@@ -65,3 +65,4 @@ max-locals = 20
 
 [tool.pytest.ini_options]
 addopts = "-n auto -q"
+markers = ["oracle: byte-exact check against the sidplayfp docker oracle (needs Docker)"]

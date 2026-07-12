@@ -22,7 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .sidreg import NREGS, as_frames
+from .sidreg import NREGS, as_frames, latch
 
 
 def grid_from_sng(path: str, frames: int, subtune: int = 0) -> np.ndarray:  # pragma: no cover
@@ -132,4 +132,4 @@ def grid_from_sid(path: str, frames: int, subtune: int = 0) -> np.ndarray:  # pr
     for f in range(frames):
         run_sub(vm, play, cache, lift)
         grid[f] = memoryview(vm.mem)[0xD400 : 0xD400 + NREGS]
-    return as_frames(grid)
+    return latch(grid)  # discard the CPU's unused PW-hi bits, as the chip does

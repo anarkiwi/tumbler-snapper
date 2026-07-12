@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
 import wave
 
 import numpy as np
@@ -13,7 +14,17 @@ from tumbler_snapper import audio, capture, sidreg
 
 _HAVE_RESID = importlib.util.find_spec("pyresidfp") is not None
 _HAVE_VM = importlib.util.find_spec("deity_informant") is not None
+_HAVE_ORACLE = importlib.util.find_spec("pysidtracker") is not None and shutil.which("docker")
 _SID = "/scratch/anarkiwi/preframr/preframr-tokens/tests/test_fixtures/Grid_Runner.sid"
+
+
+def test_latch_masks_pw_hi_only():
+    grid = np.full((4, sidreg.NREGS), 0xFF, np.uint8)
+    out = sidreg.latch(grid)
+    for reg in sidreg.PW_HI_REGS:
+        assert (out[:, reg] == 0x0F).all()
+    others = [r for r in range(sidreg.NREGS) if r not in sidreg.PW_HI_REGS]
+    assert (out[:, others] == 0xFF).all()  # every other register is untouched
 
 
 def _tiny_psid():
@@ -60,6 +71,26 @@ def test_grid_from_sid_reads_real_tune():
     grid = capture.grid_from_sid(_SID, frames=300)
     assert grid.shape == (300, sidreg.NREGS)
     assert grid.any()  # the tune actually drives the registers
+    assert all((grid[:, reg] <= 0x0F).all() for reg in sidreg.PW_HI_REGS)  # latched
+
+
+@pytest.mark.oracle
+@pytest.mark.skipif(
+    not (_HAVE_VM and _HAVE_ORACLE and os.path.exists(_SID)),
+    reason="deity VM / sidplayfp docker oracle / .sid unavailable",
+)
+def test_grid_from_sid_matches_sidplayfp_oracle():
+    import pysidtracker
+
+    # The sidtrace Docker mount must be on a daemon-visible path; a repo-local
+    # (gitignored) cache satisfies that where a private /tmp would not.
+    cache = os.path.join(os.path.dirname(__file__), os.pardir, ".oracle-cache")
+    oracle = np.array(
+        pysidtracker.oracle_grid(_SID, oracle_cache=cache, seconds=8, frames=300),
+        np.uint8,
+    )
+    ours = np.array(capture.grid_from_sid(_SID, len(oracle)), np.uint8)
+    assert np.array_equal(ours, oracle)  # byte-exact to the sidplayfp reglog
 
 
 @pytest.mark.skipif(not _HAVE_RESID, reason="pyresidfp unavailable")

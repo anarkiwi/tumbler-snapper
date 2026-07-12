@@ -73,3 +73,21 @@ def as_frames(grid) -> np.ndarray:
     if arr.ndim != 2 or arr.shape[1] != NREGS:
         raise ValueError(f"expected [T, {NREGS}] grid, got {arr.shape}")
     return np.ascontiguousarray(arr)
+
+
+# Pulse-width high registers ($D403 + 7v) latch only the low 4 bits; the CPU's
+# unused upper nibble is discarded by the chip (and by sidplayfp's trace).
+PW_HI_REGS = tuple(VOICE_STRIDE * v + PW_HI for v in range(NVOICES))
+
+
+def latch(grid) -> np.ndarray:
+    """Mask a raw grid to what the SID actually latches (PW-hi to 4 bits).
+
+    A CPU-level VM stores whole bytes to ``$D403/$D40A/$D411``, but the chip keeps
+    only the low nibble. Normalising makes a ``grid_from_sid`` capture byte-exact
+    to the sidplayfp oracle and, crucially, feeds reSIDfp the correct pulse width.
+    """
+    out = as_frames(grid).copy()
+    for reg in PW_HI_REGS:
+        out[:, reg] &= 0x0F
+    return out
