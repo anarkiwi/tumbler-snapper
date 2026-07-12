@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tumbler-snapper"
+version = "0.0.1"
+description = "Decompile SID register streams into a universal accumulator/table tracker language, losslessly."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+# Reference tracker backends used as capture oracles and validation ground truth.
+oracles = ["pygoattracker>=0.1", "pydefmon>=0.1", "pysidtracker>=0.6"]
+# The real SID playroutine front end: deity-informant's 6510 VM.
+sid = ["deity-informant>=0.2"]
+dev = [
+    "black>=24",
+    "pylint>=3",
+    "pytest>=7",
+    "pytest-cov>=4",
+    "pytest-xdist>=3",
+    "numpy>=1.23",
+]
+
+[project.scripts]
+tumbler-snapper = "tumbler_snapper.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["tumbler_snapper*"]
+
+[tool.black]
+line-length = 100
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint."messages control"]
+disable = [
+    "too-few-public-methods",
+    "too-many-instance-attributes",
+    "duplicate-code",
+    "import-outside-toplevel",  # optional oracle/SID deps imported lazily
+]
+
+[tool.pylint.design]
+max-locals = 20
+
+[tool.pytest.ini_options]
+addopts = "-n auto -q"
