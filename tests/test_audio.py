@@ -56,6 +56,36 @@ def test_parse_psid_rejects_non_sid(tmp_path):
         capture.parse_psid(str(path))
 
 
+def _psid_with_flags(flags):
+    header = bytearray(_tiny_psid())  # tiny header + RTS payload
+    header[4:6] = (2).to_bytes(2, "big")  # version 2, so the flags word is honoured
+    header[0x76:0x78] = int(flags).to_bytes(2, "big")
+    return bytes(header)
+
+
+def test_sid_render_params_reads_model_and_clock(tmp_path):
+    # flags 0x24: SID model bits (4-5) = 0b10 (8580), clock bits (2-3) = 0b01 (PAL).
+    p = tmp_path / "pal8580.sid"
+    p.write_bytes(_psid_with_flags(0x24))
+    assert capture.sid_render_params(str(p)) == (
+        sidreg.MODEL_8580,
+        sidreg.PAL_CLOCK,
+        sidreg.PAL_FRAME_CYCLES,
+    )
+    # flags 0x28: model 0b10 (8580) unchanged, clock bits 0b10 (NTSC).
+    p2 = tmp_path / "ntsc.sid"
+    p2.write_bytes(_psid_with_flags(0x28))
+    assert capture.sid_render_params(str(p2)) == (
+        sidreg.MODEL_8580,
+        sidreg.NTSC_CLOCK,
+        sidreg.NTSC_FRAME_CYCLES,
+    )
+    # flags 0: unspecified -> 6581 / PAL, matching sidplayfp's fallback.
+    p3 = tmp_path / "unk.sid"
+    p3.write_bytes(_psid_with_flags(0x00))
+    assert capture.sid_render_params(str(p3))[0] == sidreg.MODEL_6581
+
+
 @pytest.mark.skipif(not _HAVE_VM, reason="deity-informant VM unavailable")
 def test_grid_from_sid_runs_tiny_psid(tmp_path):
     path = tmp_path / "t.sid"

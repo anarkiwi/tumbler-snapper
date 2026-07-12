@@ -222,3 +222,5 @@ __marimo__/
 *.ir.txt
 *.tsnp
 .oracle-cache/
+overlay.png
+.sidref/

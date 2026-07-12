@@ -29,7 +29,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import audio, container, dump, melody, model, residual, sidreg, song
+from . import audio, capture, container, dump, melody, model, residual, sidreg, song
 from .capture import grid_from_dump, grid_from_sid, grid_from_sng
 
 
@@ -123,11 +123,18 @@ def cmd_dump(args) -> int:
 def cmd_render(args) -> int:  # pragma: no cover - reSIDfp render, gated on optional deps
     """Compile a tune to the IR, reconstruct the grid, and render it to a WAV."""
     frames = _grid_for(args)
+    # A .sid carries the SID model / video standard the render must match; other
+    # inputs have no header, so fall back to the render defaults (6581 / PAL).
+    chip = audio.DEFAULT_CHIP
+    if args.tune.endswith((".sid", ".psid", ".rsid")):
+        chip = capture.sid_render_params(args.tune)
     blob = container.compile(frames)
     grid = container.play(blob)  # exact register grid straight from the IR
-    n = audio.render_wav(grid, args.out, args.rate)
+    n = audio.render_wav(grid, args.out, args.rate, chip)
     seconds = n / args.rate
+    chip_model, clock_hz, frame_cycles = chip
     print(f"wrote          : {args.out}")
+    print(f"model / clock  : {chip_model} @ {clock_hz:.0f}Hz, {frame_cycles} cyc/frame")
     print(f"frames         : {len(frames)}  ->  {n} samples ({seconds:.1f}s @ {args.rate}Hz)")
     print(f"IR bit-exact   : {np.array_equal(grid, frames)}")
     return 0

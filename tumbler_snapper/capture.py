@@ -22,7 +22,17 @@ from pathlib import Path
 
 import numpy as np
 
-from .sidreg import NREGS, as_frames, latch
+from .sidreg import (
+    MODEL_6581,
+    MODEL_8580,
+    NREGS,
+    NTSC_CLOCK,
+    NTSC_FRAME_CYCLES,
+    PAL_CLOCK,
+    PAL_FRAME_CYCLES,
+    as_frames,
+    latch,
+)
 
 
 def grid_from_sng(path: str, frames: int, subtune: int = 0) -> np.ndarray:  # pragma: no cover
@@ -109,6 +119,22 @@ def parse_psid(path: str) -> tuple[bytearray, int, int, int]:
     mem = bytearray(0x10000)
     mem[load : load + len(data)] = data
     return mem, init, play, songs
+
+
+def sid_render_params(path: str) -> tuple[str, float, int]:
+    """Read a ``.sid`` header for its ``(chip_model, clock_hz, cycles_per_frame)``.
+
+    The v2+ flags word encodes the SID model (bits 4-5) and video standard (bits
+    2-3). These pick the reSIDfp chip model and PAL/NTSC clock the render must use
+    to match sidplayfp; unspecified fields default to 6581 / PAL, as sidplayfp does.
+    """
+    blob = Path(path).read_bytes()
+    version = int.from_bytes(blob[4:6], "big")
+    flags = int.from_bytes(blob[0x76:0x78], "big") if version >= 2 else 0
+    model = MODEL_8580 if (flags >> 4) & 0x3 == 2 else MODEL_6581
+    if (flags >> 2) & 0x3 == 2:  # NTSC
+        return model, NTSC_CLOCK, NTSC_FRAME_CYCLES
+    return model, PAL_CLOCK, PAL_FRAME_CYCLES
 
 
 def grid_from_sid(path: str, frames: int, subtune: int = 0) -> np.ndarray:  # pragma: no cover
