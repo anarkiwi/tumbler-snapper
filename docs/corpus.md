@@ -106,6 +106,38 @@ duplicated tables:
   exceptions set. What remains in `offset` is genuine tuning (table detune +
   per-song finetune).
 
+### Note transforms, surveyed from the p-code (`tests/corpus/survey_transforms.py`)
+
+Rather than guess the generator's vocabulary from the register output, the survey
+steps each playroutine through the 6510 lifter and tracks the provenance of every
+value written to a frequency register (threading provenance through memory, so a
+note staged in zero-page is followed). Over a 16-tune sample (7966 writes):
+
+| transform | share | meaning |
+|---|---|---|
+| `table[sequence]` | 36.6% | note index walks a table (wavetable / note-list) |
+| `table[note]` | 31.0% | plain note -> freq table lookup |
+| `table+table/const` | 24.2% | table value plus an add -> vibrato / detune |
+| `table[arp/transpose]` | 8.2% | table indexed by a note **+ offset** -> arpeggio |
+
+So frequency is overwhelmingly a **note-indexed pitch-table lookup** (~68%), with
+**additive vibrato/detune** (~24%) and **index-offset arpeggio** (~8%) on top --
+all standard tracker primitives. This grounds a two-level generator:
+
+1. **Tier 1 -- recover from the p-code.** Fold the base note into the note events
+   (today onsets carry instrument + release but not pitch), then the frequency
+   column becomes `pitch_table[base_note (+ arp_offset)] + vibrato_layer`,
+   competing per voice against the raw accumulator and kept lossless by the
+   residual.
+2. **Tier 2 -- optimize the IR.** A pass over the note-with-pitch IR factors
+   *transposed* repetition -- a phrase written out longhand a fifth up becomes
+   `pattern N transposed +7` -- catching structure the code never expressed as a
+   transform. Extends the existing exact-pattern factoring (`factor.py`).
+
+Both encode the melody's structure, never a tune's generative algorithm (a
+procedural tune such as "A Mind Is Born" is stored as its aperiodic note stream +
+residual, losslessly, even if that is larger than the original code).
+
 ### Pitch offset is a per-tracker constant -- and a clock fingerprint (`tests/test_trackers.py`)
 
 Songs from one composer/tracker should recover the same A440 offset. Fit at the
