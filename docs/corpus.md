@@ -76,33 +76,30 @@ regimes:
   modulation the model misses falls entirely to the residual.
 
 The bounded-accumulator (numeric) layer has converged: compact and stable. The
-categorical / structural layer has **not**, for one root reason -- there is no
-factored per-instrument *generator* or *detune* model, so several distinct
-musical ideas collapse into one raw per-voice accumulator "layer" or into
-duplicated tables:
+**semantic** layer (`melody.py`, the transcription view -- frequency stays a raw
+accumulator column in the codec) now recovers arpeggio and vibrato as first-class
+structure rather than smearing them into a raw per-voice "layer":
 
-* **Arpeggio / wavetable, run-length coded.** Earth voice 0 arpeggiates A-3 <->
-  E-4 (a +7 semitone offset) every 2-3 frames (1189/2499 jump-frames), shredded
-  across the frequency accumulator, the note track, and the ctrl "release" literal.
-  Measured, the release pool was **56% of Earth's container** (14.5 KB) because
-  `_write_rows` stored one row per frame -- a 94-frame hold as 94 identical rows.
-  The container now run-length codes those row sequences, cutting Earth 10.28 ->
-  5.50, Extreme_01 7.84 -> 3.79 and Arc of Yesod 5.14 -> 0.58 bytes/frame,
-  losslessly. Still ahead: a semantic base-note + cyclic-offset-table generator
-  (the README's "clock-indexed table generator") to fold the frequency-accumulator
-  and note-track halves of the arpeggio together.
-* **Vibrato at the wrong level.** `vib~N` is just the fitted *period* of the raw
-  per-note frequency deviation, re-derived independently every note, so it wobbles
-  (`vib~2,4,5,7,8,14,15,22,29` in Final_Axel) and mislabels note jumps as
-  `porta+59904`. Vibrato is an instrument property (rate+depth); tying it to the
-  instrument would dedup it across repeated notes.
-* **Detune, now factored; the pitch table is global.** There is no per-tune (let
-  alone per-voice) pitch table: the note -> register mapping is the one A440/12-TET
-  formula (`pitch.note_freq`), parameterised only by a per-tune `offset` and
-  `clock`. The video standard is split into `grid.clock` (see the tracker finding);
-  each voice carries a constant `detune` (Arc of Yesod recovers `[0, 16, 0]`); and
-  only genuine non-12-TET tracker values are stored as a small `exceptions` set
-  (Earth 21 observed notes -> 11 stored). Reconstruction stays exact.
+* **Arpeggio: base note + cyclic offset.** The pitch grid is seeded from *every*
+  observed value, not just sustained ones, so an arpeggio's briefly-held notes land
+  exactly on the grid; an on-grid base track (`_ongrid_base`) then follows them per
+  frame with a ~empty layer. `_arp_factor` re-expresses that fast note track as a
+  slow root line plus a repeated semitone-offset cycle, kept only when it beats the
+  raw track: **Earth voice 0's A-3<->E-4 arpeggio collapses 1190 note events to 64
+  tokens** (`arp8[+7,0,0,+7,...]`), and it correctly *declines* on a genuine melody
+  (Arc of Yesod voice 0, 101 events, no cheaper period). This is transcription
+  only; the accumulator remains the codec's frequency representation (measured
+  near-optimal -- a fold explodes the instrument pool).
+* **Vibrato: one coherent rate per voice.** A player that *adds* an LFO leaves its
+  frames off the grid; those stay in the layer, and one `(rate, depth)` is recovered
+  per voice from the layer's autocorrelation. So Final_Axel's wobbling
+  `vib~2,6,7,8,14,15,22,29` becomes a single `vib~29`, and the former
+  `porta+59904` mislabels are now honest on-grid note changes / `jump` labels.
+* **Detune + exceptions, explained.** The note -> register map is the one A440/12-TET
+  formula (`pitch.note_freq`) plus a per-voice constant `detune`; only values that
+  still miss it are stored as `exceptions`. Seeding the grid from arpeggio notes
+  grows that set (Earth 10 -> 26) because it now captures the tracker's *own note
+  table* -- see the pitch-table finding below for what those values are.
 
 ### Note transforms, surveyed from the p-code (`tests/corpus/survey_transforms.py`)
 
@@ -139,6 +136,32 @@ all standard tracker primitives. This grounds a two-level generator:
 Both encode the melody's structure, never a tune's generative algorithm (a
 procedural tune such as "A Mind Is Born" is stored as its aperiodic note stream +
 residual, losslessly, even if that is larger than the original code).
+
+### The pitch table is a shipped LUT built by octave-shift (`tests/corpus/scan_pitch_tables.py`)
+
+The exceptions are not detuning -- they are the tracker's own note table. Reading
+the p-code, frequency is `table[note]` from a **precomputed LUT in the binary**;
+there is no runtime formula. And the LUT is built the classic 6502 way: one
+high-precision top octave, extended downward by `LSR` (`value[n] = value[n+12] >> 1`,
+a floor-halve that truncates a bit per octave). Verified on recovered tables:
+
+* **Bionic Commando reconstructs all 86 notes bit-exactly** from its 12 top-octave
+  values by repeated `>>1`; Final_Axel 62/63.
+* **Final_Axel and Commando ship the byte-identical table** (`268, 284, 301, ...`) --
+  a standard table reused across unrelated tunes; the corpus scan finds a handful of
+  recurring table signatures.
+* **Arc of Yesod ships a differently-tuned table** and only 51/65 notes follow the
+  pure `>>1` rule -- a different tracker's method.
+
+So a note's value is `top_octave[n mod 12] >> octaves_down`: a per-tracker *base
+octave + shift rule*, not a global A440 offset. This is exactly the exception
+structure -- they cluster in **low octaves** (Arc voice 0: C#2 +47c, E-2 +38c)
+because floor-halving discards a bit per octave and at small register values one
+lost LSB is tens of cents. Modelling this per tune does not pay (`>>1` is not
+invertible and a tune plays a sparse note subset, so it collapses the stored
+exceptions only ~15%); the real lever is cross-tune -- a shared canonical-table
+dictionary turning a tune's exceptions into a table id + tuning offset -- left as
+follow-up. For now each tune stores its exact values, near-minimal on its own.
 
 ### Pitch offset is a per-tracker constant -- and a clock fingerprint (`tests/test_trackers.py`)
 

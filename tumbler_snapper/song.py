@@ -24,8 +24,8 @@ from math import gcd
 
 import numpy as np
 
-from . import accum, factor, sidreg
-from .melody import _base_notes
+from . import factor, sidreg
+from .melody import _ongrid_base
 
 Event = tuple[int, int, int]  # (row_delta, pitch grid note, instrument)
 
@@ -63,7 +63,7 @@ def _tempo(note_model) -> int:
 
 def _events(frames: np.ndarray, note_model, grid, voice: int, tempo: int) -> list[Event]:
     freq = sidreg.freq_words(frames)[:, voice].astype(np.int64)
-    base = _base_notes(freq, accum.fit(freq), grid)
+    base = _ongrid_base(freq, grid, voice)
     onsets = note_model.onsets[voice]
     out: list[Event] = []
     prev = onsets[0][0] if onsets else 0
