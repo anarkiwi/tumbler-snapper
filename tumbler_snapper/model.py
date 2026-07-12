@@ -15,10 +15,11 @@ busy voices, which the current melody recovery does not yet provide -- a naive
 fold explodes the fragment pool -- so frequency remains an accumulator column and
 the semantic layers are not yet part of the codec's token accounting.
 
-Filter routing / volume ($D417/$D418) remain in the residual. The prediction
-feeds :mod:`.residual`, so the whole thing stays bit-exact; the model only moves
-cost out of the residual. ``token_report`` counts model descriptors *and*
-residual change-points together, the honest efficiency metric.
+Filter routing / volume ($D417/$D418) are handled by :mod:`.filt`, a factored
+categorical track that only claims a register when doing so beats the residual.
+The prediction feeds :mod:`.residual`, so the whole thing stays bit-exact; the
+model only moves cost out of the residual. ``token_report`` counts model
+descriptors *and* residual change-points together, the honest efficiency metric.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from . import accum, melody as melodymod, notes, residual, sidreg
+from . import accum, filt, melody as melodymod, notes, residual, sidreg
 
 
 @dataclass
@@ -38,6 +39,7 @@ class Model:
     # semantic-column name -> accumulator segments
     columns: dict[str, list[accum.Segment]] = field(default_factory=dict)
     note_model: notes.NoteModel | None = None
+    filter_model: filt.FilterModel | None = None
 
     @property
     def n_segments(self) -> int:
@@ -46,8 +48,12 @@ class Model:
 
     @property
     def n_tokens(self) -> int:
-        """Model descriptor events (accumulator segments + note-ons + instrument rows)."""
-        return self.n_segments + (self.note_model.tokens if self.note_model else 0)
+        """Model descriptor events (accumulators + note-ons/rows + filter track)."""
+        return (
+            self.n_segments
+            + (self.note_model.tokens if self.note_model else 0)
+            + (self.filter_model.tokens if self.filter_model else 0)
+        )
 
 
 def _semantic_columns(frames: np.ndarray) -> dict[str, np.ndarray]:
@@ -65,7 +71,7 @@ def fit(frames: np.ndarray) -> Model:
     """Fit accumulators to the continuous columns and instruments to CTRL/ADSR."""
     frames = sidreg.as_frames(frames)
     cols = {name: accum.fit(series) for name, series in _semantic_columns(frames).items()}
-    return Model(frames.shape[0], cols, notes.fit(frames))
+    return Model(frames.shape[0], cols, notes.fit(frames), filt.fit(frames))
 
 
 def transcribe(frames: np.ndarray) -> melodymod.Melody:
@@ -96,6 +102,9 @@ def predict(model: Model) -> np.ndarray:
         elif name == "cutoff":
             grid[:, sidreg.FC_LO] = series & 0x07
             grid[:, sidreg.FC_HI] = (series >> 3) & 0xFF
+    if model.filter_model:
+        for reg, series in filt.predict(model.filter_model).items():
+            grid[:, reg] = series
     return grid
 
 
@@ -110,6 +119,7 @@ def token_report(frames: np.ndarray) -> dict:
     n_onsets = model.note_model.n_onsets if model.note_model else 0
     model_tokens = model.n_tokens + res.n_changepoints
     n_patterns = len(model.note_model.pack()[2]) if model.note_model else 0
+    fmodel = model.filter_model
     return {
         "frames": length,
         "baseline_changepoints": baseline.n_changepoints,
@@ -118,6 +128,8 @@ def token_report(frames: np.ndarray) -> dict:
         "note_onsets": n_onsets,
         "note_patterns": n_patterns,
         "instruments": len(model.note_model.pool) if model.note_model else 0,
+        "filter_regs": len(fmodel.orderlists) if fmodel else 0,
+        "filter_tokens": fmodel.tokens if fmodel else 0,
         "residual_changepoints": res.n_changepoints,
         "model_tok_per_frame": model_tokens / length,
         "residual_bytes": len(residual.encode(res)),

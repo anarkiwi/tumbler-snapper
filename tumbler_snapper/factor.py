@@ -64,3 +64,25 @@ def expand(sym: int, blocks: list[tuple[int, ...]], inv: dict[int, object]) -> l
     for child in blocks[-sym - 1]:
         out.extend(expand(child, blocks, inv))
     return out
+
+
+def pack_stream(events: list, pool: list[tuple], index: dict[tuple, int]) -> list[int]:
+    """Factor an event stream into a shared pattern ``pool`` and return its orderlist.
+
+    Each distinct event is symbolized, the symbol stream factored, and every
+    top-level entry materialized as a pattern deduplicated against ``pool`` via
+    ``index`` (so voices/tracks share phrases). Shared by the note codec, the song
+    arrangement, and the filter track.
+    """
+    vocab: dict = {}
+    sym = [vocab.setdefault(e, len(vocab)) for e in events]
+    inv = {i: e for e, i in vocab.items()}
+    blocks, order = factor(sym)
+    orderlist = []
+    for entry in order:
+        pat = tuple(expand(entry, blocks, inv))
+        pid = index.setdefault(pat, len(pool))
+        if pid == len(pool):
+            pool.append(pat)
+        orderlist.append(pid)
+    return orderlist

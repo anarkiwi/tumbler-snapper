@@ -83,7 +83,8 @@ def render(frames: np.ndarray, name: str = "song") -> str:
         f"tempo         : {arr.tempo} frames/row",
         f"model         : {tokens} tokens "
         f"({model.n_segments} accum segments + {model.note_model.n_onsets} note-ons / "
-        f"{len(model.note_model.pool)} instruments / {len(model.note_model.releases)} releases)"
+        f"{len(model.note_model.pool)} instruments / {len(model.note_model.releases)} releases + "
+        f"{model.filter_model.tokens} filter / {len(model.filter_model.orderlists)} regs)"
         f" + {res.n_changepoints} residual changepoints -> {tokens / length:.3f} tokens/frame",
         "",
     ]

@@ -96,7 +96,7 @@ class NoteModel:
         first_frames, orderlists = [], []
         for voice in self.onsets:
             first_frames.append(voice[0][0] if voice else 0)
-            orderlists.append(_pack_voice(_voice_events(voice, tempo), patterns, index))
+            orderlists.append(factor.pack_stream(_voice_events(voice, tempo), patterns, index))
         return tempo, first_frames, patterns, orderlists
 
     @property
@@ -119,24 +119,6 @@ def _voice_events(voice: list[tuple[int, int, int]], tempo: int) -> list[Event]:
         events.append(((frame - prev) // tempo, iid, rid))
         prev = frame
     return events
-
-
-def _pack_voice(
-    events: list[Event], patterns: list[tuple[Event, ...]], index: dict[tuple[Event, ...], int]
-) -> list[int]:
-    """Factor one voice's events into the shared ``patterns`` pool, return its orderlist."""
-    vocab: dict[Event, int] = {}
-    sym = [vocab.setdefault(e, len(vocab)) for e in events]
-    inv = {i: e for e, i in vocab.items()}
-    blocks, order = factor.factor(sym)
-    orderlist = []
-    for entry in order:
-        pat = tuple(factor.expand(entry, blocks, inv))
-        pid = index.setdefault(pat, len(patterns))
-        if pid == len(patterns):
-            patterns.append(pat)
-        orderlist.append(pid)
-    return orderlist
 
 
 def _best_loop(seq: list[Row]) -> tuple[int, int, int] | None:
