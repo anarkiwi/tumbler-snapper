@@ -1,0 +1,125 @@
+# HVSC corpus validation
+
+The codec was first validated on a single tune (Grid Runner). To guard against
+overfitting, `tests/corpus/` drives a diverse slice of the [High Voltage SID
+Collection](https://hvsc.brona.dk/) through the whole pipeline and records what
+converges and what does not. No copyrighted `.sid` bytes are committed -- the
+manifests store only HVSC relpaths and measured numbers, and the tests resolve
+the SIDs from a local tree (`$TS_HVSC`, default `/scratch/hvsc/C64Music`),
+skipping cleanly when it is absent.
+
+## Selection
+
+`build_manifest.py` parses every `.sid` header in the tree (~61k tunes),
+restricts to single-chip PSIDs with a real play address (the front end steps
+`play` directly), and draws a stratified round-robin across
+`(area, format, chip, clock, multi-song)` buckets with a per-composer cap. The
+committed corpus is **128 tunes / 109 composers** spanning MUSICIANS, GAMES and
+DEMOS, both SID models, and PAL/NTSC/unspecified clocks. Selection is
+deterministic (a BLAKE2 hash of the relpath breaks ties).
+
+`build_trackers.py` builds a second fixture: 8 prolific composers x 8 tunes each,
+for the pitch-offset consistency test below.
+
+## What the tests enforce (`tests/test_corpus.py`)
+
+Per tune, independent of any oracle:
+
+* **losslessness** -- `compile(grid)` -> `play` reconstructs the register grid
+  bit-exactly. This is universal (the residual makes it hold for any grid), so a
+  failure anywhere is a real codec bug the single-tune test could not surface.
+  **All 128 tunes are lossless.**
+* **front-end regression** -- `grid_from_sid` reproduces the exact grid the
+  manifest was measured from (SHA-256), with no Docker needed.
+* **IR efficiency** -- container bytes/frame and model+residual tokens/frame do
+  not regress past the recorded footprint.
+* **parse performance** -- the reference player decodes above a frames/sec floor,
+  so a codec change cannot silently make playback super-linear.
+
+A Docker-gated test (`-m oracle`) asserts the deity VM stays byte-exact to the
+sidplayfp `sidtrace` oracle at the recorded per-tune frame phase.
+
+## Findings
+
+### The front end is byte-exact to sidplayfp on ~half the corpus -- modulo a per-tune frame phase
+
+The prior claim ("byte-exact to the sidplayfp oracle across the whole tune") was
+verified only on Grid Runner. Across the diverse corpus:
+
+| oracle status | tunes |
+|---|---|
+| byte-exact (full window) | **66 / 128** |
+| partial (diverges mid-window) | 29 |
+| diverges at frame 0 | 33 |
+
+Two things the single tune hid:
+
+1. **Frame phase is per-tune.** The VM and sidtrace agree register-for-register
+   but start their trace at a different play-call phase -- 0 for Grid Runner, but
+   +1/+2/+3 (and once -1) for others. The oracle test aligns on the recorded
+   constant offset.
+2. **The gap is NTSC / multispeed cadence.** PAL tunes match 38:16; NTSC tunes
+   only 10:27. The front end runs one `play` per frame with no PAL/NTSC or
+   multispeed cadence model, so any tune whose real cadence differs drifts out of
+   alignment. This is the roadmap's pending "multispeed cadence" item, now
+   quantified.
+
+### IR convergence: numeric axis yes, categorical axis no
+
+Rendering the five highest-complexity tunes (`review/`) splits IR cost into two
+regimes:
+
+* **model-dominated** (Earth: 2.66 tok/frame, 7 residual change-points) -- the
+  structure is expressed, but a single arpeggio blows up into ~hundreds of
+  frequency-accumulator segments *and* a 1240-token "release" literal;
+* **residual-dominated** (Final_Axel: 2176 change-points) -- fast per-frame
+  modulation the model misses falls entirely to the residual.
+
+The bounded-accumulator (numeric) layer has converged: compact and stable. The
+categorical / structural layer has **not**, for one root reason -- there is no
+factored per-instrument *generator* or *detune* model, so several distinct
+musical ideas collapse into one raw per-voice accumulator "layer" or into
+duplicated tables:
+
+* **Missing arpeggiator / generator.** Earth voice 0 arpeggiates A-3 <-> E-4 (a
+  +7 semitone offset) every 2-3 frames (1189/2499 jump-frames), shredded across
+  the frequency accumulator, the note track, and the ctrl "release" literal. A
+  frame-indexed generator (base note + cyclic offset table + period) -- the
+  "clock-indexed table generator" the README promises but `melody.py` never
+  implements -- collapses it to ~5 tokens.
+* **Vibrato at the wrong level.** `vib~N` is just the fitted *period* of the raw
+  per-note frequency deviation, re-derived independently every note, so it wobbles
+  (`vib~2,4,5,7,8,14,15,22,29` in Final_Axel) and mislabels note jumps as
+  `porta+59904`. Vibrato is an instrument property (rate+depth); tying it to the
+  instrument would dedup it across repeated notes.
+* **Missing detune abstraction.** The single global `offset` scalar actually
+  stacks three detunes -- video standard (+-35.37c PAL/NTSC), per-tracker table
+  detuning, and per-song finetune -- and a fourth (per-voice chorus detune, e.g.
+  Arc of Yesod's fixed 16-unit voice offset) is hidden by keeping a full note
+  table *per voice*. Factoring these apart (shared table + per-voice detune +
+  explicit clock axis) is the same lever as the generator above.
+
+### Pitch offset is a per-tracker constant -- and a clock fingerprint (`tests/test_trackers.py`)
+
+Songs from one composer/tracker should recover the same A440 offset. Raw, they
+appear to scatter by up to 48c -- but the scatter is bimodal at exactly the
+PAL/NTSC clock ratio (**35.37c** = one semitone times the clock ratio). `melody.fit`
+always fits at the PAL clock, so an NTSC-table tune reads 35.37c sharp; the header
+PAL/`any` flag is often wrong about which table a tune actually ships.
+
+Folding each offset modulo 35.37c collapses the two clock clusters onto the
+tracker's true table detuning: within-composer spread drops from 34-48c to
+<=1.9c for 7 of 8 composers (the eighth has one genuinely finetuned song). The
+test asserts this via a robust median-absolute-deviation bound, and separately
+that the recovered offsets reproduce from HVSC. So the pitch recovery is *stable*
+(not overfit); the "inconsistency" is a real, detectable video-standard signal
+the model currently entangles with tuning.
+
+## Regenerating
+
+```bash
+python tests/corpus/build_manifest.py  --hvsc /scratch/hvsc/C64Music --count 128
+python tests/corpus/build_trackers.py                                          # 8 composers
+TS_HVSC=/scratch/hvsc/C64Music pytest tests/test_corpus.py tests/test_trackers.py
+TS_HVSC=/scratch/hvsc/C64Music pytest -m oracle tests/test_corpus.py           # needs Docker
+```
