@@ -41,11 +41,22 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    recovered as the inter-onset gap GCD; per-voice note events factored into a
    shared pattern pool + orderlist by greedy max-saving repeat extraction;
    onset-frame reconstruction is exact. `tumbler-snapper structure` prints it.
-   Note-event factoring is 0.68-0.99x (repetition-dependent). **Pending:** unify
-   with the note/instrument/pitch model (a single note codec: pitch + instrument
-   + pattern) so factoring folds into the token metric; add transpose-aware
-   pattern matching; correlate the global filter-mode switches with the recovered
-   structure to remove the last residual.
+   Note-event factoring is 0.68-0.99x (repetition-dependent).
+
+5b. **Done — note-model unification: release as a note-off event (`notes.py`).**
+   The instrument is now just the voiced shape ``(attack, loop)``; the release
+   tail is a separate deduplicated pool, and a note is ``(frame, instrument,
+   release)``. This decouples instrument identity from how the note ended, so one
+   source instrument played to release *and* cut short by the next note no longer
+   splits into two. Instrument pools drop toward the source counts (consultant
+   8->5, cabrinigreen 49->42) and token efficiency improves (release rows dedup
+   into a shared pool instead of duplicating each instrument's body: consultant
+   0.27->0.265, cabrinigreen 0.96->0.917), still bit-exact. **Pending:** fold the
+   pattern factoring and pitch into the same note event (a full note codec);
+   transpose-aware pattern matching; tie the global filter-mode switches to the
+   recovered structure to remove the last residual. (Folding *pitch* as a
+   categorical instrument channel was measured to regress -- see design.md -- so
+   pitch stays an accumulator; the note codec references it, not embeds it.)
 
 6. **Done — container + reference player (`container.py`).** Serializes the
    fitted model -- 7 accumulator columns (pw ×3, freq ×3, cutoff), the instrument

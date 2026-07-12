@@ -11,9 +11,10 @@ Layout (all integers LEB128 varints; signed values zig-zag encoded):
     magic "TSNP", version, T
     7 accumulator columns (pw0..2, freq0..2, cutoff), each tiling [0, T):
         n_segments, then per segment: length, value, period, period deltas
-    instrument pool: n, then per instrument its attack / loop / release rows
+    instrument pool: n, then per instrument its attack / loop rows
         (each row = ctrl, ad, sr bytes)
-    3 voices: n_onsets, then per onset: frame delta, instrument id
+    release pool: n, then per release its rows
+    3 voices: n_onsets, then per onset: frame delta, instrument id, release id
     residual (:func:`residual.encode`)
 """
 
@@ -24,7 +25,7 @@ import numpy as np
 from . import accum, model as modelmod, notes, residual, sidreg
 
 _MAGIC = b"TSNP"
-_VERSION = 1
+_VERSION = 2  # v2: instrument = (attack, loop); separate release pool; onset carries release id
 _COLUMNS = (
     [f"pw{v}" for v in range(sidreg.NVOICES)]
     + [f"freq{v}" for v in range(sidreg.NVOICES)]
@@ -139,13 +140,17 @@ def encode(model: modelmod.Model, res: residual.Residual) -> bytes:
     for inst in pool:
         _write_rows(w, inst.attack)
         _write_rows(w, inst.loop)
-        _write_rows(w, inst.release)
+    releases = model.note_model.releases
+    w.u(len(releases))
+    for rel in releases:
+        _write_rows(w, rel)
     for voice in model.note_model.onsets:
         w.u(len(voice))
         prev = 0
-        for frame, iid in voice:
+        for frame, iid, rid in voice:
             w.u(frame - prev)
             w.u(iid)
+            w.u(rid)
             prev = frame
     w.raw(residual.encode(res))
     return bytes(w.buf)
@@ -163,16 +168,17 @@ def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual]:
     columns = {name: _read_segments(r) for name in _COLUMNS}
     pool = []
     for _ in range(r.u()):
-        pool.append(notes.Instrument(_read_rows(r), _read_rows(r), _read_rows(r)))
+        pool.append(notes.Instrument(_read_rows(r), _read_rows(r)))
+    releases = [_read_rows(r) for _ in range(r.u())]
     onsets = []
     for _ in range(sidreg.NVOICES):
         voice = []
         prev = 0
         for _ in range(r.u()):
             prev += r.u()
-            voice.append((prev, r.u()))
+            voice.append((prev, r.u(), r.u()))
         onsets.append(voice)
-    note_model = notes.NoteModel(length, pool, onsets)
+    note_model = notes.NoteModel(length, pool, releases, onsets)
     res = residual.decode(r.buf[r.i :])
     return modelmod.Model(length, columns, note_model), res
 

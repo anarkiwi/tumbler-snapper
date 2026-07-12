@@ -79,11 +79,22 @@ Each voice is segmented at gate-rising edges; each note fragment's
 ``loop`` is the periodic held body -- a sustained note is a period-1 loop
 (constant), a waveform-cycling wavetable is a longer loop -- found as the period
 whose periodic run covers the most frames (mirroring :mod:`.accum`'s
-periodic-delta generator, but categorical). This reconstructs the fragment
-exactly, and fragments sharing ``(attack, loop, release)`` -- the same instrument
-at any pitch or duration -- dedup to one instrument. A note-on then costs a
-single ``(frame, instrument)`` event; the loop count ``n`` is implied by the gap
-to the next onset.
+periodic-delta generator, but categorical).
+
+The **instrument** is only the voiced shape ``(attack, loop)``; the **release**
+tail is factored out as a separate note-off event with its own deduplicated pool.
+This matters because the release captures how a note *ended* -- allowed to ring to
+its gate-off decay, or cut short by the next note's gate-rise -- which is a
+property of the arrangement, not the instrument. Keeping it in the instrument
+split one source instrument into a copy per ending (e.g. consultant's ``I00``/
+``I01``: identical attack + loop, one with a ``40:0F:00`` release, one cut). With
+release separated, instruments sharing ``(attack, loop)`` -- the same instrument
+at any pitch, duration, or note-off -- dedup to one, dropping the pools toward the
+source instrument counts (consultant 8->5, cabrinigreen 49->42). A note is then
+``(frame, instrument, release)``; the loop count ``n`` is implied by the gap to
+the next onset. This is a strict win: fewer, cleaner instruments *and* fewer
+tokens (release rows dedup into a shared pool instead of duplicating each
+instrument's body), still bit-exact.
 
 ## Measured result
 
@@ -91,19 +102,21 @@ Accumulators (pulse width ×3, cutoff, frequency ×3) + instrument induction
 (control + ADSR), 2500 frames, bit-exact in every case -- every sample tune under
 one token per frame:
 
-| tune         | baseline | accumulators | + instruments | instruments | residual |
-|--------------|---------:|-------------:|--------------:|------------:|---------:|
-| consultant   | 5.11     | 0.65         | **0.27**      | 8           | 9        |
-| dojo         | 3.78     | 0.79         | **0.35**      | 12          | 9        |
-| funktest     | 6.80     | 1.57         | **0.55**      | 20          | 9        |
-| cabrinigreen | 5.85     | 1.99         | **0.96**      | 49          | 180      |
+| tune         | baseline | accumulators | + instruments | instruments | releases | residual |
+|--------------|---------:|-------------:|--------------:|------------:|---------:|---------:|
+| consultant   | 5.11     | 0.65         | **0.265**     | 5           | 3        | 9        |
+| dojo         | 3.78     | 0.79         | **0.342**     | 9           | 6        | 9        |
+| funktest     | 6.80     | 1.57         | **0.536**     | 15          | 6        | 9        |
+| cabrinigreen | 5.85     | 1.99         | **0.917**     | 42          | 13       | 180      |
 
-The residual collapses to ~9 change-points for three tunes -- just the unmodeled
-global filter-routing / volume registers ($D417/$D418). cabrinigreen is a
-genuinely rich tune (49 distinct instruments); its residual is aperiodic
-filter-mode switching in $D418, which a per-column codec cannot beat (a
-change-point is already optimal for aperiodic categorical data) -- it needs
-pattern-level correlation, deferred to the orderlist stage.
+Instrument counts are the unified pools (voiced shape only; the note-off tail is
+in the separate ``releases`` pool), close to each tune's source GoatTracker
+instrument table (8 / 13 / 13 / 44). The residual collapses to ~9 change-points
+for three tunes -- just the unmodeled global filter-routing / volume registers
+($D417/$D418). cabrinigreen is a genuinely rich tune (42 distinct instruments);
+its residual is aperiodic filter-mode switching in $D418, which a per-column codec
+cannot beat (a change-point is already optimal for aperiodic categorical data) --
+it needs pattern-level correlation, deferred to the orderlist stage.
 
 ## Pitch grid / melody (`pitch.py`, `melody.py`)
 

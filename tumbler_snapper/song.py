@@ -57,7 +57,7 @@ class Song:
 
 def _tempo(note_model) -> int:
     gaps = [
-        int(g) for v in range(sidreg.NVOICES) for g in np.diff([o for o, _ in note_model.onsets[v]])
+        int(g) for v in range(sidreg.NVOICES) for g in np.diff([o[0] for o in note_model.onsets[v]])
     ]
     return max(reduce(gcd, gaps), 1) if gaps else 1
 
@@ -68,7 +68,7 @@ def _events(frames: np.ndarray, note_model, grid, voice: int, tempo: int) -> lis
     onsets = note_model.onsets[voice]
     out: list[Event] = []
     prev = onsets[0][0] if onsets else 0
-    for frame, inst in onsets:
+    for frame, inst, _rid in onsets:
         pit = int(base[min(frame + 1, frames.shape[0] - 1)])
         out.append(((frame - prev) // tempo, pit, inst))
         prev = frame
