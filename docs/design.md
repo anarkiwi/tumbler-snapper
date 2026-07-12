@@ -150,8 +150,30 @@ dependent; through-composed voices barely compress). Like the melody, this is a
 structural recovery: its value is the arrangement, and it becomes a token win once
 the note model unifies pitch, instrument and pattern into a single note codec.
 
+## Container + reference player (`container.py`)
+
+The `.tsnp` container is the serialized universal-tracker program. It bit-packs
+the fitted model and its residual with LEB128 varints (signed values zig-zag
+encoded):
+
+    magic "TSNP", version, T
+    7 accumulator columns (pw ×3, freq ×3, cutoff), each tiling [0, T):
+        n_segments, then per segment: length, value, period, period deltas
+    instrument pool: per instrument its attack / loop / release rows (ctrl, ad, sr)
+    3 voices: per voice, note-ons as (frame delta, instrument id)
+    residual (residual.encode)
+
+Segment `start` is never stored -- the segments of a column tile `[0, T)`
+contiguously, so each start is the running sum of prior lengths; likewise note-on
+frames are delta-coded. `play` (the reference player) is the exact inverse of
+`compile`: decode -> `model.predict` -> `residual.apply`, reproducing the input
+`[T, 25]` grid byte-for-byte. On the sample tunes the container is 2.0–6.4
+bytes/frame (consultant 2.06, dojo 1.91, funktest 3.65, cabrinigreen 6.44) --
+up to 12× smaller than the raw 25-byte-per-frame grid, and losslessly playable.
+
 ## Next stages
 
 See [roadmap.md](roadmap.md): unify the note model (fold pitch layers and pattern
 factoring into the instrument/note events), tie the global filter switches to the
-recovered structure, and add the serialized container + reference player.
+recovered structure, and wire the real SID front end (deity-informant's VM) so the
+pipeline runs on arbitrary HVSC tunes.

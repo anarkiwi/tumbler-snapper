@@ -9,8 +9,8 @@ frame while reconstructing the SID register grid bit-exactly.
 
 ```
 SID tune --(deity-informant 6510 VM)--> per-frame $D400..$D418 grid
-         --(tumbler-snapper)---------> accumulator/table model + residual
-         --(reference player)--------> bit-exact register grid
+         --(tumbler-snapper compile)--> .tsnp container (model + residual)
+         --(tumbler-snapper play)-----> bit-exact register grid
 ```
 
 The model is a predictive codec: a structured model predicts the register grid,
@@ -31,17 +31,22 @@ prints baseline-vs-model tokens/frame plus a bit-exactness check.
 
 Bit-exact codec at 0.27–0.96 tokens/frame on the sample tunes: bounded-accumulator
 model (pulse width, filter cutoff, oscillator frequency) plus instrument/wavetable
-induction (control + ADSR). On top, semantic recovery: A440/12-TET pitch-grid
-melody (`transcribe`) and tempo/pattern/orderlist structure (`structure`).
+induction (control + ADSR). Serialized to a bit-packed `.tsnp` container with a
+reference player that replays the exact register grid (2.0–6.4 bytes/frame). On
+top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
+tempo/pattern/orderlist structure (`structure`).
 
 ```bash
 tumbler-snapper report     TUNE.sng            # token-efficiency + bit-exactness
+tumbler-snapper compile    TUNE.sng OUT.tsnp   # write a lossless container
+tumbler-snapper play       OUT.tsnp            # reconstruct the register grid
 tumbler-snapper transcribe TUNE.sng --voice N  # recovered melody
 tumbler-snapper structure  TUNE.sng            # tempo, patterns, orderlist
 ```
 
 Next: unify the note model (pitch + instrument + pattern into one note codec) so
-the semantic layers fold into the token metric; container + reference player. See
+the semantic layers fold into the token metric; wire the real SID front end
+(deity-informant's VM) to run on arbitrary HVSC tunes. See
 [docs/roadmap.md](docs/roadmap.md) and [docs/design.md](docs/design.md).
 
 ## Development

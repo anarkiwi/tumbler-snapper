@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from tumbler_snapper import cli
+from tumbler_snapper import cli, container
 
 _HAVE_ORACLE = importlib.util.find_spec("pygoattracker") is not None
 _TUNE = "/scratch/anarkiwi/cbm/pygoattracker/tests/.fixture_cache/consultant.sng"
@@ -44,3 +44,21 @@ def test_structure(capsys):
     assert rc == 0
     assert "frames/row" in out
     assert "unique patterns" in out
+
+
+@pytest.mark.skipif(
+    not (_HAVE_ORACLE and os.path.exists(_TUNE)), reason="oracle/fixture unavailable"
+)
+def test_compile_and_play(capsys, tmp_path):
+    out = tmp_path / "consultant.tsnp"
+    rc = cli.main(["compile", _TUNE, str(out), "--frames", "600"])
+    report = capsys.readouterr().out
+    assert rc == 0
+    assert "bit-exact      : True" in report
+    assert "bytes/frame" in report
+    frames = cli.grid_from_sng(_TUNE, 600, 0)
+    assert (container.play(out.read_bytes()) == frames).all()
+    rc = cli.main(["play", str(out), "--frames", "2"])
+    dump = capsys.readouterr().out
+    assert rc == 0
+    assert dump.count("frame") == 2

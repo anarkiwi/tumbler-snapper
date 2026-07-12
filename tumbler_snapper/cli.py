@@ -1,24 +1,29 @@
 """Command-line interface for tumbler-snapper.
 
     tumbler-snapper report     TUNE.sng [--frames N] [--subtune S]
+    tumbler-snapper compile    TUNE.sng OUT.tsnp [--frames N] [--subtune S]
+    tumbler-snapper play       CONTAINER.tsnp [--frames N]
     tumbler-snapper transcribe TUNE.sng [--voice V] [--frames N] [--subtune S]
     tumbler-snapper structure  TUNE.sng [--frames N] [--subtune S]
 
 ``report`` renders a GoatTracker ``.sng`` to a SID register grid, fits the model,
 and prints the lossless token-efficiency report (baseline write-log vs model,
-with a bit-exactness check). ``transcribe`` prints the recovered A440/12-TET
-melody (notes and vibrato/portamento layers) for one voice. ``structure`` prints
-the recovered tempo, pattern pool, and per-voice orderlist.
+with a bit-exactness check). ``compile`` serializes the fitted model + residual to
+a bit-packed ``.tsnp`` container; ``play`` -- the reference player -- decodes one
+back to the exact ``$D400..`` register grid. ``transcribe`` prints the recovered
+A440/12-TET melody (notes and vibrato/portamento layers) for one voice.
+``structure`` prints the recovered tempo, pattern pool, and per-voice orderlist.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 import numpy as np
 
-from . import melody, model, residual, sidreg, song
+from . import container, melody, model, residual, sidreg, song
 from .capture import grid_from_sng
 
 
@@ -75,6 +80,28 @@ def cmd_structure(args) -> int:
     return 0
 
 
+def cmd_compile(args) -> int:
+    """Compile a tune to a .tsnp container and verify bit-exact playback."""
+    frames = grid_from_sng(args.tune, args.frames, args.subtune)
+    blob = container.compile(frames)
+    exact = np.array_equal(container.play(blob), frames)
+    Path(args.out).write_bytes(blob)
+    print(f"wrote          : {args.out}")
+    print(f"frames         : {len(frames)}")
+    print(f"container      : {len(blob)} bytes ({len(blob) / len(frames):.2f} bytes/frame)")
+    print(f"bit-exact      : {exact}")
+    return 0 if exact else 1
+
+
+def cmd_play(args) -> int:
+    """Decode a .tsnp container and print the reconstructed $D400.. grid."""
+    grid = container.play(Path(args.container).read_bytes())
+    for f in range(min(args.frames, len(grid))):
+        row = " ".join(f"{b:02X}" for b in grid[f])
+        print(f"frame {f:4d}: {row}")
+    return 0
+
+
 def main(argv=None) -> int:
     """Parse arguments and dispatch to the selected subcommand."""
     ap = argparse.ArgumentParser(prog="tumbler-snapper", description=__doc__)
@@ -95,6 +122,16 @@ def main(argv=None) -> int:
     p.add_argument("--frames", type=int, default=2500)
     p.add_argument("--subtune", type=int, default=0)
     p.set_defaults(fn=cmd_structure)
+    p = sub.add_parser("compile", help="compile a .sng to a lossless .tsnp container")
+    p.add_argument("tune")
+    p.add_argument("out", help="output .tsnp container path")
+    p.add_argument("--frames", type=int, default=2500)
+    p.add_argument("--subtune", type=int, default=0)
+    p.set_defaults(fn=cmd_compile)
+    p = sub.add_parser("play", help="decode a .tsnp container and dump the $D400.. grid")
+    p.add_argument("container")
+    p.add_argument("--frames", type=int, default=16)
+    p.set_defaults(fn=cmd_play)
     args = ap.parse_args(argv)
     return args.fn(args)
 

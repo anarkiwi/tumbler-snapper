@@ -47,10 +47,14 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    pattern matching; correlate the global filter-mode switches with the recovered
    structure to remove the last residual.
 
-6. **Container + reference player.** Serialize {tuning, cadence, tempo,
-   instruments, tables, patterns, orderlists, residual} to a bit-packed
-   container; a reference player interprets it back to the SID register stream
-   and applies the residual for bit-exact playback.
+6. **Done — container + reference player (`container.py`).** Serializes the
+   fitted model -- 7 accumulator columns (pw ×3, freq ×3, cutoff), the instrument
+   pool, and per-voice note-on events -- plus the residual to a bit-packed
+   ``.tsnp`` container (LEB128 varints, zig-zag signed, segment starts implied by
+   tiling `[0, T)`). The reference player (`play`) decodes it, re-renders the
+   predicted grid, and applies the residual for bit-exact playback.
+   `tumbler-snapper compile TUNE.sng OUT.tsnp` / `play OUT.tsnp`. Round-trips
+   bit-exact at 2.0–6.4 bytes/frame (up to 12× smaller than the raw 25-byte grid).
 
 7. **Real SID front end.** Wire deity-informant's VM to drive arbitrary
    PSID/RSID playroutines (init/play discovery, multispeed cadence) so the
