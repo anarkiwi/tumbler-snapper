@@ -33,15 +33,21 @@ prints baseline-vs-model tokens/frame plus a bit-exactness check.
 Bit-exact codec at 0.25–0.88 tokens/frame on the sample tunes: bounded-accumulator
 model (pulse width, filter cutoff, oscillator frequency), instrument/wavetable
 induction (control + ADSR) with pattern-factored note events, and a categorical
-filter-mode track (`$D417`/`$D418`). Serialized to a bit-packed `.tsnp` container
-with a reference player that replays the exact register grid (2.0–6.4
-bytes/frame). On
+filter-mode track (`$D417`/`$D418`). Serialized to a run-length-coded bit-packed
+`.tsnp` container with a reference player that replays the exact register grid
+(0.06–6.5 bytes/frame across the corpus, mean 2.6). On
 top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
 tempo/pattern/orderlist structure (`structure`), a single reviewable text
 decompilation (`dump`), and audio playback (`render`, via reSIDfp). Reads real
-`.sid` tunes directly through deity-informant's 6510 VM, byte-exact to the
-sidplayfp oracle (`pysidtracker`'s sidtrace) across the whole tune — verified
-register-for-register on Grid Runner — not only tracker exports.
+`.sid` tunes directly through deity-informant's 6510 VM.
+
+Validated on a diverse 1024-tune HVSC corpus (712 composers): the codec is
+**lossless on all 1024**, and the VM front end is byte-exact to the sidplayfp
+oracle (`pysidtracker`'s sidtrace) on 567 of them (at a per-tune frame phase) —
+the rest diverge on NTSC / multispeed cadence, not chip emulation. See
+[docs/corpus.md](docs/corpus.md) for the corpus, the IR-convergence review
+(a missing arpeggio/vibrato *generator* and *detune* abstraction), and the
+per-tracker pitch-offset invariant.
 
 ```bash
 tumbler-snapper report     TUNE.sng            # token-efficiency + bit-exactness

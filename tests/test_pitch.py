@@ -47,3 +47,34 @@ def test_per_voice_tables_are_exact():
     for v, vf in enumerate(voice_freqs):
         for f in vf:
             assert grid.freq(pitch.to_note(f, grid.offset), v) == f
+
+
+def test_detune_is_factored_out():
+    g0 = _formula_grid()
+    notes = (48, 55, 60, 64, 67, 72)
+    voice_freqs = [
+        [g0.freq(m, 0) for m in notes],
+        [g0.freq(m, 0) + 16 for m in notes],  # voice 1: constant +16 chorus detune
+        [g0.freq(m, 0) for m in notes],
+    ]
+    grid = pitch.build_grid(voice_freqs)
+    assert grid.detune[1] == 16 and grid.detune[0] == 0 and grid.detune[2] == 0
+    # The shared table holds each note once; the detuned voice adds no exceptions.
+    assert len(grid.shared) == len(notes)
+    assert grid.exceptions[1] == {}
+    # Reconstruction stays exact through the factoring.
+    for v, vf in enumerate(voice_freqs):
+        for f in vf:
+            assert grid.freq(pitch.to_note(f, grid.offset), v) == f
+
+
+def test_detune_exception_when_not_constant():
+    g0 = _formula_grid()
+    notes = (60, 64, 67)
+    # Voice 1 detunes +8 except on one note -> that note becomes an exception.
+    v1 = [g0.freq(60, 0) + 8, g0.freq(64, 0) + 8, g0.freq(67, 0) + 3]
+    grid = pitch.build_grid([[g0.freq(m, 0) for m in notes], v1, []])
+    assert grid.detune[1] == 8
+    assert len(grid.exceptions[1]) == 1  # the odd note out
+    for f in v1:
+        assert grid.freq(pitch.to_note(f, grid.offset), 1) == f

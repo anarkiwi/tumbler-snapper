@@ -1,0 +1,406 @@
+{
+  "frames": 1500,
+  "tol_cents": 8.0,
+  "authors": [
+    {
+      "author": "Richard Bayliss",
+      "n": 8,
+      "table_offset_cents": -0.12,
+      "offset_mad_cents": 0.09,
+      "spread_cents": 0.61,
+      "clocks": "PPNNPPNN",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Smashed_Beats.sid",
+          "offset_cents": 0.36,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Balls_and_Ghosts.sid",
+          "offset_cents": -0.12,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Obladdi_Oblada.sid",
+          "offset_cents": -0.16,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Fosters_v2.sid",
+          "offset_cents": -0.13,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Portals_to_Space.sid",
+          "offset_cents": 0.35,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Hyper_Harvest.sid",
+          "offset_cents": 0.4,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Disco_Dream.sid",
+          "offset_cents": -0.14,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/B/Bayliss_Richard/Ultimate_Dance-A-Load.sid",
+          "offset_cents": -0.21,
+          "clock": "NTSC"
+        }
+      ]
+    },
+    {
+      "author": "Thomas Mogensen (DRAX)",
+      "n": 8,
+      "table_offset_cents": 0.5,
+      "offset_mad_cents": 0.15,
+      "spread_cents": 1.17,
+      "clocks": "PPPPPPPP",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/D/DRAX/Jozz_Like.sid",
+          "offset_cents": -0.01,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/D/DRAX/Restless.sid",
+          "offset_cents": 0.35,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/D/DRAX/Worktunes/ROFK.sid",
+          "offset_cents": 0.5,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/D/DRAX/Balance.sid",
+          "offset_cents": 0.5,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/D/DRAX/Waste_Pocket.sid",
+          "offset_cents": 1.16,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/D/DRAX/Worktunes/Storm.sid",
+          "offset_cents": 0.24,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/D/DRAX/Worktunes/Tune_for_Maduplec.sid",
+          "offset_cents": 0.36,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/D/DRAX/Worktunes/LLKK.sid",
+          "offset_cents": 0.58,
+          "clock": "PAL"
+        }
+      ]
+    },
+    {
+      "author": "Andrew Fisher (Merman)",
+      "n": 8,
+      "table_offset_cents": -0.12,
+      "offset_mad_cents": 0.2,
+      "spread_cents": 1.55,
+      "clocks": "PPPPPPPN",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/M/Merman/Afternoon.sid",
+          "offset_cents": 0.4,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/M/Merman/Synchronicity_II.sid",
+          "offset_cents": -0.32,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/M/Merman/Its_Alright_for_You.sid",
+          "offset_cents": -0.12,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/M/Merman/King_of_Pain.sid",
+          "offset_cents": -0.22,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/M/Merman/Peggy_Sue.sid",
+          "offset_cents": -0.02,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/M/Merman/Married_with_Children.sid",
+          "offset_cents": 0.0,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/M/Merman/Silent_Night.sid",
+          "offset_cents": -0.92,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/M/Merman/Sinister_2000.sid",
+          "offset_cents": -1.15,
+          "clock": "NTSC"
+        }
+      ]
+    },
+    {
+      "author": "Johan \u00c5strand (Zyron)",
+      "n": 8,
+      "table_offset_cents": -0.02,
+      "offset_mad_cents": 0.13,
+      "spread_cents": 12.65,
+      "clocks": "NNPPPNNN",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Four_and_Twenty.sid",
+          "offset_cents": -0.12,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Stressfaktor.sid",
+          "offset_cents": -0.21,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Atomic_Brain.sid",
+          "offset_cents": -0.01,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Atomic_Brain_V2.sid",
+          "offset_cents": -0.02,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Amylnitrate.sid",
+          "offset_cents": -0.01,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Below_Us.sid",
+          "offset_cents": -0.27,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Flashbacks.sid",
+          "offset_cents": 12.38,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/Z/Zyron/Peeping_Tom.sid",
+          "offset_cents": -0.15,
+          "clock": "NTSC"
+        }
+      ]
+    },
+    {
+      "author": "Kjell Nordb\u00f8",
+      "n": 8,
+      "table_offset_cents": -0.09,
+      "offset_mad_cents": 0.06,
+      "spread_cents": 0.3,
+      "clocks": "PPPPPPPP",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/El_Morell.sid",
+          "offset_cents": -0.17,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/Yes.sid",
+          "offset_cents": -0.07,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/Objective.sid",
+          "offset_cents": -0.02,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/Live_from_Hell.sid",
+          "offset_cents": -0.09,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/Please.sid",
+          "offset_cents": -0.32,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/I_Want_to_Live.sid",
+          "offset_cents": -0.12,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/Naked_and_Lost.sid",
+          "offset_cents": -0.12,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/Snille_Astrid.sid",
+          "offset_cents": -0.03,
+          "clock": "PAL"
+        }
+      ]
+    },
+    {
+      "author": "Kai Lehmann (Ass It)",
+      "n": 8,
+      "table_offset_cents": -0.63,
+      "offset_mad_cents": 0.52,
+      "spread_cents": 1.14,
+      "clocks": "NNNNNNPN",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Disco_Rythm.sid",
+          "offset_cents": -0.63,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Uhrwerk.sid",
+          "offset_cents": -1.25,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Gavotte_7.sid",
+          "offset_cents": -0.14,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Cool_Gamezak.sid",
+          "offset_cents": -0.66,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Rude_and_Cruel.sid",
+          "offset_cents": -1.15,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Gamemusic_1.sid",
+          "offset_cents": -1.15,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Quick_Change.sid",
+          "offset_cents": -0.12,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/A/Ass_It/Marschblast.sid",
+          "offset_cents": -0.11,
+          "clock": "NTSC"
+        }
+      ]
+    },
+    {
+      "author": "Benjamin Dibbert (Nordischsound)",
+      "n": 8,
+      "table_offset_cents": 0.43,
+      "offset_mad_cents": 0.04,
+      "spread_cents": 0.81,
+      "clocks": "PPPPPPPP",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/Stay_Strong.sid",
+          "offset_cents": 0.43,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/Golden_Axe-Death_Adder.sid",
+          "offset_cents": 0.43,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/Mega_Man_3-Shadow_Man.sid",
+          "offset_cents": 0.47,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/Deus_Ex-Versalife.sid",
+          "offset_cents": 0.0,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/Steel_Drums_Calypso_2SID.sid",
+          "offset_cents": 0.47,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/Robots_Rule_the_Streets.sid",
+          "offset_cents": 0.0,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/Unreal-Flight_Castle.sid",
+          "offset_cents": 0.43,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/N/Nordischsound/At_Dooms_Gate_E1M1.sid",
+          "offset_cents": 0.81,
+          "clock": "PAL"
+        }
+      ]
+    },
+    {
+      "author": "Glenn Rune Gallefoss",
+      "n": 8,
+      "table_offset_cents": -0.01,
+      "offset_mad_cents": 0.01,
+      "spread_cents": 1.37,
+      "clocks": "PPPPPPNP",
+      "tunes": [
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Magical_SID_Shower.sid",
+          "offset_cents": 0.0,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Ten_Seconds.sid",
+          "offset_cents": -0.32,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Kururin.sid",
+          "offset_cents": -0.01,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Oswaldo.sid",
+          "offset_cents": 0.35,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Z12.sid",
+          "offset_cents": -0.0,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Rintintin.sid",
+          "offset_cents": -0.01,
+          "clock": "PAL"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Worktunes/Tull.sid",
+          "offset_cents": -1.02,
+          "clock": "NTSC"
+        },
+        {
+          "relpath": "MUSICIANS/B/Blues_Muz/Gallefoss_Glenn/Domino_Dancing.sid",
+          "offset_cents": -0.02,
+          "clock": "PAL"
+        }
+      ]
+    }
+  ]
+}

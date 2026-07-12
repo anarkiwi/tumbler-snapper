@@ -29,7 +29,7 @@ import numpy as np
 from . import accum, filt, model as modelmod, notes, residual, sidreg
 
 _MAGIC = b"TSNP"
-_VERSION = 4  # v4: filter ($D417/$D418) change-event track alongside the note pattern pool
+_VERSION = 5  # v5: run-length coded CTRL/AD/SR rows in the instrument + release pools
 _COLUMNS = (
     [f"pw{v}" for v in range(sidreg.NVOICES)]
     + [f"freq{v}" for v in range(sidreg.NVOICES)]
@@ -120,15 +120,33 @@ def _read_segments(r: _Reader) -> list[accum.Segment]:
 
 
 def _write_rows(w: _Writer, rows: tuple) -> None:
-    w.u(len(rows))
-    for ctl, ad, sr in rows:
+    """Write a CTRL/AD/SR row sequence, run-length coding repeated rows.
+
+    Held sustains and wavetable holds repeat the same ``(ctrl, ad, sr)`` for many
+    frames; a wavetable's release tail can hold one row for a whole note. Coding
+    ``(count, row)`` runs instead of one row per frame collapses those -- the
+    dominant cost in note-heavy tunes -- losslessly (the reader re-expands them).
+    """
+    runs: list[list] = []
+    for row in rows:
+        if runs and runs[-1][1] == row:
+            runs[-1][0] += 1
+        else:
+            runs.append([1, row])
+    w.u(len(runs))
+    for count, (ctl, ad, sr) in runs:
+        w.u(count)
         w.byte(ctl)
         w.byte(ad)
         w.byte(sr)
 
 
 def _read_rows(r: _Reader) -> tuple:
-    return tuple((r.byte(), r.byte(), r.byte()) for _ in range(r.u()))
+    rows: list[notes.Row] = []
+    for _ in range(r.u()):
+        count = r.u()
+        rows.extend([(r.byte(), r.byte(), r.byte())] * count)
+    return tuple(rows)
 
 
 def encode(model: modelmod.Model, res: residual.Residual) -> bytes:

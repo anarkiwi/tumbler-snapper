@@ -79,7 +79,8 @@ def render(frames: np.ndarray, name: str = "song") -> str:
         f"frames        : {length}",
         f"bit-exact     : {exact}",
         f"tuning offset : {mel.grid.offset_cents:+.2f} cents from A440 "
-        f"({mel.grid.n_entries} note entries)",
+        f"({mel.grid.clock / 1e6:.3f}MHz table; {len(mel.grid.shared)} shared notes, "
+        f"voice detune {mel.grid.detune})",
         f"tempo         : {arr.tempo} frames/row",
         f"model         : {tokens} tokens "
         f"({model.n_segments} accum segments + {model.note_model.n_onsets} note-ons / "
