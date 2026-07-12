@@ -61,70 +61,72 @@ def note_name(midi: int) -> str:
     return f"{_NAMES[midi % 12]}{midi // 12 - 1}"
 
 
-def _factor(tables: list[dict[int, int]]) -> tuple[dict[int, int], list[int], list[dict[int, int]]]:
-    """Factor per-voice tables into a shared table + per-voice constant detune.
+def note_freq(note: int, offset: float, clock: float) -> int:
+    """Global A440 / 12-TET register value for a grid note -- the shared pitch table.
 
-    Trackers detune voices by a near-constant register delta to fatten the sound,
-    so the same grid note differs by roughly that constant across voices. We pull
-    that out: a reference voice's table seeds a ``shared`` note -> value table, each
-    other voice gets the modal ``detune`` delta against it, and only notes that do
-    not fit ``shared[note] + detune`` are kept as per-voice ``exceptions``. This
-    names the detune explicitly and dedups the common case to one table + N deltas.
+    There is no per-tune table: the note -> register mapping is the one formula,
+    parameterised only by the per-tune ``offset`` (semitones) and ``clock``.
+    """
+    hz = 440.0 * 2.0 ** ((note - _A4_MIDI + offset) / 12.0)
+    return int(round(hz * (1 << 24) / clock))
+
+
+def _factor(
+    tables: list[dict[int, int]], offset: float, clock: float
+) -> tuple[list[int], list[dict[int, int]]]:
+    """Reduce observed per-voice values to per-voice detune + exceptions vs the formula.
+
+    A voice's exact register value for a grid note is the global formula value
+    (:func:`note_freq`) plus a near-constant per-voice ``detune`` (the chorus
+    detune trackers apply). Only values that still miss ``formula + detune`` -- a
+    bespoke, non-12-TET tracker table -- are kept as per-voice ``exceptions``. So
+    a standard tune stores just an offset, a clock, and up to three detunes.
     """
     n = len(tables)
     detune = [0] * n
-    if not any(tables):
-        return {}, detune, [{} for _ in range(n)]
-    ref = max(range(n), key=lambda v: len(tables[v]))
-    shared = dict(tables[ref])
-    for v in range(n):
-        if v == ref:
+    exceptions: list[dict[int, int]] = [{} for _ in range(n)]
+    for v, table in enumerate(tables):
+        if not table:
             continue
-        deltas = [tables[v][note] - shared[note] for note in tables[v] if note in shared]
-        detune[v] = Counter(deltas).most_common(1)[0][0] if deltas else 0
-        for note, val in tables[v].items():  # canonicalize notes the ref voice lacks
-            shared.setdefault(note, val - detune[v])
-    exceptions = [
-        {note: val for note, val in tables[v].items() if shared.get(note) != val - detune[v]}
-        for v in range(n)
-    ]
-    return shared, detune, exceptions
+        deltas = [val - note_freq(note, offset, clock) for note, val in table.items()]
+        detune[v] = Counter(deltas).most_common(1)[0][0]
+        exceptions[v] = {
+            note: val
+            for note, val in table.items()
+            if val != note_freq(note, offset, clock) + detune[v]
+        }
+    return detune, exceptions
 
 
 @dataclass
 class PitchGrid:
-    """Recovered tuning: global offset, clock, and per-voice note -> register tables.
+    """Recovered tuning: a global 12-TET formula plus a per-tune offset/clock.
 
-    ``tables`` stays per voice so a held note reconstructs to its exact register
-    value (zero pitch layer). On construction those tables are factored into a
-    ``shared`` note table plus a per-voice constant ``detune`` (the chorus detune
-    trackers apply between voices), with only misfitting notes kept as
-    ``exceptions`` -- an explicit, deduped view of the same information.
+    The note -> register mapping is :func:`note_freq` (global, not stored). Per
+    voice it carries a constant ``detune`` and a usually-empty ``exceptions`` set
+    for trackers whose table deviates from 12-TET, so a held note still
+    reconstructs to its exact value (zero pitch layer). ``tables`` is the observed
+    input the detune/exceptions are derived from, not a stored per-tune table.
     """
 
     offset: float  # semitones
     clock: float
-    tables: list[dict[int, int]]  # per voice: grid MIDI note -> exact register value
+    tables: list[dict[int, int]]  # per voice: observed grid MIDI note -> exact register value
 
     def __post_init__(self) -> None:
-        self.shared, self.detune, self.exceptions = _factor(self.tables)
+        self.detune, self.exceptions = _factor(self.tables, self.offset, self.clock)
 
     def freq(self, note: int, voice: int) -> int:
-        """Exact register value for a grid note on a voice (table, else 12-TET)."""
-        table = self.tables[voice]
-        if note in table:
-            return table[note]
-        hz = 440.0 * 2.0 ** ((note - _A4_MIDI + self.offset) / 12.0)
-        return int(round(hz * (1 << 24) / self.clock))
+        """Exact register value for a grid note on a voice: formula + detune, or exception."""
+        exc = self.exceptions[voice]
+        if note in exc:
+            return exc[note]
+        return note_freq(note, self.offset, self.clock) + self.detune[voice]
 
     @property
     def n_entries(self) -> int:
-        """Descriptor count of the factored grid: shared table + detunes + exceptions."""
-        return (
-            len(self.shared)
-            + sum(1 for d in self.detune if d)
-            + sum(len(e) for e in self.exceptions)
-        )
+        """Stored descriptors beyond the global formula: nonzero detunes + exceptions."""
+        return sum(1 for d in self.detune if d) + sum(len(e) for e in self.exceptions)
 
     @property
     def offset_cents(self) -> float:

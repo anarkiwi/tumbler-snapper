@@ -49,32 +49,35 @@ def test_per_voice_tables_are_exact():
             assert grid.freq(pitch.to_note(f, grid.offset), v) == f
 
 
+def _nf(note):
+    return pitch.note_freq(note, 0.0, pitch.PAL_CLOCK)
+
+
 def test_detune_is_factored_out():
-    g0 = _formula_grid()
     notes = (48, 55, 60, 64, 67, 72)
-    voice_freqs = [
-        [g0.freq(m, 0) for m in notes],
-        [g0.freq(m, 0) + 16 for m in notes],  # voice 1: constant +16 chorus detune
-        [g0.freq(m, 0) for m in notes],
+    # Voice 1 sits a constant +16 chorus detune above the global 12-TET formula.
+    tables = [
+        {n: _nf(n) for n in notes},
+        {n: _nf(n) + 16 for n in notes},
+        {n: _nf(n) for n in notes},
     ]
-    grid = pitch.build_grid(voice_freqs)
-    assert grid.detune[1] == 16 and grid.detune[0] == 0 and grid.detune[2] == 0
-    # The shared table holds each note once; the detuned voice adds no exceptions.
-    assert len(grid.shared) == len(notes)
-    assert grid.exceptions[1] == {}
-    # Reconstruction stays exact through the factoring.
-    for v, vf in enumerate(voice_freqs):
-        for f in vf:
-            assert grid.freq(pitch.to_note(f, grid.offset), v) == f
+    grid = pitch.PitchGrid(0.0, pitch.PAL_CLOCK, tables)
+    assert grid.detune == [0, 16, 0]
+    assert all(not e for e in grid.exceptions)  # the constant detune leaves no exceptions
+    assert grid.n_entries == 1  # just the one nonzero detune, no stored table
+    for v, table in enumerate(tables):
+        for note, val in table.items():
+            assert grid.freq(note, v) == val  # exact through formula + detune
 
 
 def test_detune_exception_when_not_constant():
-    g0 = _formula_grid()
-    notes = (60, 64, 67)
     # Voice 1 detunes +8 except on one note -> that note becomes an exception.
-    v1 = [g0.freq(60, 0) + 8, g0.freq(64, 0) + 8, g0.freq(67, 0) + 3]
-    grid = pitch.build_grid([[g0.freq(m, 0) for m in notes], v1, []])
+    tables = [
+        {60: _nf(60), 64: _nf(64), 67: _nf(67)},
+        {60: _nf(60) + 8, 64: _nf(64) + 8, 67: _nf(67) + 3},
+        {},
+    ]
+    grid = pitch.PitchGrid(0.0, pitch.PAL_CLOCK, tables)
     assert grid.detune[1] == 8
-    assert len(grid.exceptions[1]) == 1  # the odd note out
-    for f in v1:
-        assert grid.freq(pitch.to_note(f, grid.offset), 1) == f
+    assert set(grid.exceptions[1]) == {67}  # only the odd note out is stored
+    assert grid.freq(67, 1) == _nf(67) + 3 and grid.freq(60, 1) == _nf(60) + 8
