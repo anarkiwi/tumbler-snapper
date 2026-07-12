@@ -53,6 +53,7 @@ def cmd_report(args) -> int:
         f"({rep['model_segments']} accumulator segments + "
         f"{rep['note_onsets']} notes in {rep['note_patterns']} patterns / "
         f"{rep['instruments']} instruments + "
+        f"{rep['filter_tokens']} filter tokens ({rep['filter_regs']} regs) + "
         f"{rep['residual_changepoints']} residual changepoints)"
     )
     return 0 if exact else 1

@@ -17,6 +17,8 @@ Layout (all integers LEB128 varints; signed values zig-zag encoded):
     note events: tempo, then a shared pattern pool (n patterns, each n events of
         row-delta / instrument id / release id), then per voice: first frame and
         an orderlist of pattern ids
+    filter track: a shared change-event pool (n patterns, each n (gap, value)
+        events), then n modelled registers, each a register index and orderlist
     residual (:func:`residual.encode`)
 """
 
@@ -24,10 +26,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from . import accum, model as modelmod, notes, residual, sidreg
+from . import accum, filt, model as modelmod, notes, residual, sidreg
 
 _MAGIC = b"TSNP"
-_VERSION = 3  # v3: note events factored into a shared pattern pool + per-voice orderlists
+_VERSION = 4  # v4: filter ($D417/$D418) change-event track alongside the note pattern pool
 _COLUMNS = (
     [f"pw{v}" for v in range(sidreg.NVOICES)]
     + [f"freq{v}" for v in range(sidreg.NVOICES)]
@@ -160,8 +162,33 @@ def encode(model: modelmod.Model, res: residual.Residual) -> bytes:
         w.u(len(orderlist))
         for pid in orderlist:
             w.u(pid)
+    _write_filter(w, model.filter_model)
     w.raw(residual.encode(res))
     return bytes(w.buf)
+
+
+def _write_filter(w: _Writer, fm: filt.FilterModel) -> None:
+    w.u(len(fm.patterns))
+    for pat in fm.patterns:
+        w.u(len(pat))
+        for gap, val in pat:
+            w.u(gap)
+            w.byte(val)
+    w.u(len(fm.orderlists))
+    for reg, orderlist in fm.orderlists.items():
+        w.byte(reg)
+        w.u(len(orderlist))
+        for pid in orderlist:
+            w.u(pid)
+
+
+def _read_filter(r: _Reader, length: int) -> filt.FilterModel:
+    patterns = [tuple((r.u(), r.byte()) for _ in range(r.u())) for _ in range(r.u())]
+    orderlists = {}
+    for _ in range(r.u()):
+        reg = r.byte()
+        orderlists[reg] = [r.u() for _ in range(r.u())]
+    return filt.FilterModel(length, patterns, orderlists)
 
 
 def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual]:
@@ -188,8 +215,9 @@ def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual]:
         orderlists.append([r.u() for _ in range(r.u())])
     onsets = notes.unpack_onsets(tempo, first_frames, patterns, orderlists)
     note_model = notes.NoteModel(length, pool, releases, onsets)
+    filter_model = _read_filter(r, length)
     res = residual.decode(r.buf[r.i :])
-    return modelmod.Model(length, columns, note_model), res
+    return modelmod.Model(length, columns, note_model, filter_model), res
 
 
 def compile(frames) -> bytes:  # pylint: disable=redefined-builtin

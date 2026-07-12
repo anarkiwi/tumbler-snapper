@@ -30,10 +30,12 @@ prints baseline-vs-model tokens/frame plus a bit-exactness check.
 
 ## Status
 
-Bit-exact codec at 0.27–0.96 tokens/frame on the sample tunes: bounded-accumulator
-model (pulse width, filter cutoff, oscillator frequency) plus instrument/wavetable
-induction (control + ADSR). Serialized to a bit-packed `.tsnp` container with a
-reference player that replays the exact register grid (2.0–6.4 bytes/frame). On
+Bit-exact codec at 0.25–0.88 tokens/frame on the sample tunes: bounded-accumulator
+model (pulse width, filter cutoff, oscillator frequency), instrument/wavetable
+induction (control + ADSR) with pattern-factored note events, and a categorical
+filter-mode track (`$D417`/`$D418`). Serialized to a bit-packed `.tsnp` container
+with a reference player that replays the exact register grid (2.0–6.4
+bytes/frame). On
 top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
 tempo/pattern/orderlist structure (`structure`), a single reviewable text
 decompilation (`dump`), and audio playback (`render`, via reSIDfp). Reads real
@@ -60,8 +62,8 @@ tumbler-snapper dump   Grid_Runner.sid -o Grid_Runner.ir.txt   # read the .sid -
 tumbler-snapper render Grid_Runner.sid Grid_Runner.wav         # -> 50s of audio, bit-exact IR
 ```
 
-Next: unify the note model (pitch + instrument + pattern into one note codec) so
-the semantic layers fold into the token metric. See
+Next: RSID IRQ-vector / multispeed cadence in the SID front end, and cycle-exact
+intra-frame register writes to close the render's sub-0.3% timing drift. See
 [docs/roadmap.md](docs/roadmap.md) and [docs/design.md](docs/design.md).
 
 ## Development

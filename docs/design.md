@@ -190,6 +190,42 @@ pitch-annotated arrangement (`song.py`) for the human reading -- e.g. consultant
 voice 2's orderlist `[27, 28, 28, 28, 29, 30]` recovers the phrase pattern 28
 played three times.
 
+**Transpose-aware matching, measured and rejected.** A tracker can replay one
+pattern at several pitches via an orderlist transpose column, so relative-pitch
+patterns plus a per-entry offset could in principle merge transposed repeats. It
+does not pay on this corpus. Canonicalising each pool pattern by its first pitch
+and merging transpose-equivalents (representative transposition free, only
+off-representative orderlist entries charged an offset) yields the *optimal*
+group-wise saving of **+0 / +0 / +7 / +0 tokens** (consultant / dojo / funktest /
+cabrinigreen). The transpose-equivalent patterns exist (e.g. cabrinigreen 132
+pool patterns collapse to 89 canonical shapes) but each variant occurs once or
+twice, so the per-entry offset cancels the merged-event saving. A naive
+consecutive-interval encoding is worse still (predecessor-dependent first symbol
+breaks exact repeats: dojo 57 -> 60 patterns). So transpose-aware matching is not
+part of the codec; pitch remains an accumulator the note references, which already
+lets a *same-pitch* repeated phrase share one pattern.
+
+## Filter track (`filt.py`)
+
+The two global filter registers -- `$D417` (resonance + routing) and `$D418`
+(filter mode + master volume) -- are neither accumulators nor note-driven. They
+are a low-cardinality categorical automation the player writes over time (on
+cabrinigreen, `$D418` takes four values `{0x0F, 0x1F, 0x2F, 0x4F}` -- volume 15
+with the filter mode switching -- across 172 writes). Left in the residual each
+write is a change-point; instead each register's change-event stream `(gap since
+last change, value)` is factored into a shared pattern pool + per-register
+orderlist by the same `factor.pack_stream` the note codec uses, and `predict`
+holds each value forward to fill the column exactly (residual for it -> 0).
+
+The pool/orderlist form carries overhead (a non-repeating stream inflates: each
+singleton event becomes a one-event pattern *plus* an orderlist reference), so a
+register is modelled **only when factoring is strictly cheaper than the residual**
+-- a per-register include decision. On the clean tunes the filter track never
+repeats enough, so no register is claimed and the result is bit-identical to
+before (0.249 / 0.320 / 0.469 unchanged). On cabrinigreen `$D418` is claimed and
+its 172 residual change-points become a 135-token factored track: model 0.895 ->
+0.880 tok/frame, residual for the register down to zero, still bit-exact.
+
 ## Container + reference player (`container.py`)
 
 The `.tsnp` container is the serialized universal-tracker program. It bit-packs
@@ -201,6 +237,7 @@ encoded):
         n_segments, then per segment: length, value, period, period deltas
     instrument pool: per instrument its attack / loop / release rows (ctrl, ad, sr)
     3 voices: per voice, note-ons as (frame delta, instrument id)
+    filter track: change-event pool (patterns of (gap, value)) + modelled registers
     residual (residual.encode)
 
 Segment `start` is never stored -- the segments of a column tile `[0, T)`
@@ -250,7 +287,8 @@ also audits the whole codec end to end.
 
 ## Next stages
 
-See [roadmap.md](roadmap.md): unify the note model (fold pitch layers and pattern
-factoring into the instrument/note events), tie the global filter switches to the
-recovered structure, and add RSID IRQ-vector / multispeed cadence to the SID
-front end.
+See [roadmap.md](roadmap.md): the note model is unified (release-as-event, pattern
+factoring folded into the codec) and the global filter switches now compress as a
+categorical track. Remaining: RSID IRQ-vector / multispeed cadence in the SID
+front end, and cycle-exact intra-frame register writes to close the render's
+sub-0.3% timing drift.

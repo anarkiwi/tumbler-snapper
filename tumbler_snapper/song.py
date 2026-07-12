@@ -85,19 +85,8 @@ def fit(frames: np.ndarray, note_model, grid) -> Song:
     for v in range(sidreg.NVOICES):
         events = _events(frames, note_model, grid, v, tempo)
         raw += len(events)
-        vocab: dict[Event, int] = {}
-        sym = [vocab.setdefault(e, len(vocab)) for e in events]
-        inv = {i: e for e, i in vocab.items()}
-        blocks, order = factor.factor(sym)
-        # materialize each top-level entry as a pattern in the shared pool
-        orderlist: list[int] = []
+        orderlist = factor.pack_stream(events, pool, pool_index)
         first = note_model.onsets[v][0][0] if note_model.onsets[v] else 0
-        for entry in order:
-            pat = tuple(factor.expand(entry, blocks, inv))
-            pid = pool_index.setdefault(pat, len(pool))
-            if pid == len(pool):
-                pool.append(pat)
-            orderlist.append(pid)
         voices.append(VoiceArrangement(first, orderlist))
     return Song(frames.shape[0], tempo, pool, voices, raw)
 

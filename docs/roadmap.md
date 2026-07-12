@@ -62,8 +62,26 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    0.917->0.895, still bit-exact. The greedy factorer (shared with `song.py`) has a
    ``max_len`` cap making it near-linear, so a full-length tune factors in ~1s.
    Pitch stays an accumulator the note references (folding it in regresses -- see
-   design.md). **Pending:** transpose-aware pattern matching; tie the global
-   filter-mode switches to the recovered structure to remove the last residual.
+   design.md).
+
+5d. **Done — filter-mode categorical track (`filt.py`).** The global filter
+   registers `$D417`/`$D418` -- aperiodic categorical automation that was the last
+   large residual on filter-driven tunes -- are modelled as change-event streams
+   `(gap, value)` factored into a shared pattern pool + orderlist (the same
+   `factor.pack_stream` as the note codec), predicted forward to fill the column
+   exactly. A register is claimed **only when factoring beats the residual** (a
+   per-register include decision), so non-repeating filter tracks stay in the
+   residual and clean tunes are bit-identical to before. cabrinigreen's `$D418`
+   (172 change-points) becomes a 135-token track: 0.895 -> 0.880 tok/frame, its
+   residual to zero, still bit-exact. Serialized in the container (v4).
+
+5e. **Measured and rejected — transpose-aware pattern matching.** Merging
+   transpose-equivalent patterns (relative-pitch canonical form + per-orderlist
+   transpose offset) yields the optimal group-wise saving of +0 / +0 / +7 / +0
+   tokens across the sample tunes: the variants exist but occur once or twice, so
+   the per-entry offset cancels the merged-event saving (see design.md). Not
+   shipped -- pitch stays an accumulator, and same-pitch repeats already share a
+   pattern.
 
 6. **Done — container + reference player (`container.py`).** Serializes the
    fitted model -- 7 accumulator columns (pw ×3, freq ×3, cutoff), the instrument
