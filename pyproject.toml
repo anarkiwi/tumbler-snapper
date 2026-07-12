@@ -16,6 +16,8 @@ dependencies = ["numpy>=1.23"]
 oracles = ["pygoattracker>=0.1", "pydefmon>=0.1", "pysidtracker>=0.6"]
 # The real SID playroutine front end: deity-informant's 6510 VM.
 sid = ["deity-informant>=0.2"]
+# Framing pre-captured (clock, reg, val) write logs stored as parquet.
+dumps = ["pyarrow>=14"]
 dev = [
     "black>=24",
     "pylint>=3",
@@ -36,7 +38,7 @@ line-length = 100
 
 [tool.pylint.main]
 # Optional oracle / SID front-end deps, absent in the core (numpy-only) install.
-ignored-modules = ["pygoattracker", "pydefmon", "pysidtracker", "deity_informant"]
+ignored-modules = ["pygoattracker", "pydefmon", "pysidtracker", "deity_informant", "pyarrow"]
 
 [tool.pylint.format]
 max-line-length = 100

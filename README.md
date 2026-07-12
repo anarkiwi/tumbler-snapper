@@ -34,20 +34,31 @@ model (pulse width, filter cutoff, oscillator frequency) plus instrument/wavetab
 induction (control + ADSR). Serialized to a bit-packed `.tsnp` container with a
 reference player that replays the exact register grid (2.0–6.4 bytes/frame). On
 top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
-tempo/pattern/orderlist structure (`structure`).
+tempo/pattern/orderlist structure (`structure`), and a single reviewable text
+decompilation (`dump`). Runs bit-exact on real HVSC tunes (e.g. Grid Runner) from
+a captured write log, not only tracker exports.
 
 ```bash
 tumbler-snapper report     TUNE.sng            # token-efficiency + bit-exactness
 tumbler-snapper compile    TUNE.sng OUT.tsnp   # write a lossless container
 tumbler-snapper play       OUT.tsnp            # reconstruct the register grid
+tumbler-snapper dump       TUNE.sng            # reviewable text decompilation
 tumbler-snapper transcribe TUNE.sng --voice N  # recovered melody
 tumbler-snapper structure  TUNE.sng            # tempo, patterns, orderlist
 ```
 
+`dump` also accepts a pre-captured `.dump.parquet` write log (`clock, reg, val`),
+so it runs on arbitrary real SID tunes captured through the VM, not only tracker
+exports:
+
+```bash
+tumbler-snapper dump Grid_Runner.1.dump.parquet   # a real HVSC tune, bit-exact
+```
+
 Next: unify the note model (pitch + instrument + pattern into one note codec) so
-the semantic layers fold into the token metric; wire the real SID front end
-(deity-informant's VM) to run on arbitrary HVSC tunes. See
-[docs/roadmap.md](docs/roadmap.md) and [docs/design.md](docs/design.md).
+the semantic layers fold into the token metric; wire deity-informant's VM in-process
+to capture the write log directly (the parquet framing already handles the rest).
+See [docs/roadmap.md](docs/roadmap.md) and [docs/design.md](docs/design.md).
 
 ## Development
 

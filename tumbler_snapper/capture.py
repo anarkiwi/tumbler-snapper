@@ -1,21 +1,25 @@
 """Capture a tune to a per-frame SID register grid ``frames[T, 25]``.
 
-Two front ends produce the same grid shape:
+Three front ends produce the same grid shape:
 
 * :func:`grid_from_sng` -- render a GoatTracker ``.sng`` via pygoattracker's
   playroutine (validated byte-exact vs sidplayfp). Used for ground-truth
   validation because the source :class:`Song` structure is known.
+* :func:`grid_from_dump` -- frame an already-captured ``(clock, reg, val)``
+  write log (a deity-informant / SID-emulator dump, stored as parquet) by
+  snapshotting the register file at each play-call boundary. Works on any tune
+  captured this way (e.g. arbitrary HVSC ``.sid`` tunes).
 * :func:`grid_from_sid` -- the real pipeline: drive an arbitrary PSID/RSID
   playroutine through deity-informant's cycle-exact 6510 VM. Works on any tune.
 
-Both are optional imports so the core codec has no heavy dependency.
+All are optional imports so the core codec has no heavy dependency.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-from .sidreg import as_frames
+from .sidreg import NREGS, as_frames
 
 
 def grid_from_sng(path: str, frames: int, subtune: int = 0) -> np.ndarray:
@@ -32,3 +36,50 @@ def grid_from_song(song, frames: int, subtune: int = 0) -> np.ndarray:
     from pygoattracker.player import Player  # noqa: PLC0415
 
     return as_frames(Player(song, subtune=subtune).render_grid(frames))
+
+
+def frame_writes(clock, reg, val, gap: int = 9000) -> np.ndarray:
+    """Frame a ``(clock, reg, val)`` write log into a ``[T, NREGS]`` grid.
+
+    A play call is a burst of writes; consecutive bursts are separated by a clock
+    gap of roughly one refresh period. A new frame starts wherever the inter-write
+    gap exceeds ``gap`` (well above intra-burst spacing, well below one period).
+    The register file carries forward, so each frame holds the last value written
+    to every register up to and including that frame.
+    """
+    clock = np.asarray(clock, np.int64)
+    reg = np.asarray(reg, np.int64)
+    val = np.asarray(val, np.int64)
+    keep = reg < NREGS
+    clock, reg, val = clock[keep], reg[keep], val[keep]
+    fid = np.empty(clock.shape, np.int64)
+    fid[0] = 0
+    np.cumsum(np.diff(clock) > gap, out=fid[1:])
+    length = int(fid[-1]) + 1
+    grid = np.zeros((length, NREGS), np.int64)
+    written = np.zeros((length, NREGS), bool)
+    grid[fid, reg] = val  # duplicate (frame, reg) resolves to the last write
+    written[fid, reg] = True
+    src = np.where(written, np.arange(length)[:, None], 0)
+    np.maximum.accumulate(src, axis=0, out=src)  # forward-fill unwritten cells
+    return as_frames(np.take_along_axis(grid, src, axis=0).astype(np.uint8))
+
+
+def grid_from_dump(path: str, frames: int | None = None, gap: int = 9000) -> np.ndarray:
+    """Frame a captured ``.dump.parquet`` write log to a register grid.
+
+    The parquet has ``clock, reg, val`` columns (optionally ``chipno``; only chip
+    0 is used). Returns the first ``frames`` frames, or all of them if ``None``.
+    """
+    import pyarrow.parquet as pq  # noqa: PLC0415 - optional capture dep
+
+    cols = pq.read_table(path).to_pydict()
+    chip = np.asarray(cols.get("chipno", np.zeros(len(cols["clock"]))))
+    sel = chip == 0
+    grid = frame_writes(
+        np.asarray(cols["clock"])[sel],
+        np.asarray(cols["reg"])[sel],
+        np.asarray(cols["val"])[sel],
+        gap,
+    )
+    return grid if frames is None else grid[:frames]

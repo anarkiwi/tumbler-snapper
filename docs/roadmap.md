@@ -56,6 +56,18 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    `tumbler-snapper compile TUNE.sng OUT.tsnp` / `play OUT.tsnp`. Round-trips
    bit-exact at 2.0–6.4 bytes/frame (up to 12× smaller than the raw 25-byte grid).
 
-7. **Real SID front end.** Wire deity-informant's VM to drive arbitrary
-   PSID/RSID playroutines (init/play discovery, multispeed cadence) so the
-   pipeline runs on any HVSC tune, not only tracker exports.
+7. **Real SID front end (partial).** `capture.grid_from_dump` frames a captured
+   `(clock, reg, val)` write log (deity-informant / SID-emulator dump, stored as
+   parquet) into the register grid by snapshotting the file at each play-call
+   burst boundary -- so the whole pipeline already runs bit-exact on arbitrary
+   HVSC tunes (verified on Grid Runner: 2500 frames, 36 instruments, bit-exact at
+   1.14 tok/frame). **Pending:** wire deity-informant's VM in-process to produce
+   that write log directly from a `.sid` (init/play discovery, multispeed
+   cadence), removing the pre-capture step.
+
+8. **Reviewable text dump (`dump.py`).** `tumbler-snapper dump` renders one
+   human-readable decompilation -- header (frames, tuning offset, tempo, token
+   efficiency, bit-exactness), the deduplicated instrument pool (fragments
+   run-length collapsed), per-column accumulator-segment counts, and each voice's
+   orderlist plus a merged note list (frame, A440 note name, instrument, pitch
+   layer). Accepts a `.sng` tune or a `.dump.parquet` write log.
