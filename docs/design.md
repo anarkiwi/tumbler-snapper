@@ -20,6 +20,14 @@ For ground-truth validation we also render known GoatTracker `.sng` /  DefMON
 tunes via pygoattracker / pydefmon (both byte-exact vs sidplayfp), so recovered
 structure can be checked against a known source.
 
+A tune already captured to a `(clock, reg, val)` write log (the VM's other output
+form, stored as parquet) is framed by `capture.grid_from_dump`: a play call is a
+burst of writes and consecutive bursts are separated by a clock gap near one
+refresh period, so a new frame begins wherever the inter-write gap exceeds a
+threshold well above intra-burst spacing and well below one period; the register
+file carries forward. This lets the whole pipeline run bit-exact on arbitrary
+HVSC tunes (verified on Grid Runner) ahead of the in-process VM front end.
+
 ## Predictive codec (why it is lossless)
 
 Reconstruction is `actual = model_prediction + delta-coded error`
@@ -171,9 +179,20 @@ frames are delta-coded. `play` (the reference player) is the exact inverse of
 bytes/frame (consultant 2.06, dojo 1.91, funktest 3.65, cabrinigreen 6.44) --
 up to 12× smaller than the raw 25-byte-per-frame grid, and losslessly playable.
 
+## Reviewable dump (`dump.py`)
+
+`tumbler-snapper dump` composes the model, melody and song layers into one
+human-readable text decompilation for review: a header (frames, tuning offset,
+tempo, tokens/frame, bit-exactness), the deduplicated instrument pool with each
+fragment's `ctrl:ad:sr` rows run-length collapsed, per-column accumulator-segment
+counts, and per voice the orderlist plus a merged note list (frame, A440 note
+name, instrument id, pitch layer). It reconstructs and checks bit-exactness so the
+dump is a faithful view of a lossless decompilation, and accepts either a `.sng`
+tune or a captured `.dump.parquet` write log.
+
 ## Next stages
 
 See [roadmap.md](roadmap.md): unify the note model (fold pitch layers and pattern
 factoring into the instrument/note events), tie the global filter switches to the
-recovered structure, and wire the real SID front end (deity-informant's VM) so the
-pipeline runs on arbitrary HVSC tunes.
+recovered structure, and wire deity-informant's VM in-process to capture the write
+log directly from a `.sid` (the parquet framing already handles the rest).

@@ -3,6 +3,7 @@
     tumbler-snapper report     TUNE.sng [--frames N] [--subtune S]
     tumbler-snapper compile    TUNE.sng OUT.tsnp [--frames N] [--subtune S]
     tumbler-snapper play       CONTAINER.tsnp [--frames N]
+    tumbler-snapper dump       TUNE.sng|DUMP.parquet [--frames N] [--subtune S]
     tumbler-snapper transcribe TUNE.sng [--voice V] [--frames N] [--subtune S]
     tumbler-snapper structure  TUNE.sng [--frames N] [--subtune S]
 
@@ -10,7 +11,10 @@
 and prints the lossless token-efficiency report (baseline write-log vs model,
 with a bit-exactness check). ``compile`` serializes the fitted model + residual to
 a bit-packed ``.tsnp`` container; ``play`` -- the reference player -- decodes one
-back to the exact ``$D400..`` register grid. ``transcribe`` prints the recovered
+back to the exact ``$D400..`` register grid. ``dump`` prints a reviewable text
+decompilation (tuning, tempo, instruments, accumulators, per-voice melody) of a
+``.sng`` tune or a captured ``.dump.parquet`` write log. ``transcribe`` prints the
+recovered
 A440/12-TET melody (notes and vibrato/portamento layers) for one voice.
 ``structure`` prints the recovered tempo, pattern pool, and per-voice orderlist.
 """
@@ -23,8 +27,8 @@ from pathlib import Path
 
 import numpy as np
 
-from . import container, melody, model, residual, sidreg, song
-from .capture import grid_from_sng
+from . import container, dump, melody, model, residual, sidreg, song
+from .capture import grid_from_dump, grid_from_sng
 
 
 def cmd_report(args) -> int:
@@ -93,6 +97,21 @@ def cmd_compile(args) -> int:
     return 0 if exact else 1
 
 
+def _grid_for(args) -> np.ndarray:
+    """Load a register grid from a ``.sng`` tune or a ``.dump.parquet`` write log."""
+    if args.tune.endswith((".parquet", ".dump")):
+        return grid_from_dump(args.tune, args.frames)
+    return grid_from_sng(args.tune, args.frames, args.subtune)
+
+
+def cmd_dump(args) -> int:
+    """Print a reviewable text dump of the decompiled song."""
+    frames = _grid_for(args)
+    name = Path(args.tune).stem
+    print(dump.render(frames, name), end="")
+    return 0
+
+
 def cmd_play(args) -> int:
     """Decode a .tsnp container and print the reconstructed $D400.. grid."""
     grid = container.play(Path(args.container).read_bytes())
@@ -132,6 +151,11 @@ def main(argv=None) -> int:
     p.add_argument("container")
     p.add_argument("--frames", type=int, default=16)
     p.set_defaults(fn=cmd_play)
+    p = sub.add_parser("dump", help="reviewable text dump of a decompiled .sng / .dump.parquet")
+    p.add_argument("tune", help=".sng tune or .dump.parquet write log")
+    p.add_argument("--frames", type=int, default=2500)
+    p.add_argument("--subtune", type=int, default=0)
+    p.set_defaults(fn=cmd_dump)
     args = ap.parse_args(argv)
     return args.fn(args)
 

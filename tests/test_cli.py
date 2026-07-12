@@ -49,6 +49,18 @@ def test_structure(capsys):
 @pytest.mark.skipif(
     not (_HAVE_ORACLE and os.path.exists(_TUNE)), reason="oracle/fixture unavailable"
 )
+def test_dump(capsys):
+    rc = cli.main(["dump", _TUNE, "--frames", "600"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "bit-exact     : True" in out
+    assert "instruments (" in out
+    assert "voice 0:" in out
+
+
+@pytest.mark.skipif(
+    not (_HAVE_ORACLE and os.path.exists(_TUNE)), reason="oracle/fixture unavailable"
+)
 def test_compile_and_play(capsys, tmp_path):
     out = tmp_path / "consultant.tsnp"
     rc = cli.main(["compile", _TUNE, str(out), "--frames", "600"])
