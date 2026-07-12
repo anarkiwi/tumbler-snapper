@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Rendered artifacts (WAV / text IR dumps)
+*.wav
+*.ir.txt
+*.tsnp
+.oracle-cache/

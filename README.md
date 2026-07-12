@@ -11,6 +11,7 @@ frame while reconstructing the SID register grid bit-exactly.
 SID tune --(deity-informant 6510 VM)--> per-frame $D400..$D418 grid
          --(tumbler-snapper compile)--> .tsnp container (model + residual)
          --(tumbler-snapper play)-----> bit-exact register grid
+         --(tumbler-snapper render)---> WAV (reSIDfp)
 ```
 
 The model is a predictive codec: a structured model predicts the register grid,
@@ -34,31 +35,34 @@ model (pulse width, filter cutoff, oscillator frequency) plus instrument/wavetab
 induction (control + ADSR). Serialized to a bit-packed `.tsnp` container with a
 reference player that replays the exact register grid (2.0–6.4 bytes/frame). On
 top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
-tempo/pattern/orderlist structure (`structure`), and a single reviewable text
-decompilation (`dump`). Runs bit-exact on real HVSC tunes (e.g. Grid Runner) from
-a captured write log, not only tracker exports.
+tempo/pattern/orderlist structure (`structure`), a single reviewable text
+decompilation (`dump`), and audio playback (`render`, via reSIDfp). Reads real
+`.sid` tunes directly through deity-informant's 6510 VM, byte-exact to the
+sidplayfp oracle (`pysidtracker`'s sidtrace) across the whole tune — verified
+register-for-register on Grid Runner — not only tracker exports.
 
 ```bash
 tumbler-snapper report     TUNE.sng            # token-efficiency + bit-exactness
 tumbler-snapper compile    TUNE.sng OUT.tsnp   # write a lossless container
 tumbler-snapper play       OUT.tsnp            # reconstruct the register grid
-tumbler-snapper dump       TUNE.sng            # reviewable text decompilation
+tumbler-snapper dump       TUNE  -o OUT.txt    # reviewable text IR (stdout if no -o)
+tumbler-snapper render     TUNE  OUT.wav       # render the IR to audio (reSIDfp)
 tumbler-snapper transcribe TUNE.sng --voice N  # recovered melody
 tumbler-snapper structure  TUNE.sng            # tempo, patterns, orderlist
 ```
 
-`dump` also accepts a pre-captured `.dump.parquet` write log (`clock, reg, val`),
-so it runs on arbitrary real SID tunes captured through the VM, not only tracker
-exports:
+`dump` and `render` accept a real `.sid` tune (read through deity-informant's 6510
+VM), a GoatTracker `.sng`, or a pre-captured `.dump.parquet` write log — so the
+whole pipeline runs on arbitrary HVSC tunes, not only tracker exports:
 
 ```bash
-tumbler-snapper dump Grid_Runner.1.dump.parquet   # a real HVSC tune, bit-exact
+tumbler-snapper dump   Grid_Runner.sid -o Grid_Runner.ir.txt   # read the .sid -> text IR
+tumbler-snapper render Grid_Runner.sid Grid_Runner.wav         # -> 50s of audio, bit-exact IR
 ```
 
 Next: unify the note model (pitch + instrument + pattern into one note codec) so
-the semantic layers fold into the token metric; wire deity-informant's VM in-process
-to capture the write log directly (the parquet framing already handles the rest).
-See [docs/roadmap.md](docs/roadmap.md) and [docs/design.md](docs/design.md).
+the semantic layers fold into the token metric. See
+[docs/roadmap.md](docs/roadmap.md) and [docs/design.md](docs/design.md).
 
 ## Development
 
