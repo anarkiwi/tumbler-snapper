@@ -14,7 +14,9 @@ Layout (all integers LEB128 varints; signed values zig-zag encoded):
     instrument pool: n, then per instrument its attack / loop rows
         (each row = ctrl, ad, sr bytes)
     release pool: n, then per release its rows
-    3 voices: n_onsets, then per onset: frame delta, instrument id, release id
+    note events: tempo, then a shared pattern pool (n patterns, each n events of
+        row-delta / instrument id / release id), then per voice: first frame and
+        an orderlist of pattern ids
     residual (:func:`residual.encode`)
 """
 
@@ -25,7 +27,7 @@ import numpy as np
 from . import accum, model as modelmod, notes, residual, sidreg
 
 _MAGIC = b"TSNP"
-_VERSION = 2  # v2: instrument = (attack, loop); separate release pool; onset carries release id
+_VERSION = 3  # v3: note events factored into a shared pattern pool + per-voice orderlists
 _COLUMNS = (
     [f"pw{v}" for v in range(sidreg.NVOICES)]
     + [f"freq{v}" for v in range(sidreg.NVOICES)]
@@ -144,14 +146,20 @@ def encode(model: modelmod.Model, res: residual.Residual) -> bytes:
     w.u(len(releases))
     for rel in releases:
         _write_rows(w, rel)
-    for voice in model.note_model.onsets:
-        w.u(len(voice))
-        prev = 0
-        for frame, iid, rid in voice:
-            w.u(frame - prev)
+    tempo, first_frames, patterns, orderlists = model.note_model.pack()
+    w.u(tempo)
+    w.u(len(patterns))
+    for pat in patterns:
+        w.u(len(pat))
+        for row_delta, iid, rid in pat:
+            w.u(row_delta)
             w.u(iid)
             w.u(rid)
-            prev = frame
+    for first, orderlist in zip(first_frames, orderlists):
+        w.u(first)
+        w.u(len(orderlist))
+        for pid in orderlist:
+            w.u(pid)
     w.raw(residual.encode(res))
     return bytes(w.buf)
 
@@ -170,14 +178,15 @@ def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual]:
     for _ in range(r.u()):
         pool.append(notes.Instrument(_read_rows(r), _read_rows(r)))
     releases = [_read_rows(r) for _ in range(r.u())]
-    onsets = []
+    tempo = r.u()
+    patterns = []
+    for _ in range(r.u()):
+        patterns.append(tuple((r.u(), r.u(), r.u()) for _ in range(r.u())))
+    first_frames, orderlists = [], []
     for _ in range(sidreg.NVOICES):
-        voice = []
-        prev = 0
-        for _ in range(r.u()):
-            prev += r.u()
-            voice.append((prev, r.u(), r.u()))
-        onsets.append(voice)
+        first_frames.append(r.u())
+        orderlists.append([r.u() for _ in range(r.u())])
+    onsets = notes.unpack_onsets(tempo, first_frames, patterns, orderlists)
     note_model = notes.NoteModel(length, pool, releases, onsets)
     res = residual.decode(r.buf[r.i :])
     return modelmod.Model(length, columns, note_model), res

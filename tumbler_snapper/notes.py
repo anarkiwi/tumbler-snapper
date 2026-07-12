@@ -23,12 +23,15 @@ length is implied by the gap to the next onset.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import reduce
+from math import gcd
 
 import numpy as np
 
-from . import sidreg
+from . import factor, sidreg
 
 Row = tuple[int, int, int]  # (ctrl, ad, sr)
+Event = tuple[int, int, int]  # (row_delta, instrument_id, release_id)
 
 
 PERIOD_MAX = 32
@@ -72,9 +75,68 @@ class NoteModel:
         )
 
     @property
+    def tempo(self) -> int:
+        """Frames per row: the GCD of inter-onset gaps (every gap is whole rows)."""
+        gaps = [int(g) for v in self.onsets for g in np.diff([o[0] for o in v]) if len(v) > 1]
+        return max(reduce(gcd, gaps), 1) if gaps else 1
+
+    def pack(self) -> tuple[int, list[int], list[tuple[Event, ...]], list[list[int]]]:
+        """Factor the per-voice note-event streams into a shared pattern pool.
+
+        Each note is quantized to ``(row_delta, instrument, release)`` on the row
+        grid (``tempo``), and each voice's stream is factored into a shared pool of
+        **patterns** referenced by a per-voice **orderlist** -- so a repeated phrase
+        (same rhythm, instruments and note-offs) costs one pattern, not one event
+        per note. Returns ``(tempo, first_frames, patterns, orderlists)``; the
+        inverse is :func:`unpack_onsets`.
+        """
+        tempo = self.tempo
+        patterns: list[tuple[Event, ...]] = []
+        index: dict[tuple[Event, ...], int] = {}
+        first_frames, orderlists = [], []
+        for voice in self.onsets:
+            first_frames.append(voice[0][0] if voice else 0)
+            orderlists.append(_pack_voice(_voice_events(voice, tempo), patterns, index))
+        return tempo, first_frames, patterns, orderlists
+
+    @property
     def tokens(self) -> int:
-        """Descriptor events: one per note event, one per instrument/release row."""
-        return self.n_onsets + self.instrument_rows
+        """Descriptor events: factored note stream + instrument/release rows.
+
+        The note events are counted as their factored form (pattern-pool rows +
+        orderlist references), so repeated phrases fold into the metric.
+        """
+        _tempo, _first, patterns, orderlists = self.pack()
+        note_tokens = sum(len(p) for p in patterns) + sum(len(o) for o in orderlists)
+        return note_tokens + self.instrument_rows
+
+
+def _voice_events(voice: list[tuple[int, int, int]], tempo: int) -> list[Event]:
+    """Quantize a voice's onsets to ``(row_delta, instrument, release)`` events."""
+    prev = voice[0][0] if voice else 0
+    events: list[Event] = []
+    for frame, iid, rid in voice:
+        events.append(((frame - prev) // tempo, iid, rid))
+        prev = frame
+    return events
+
+
+def _pack_voice(
+    events: list[Event], patterns: list[tuple[Event, ...]], index: dict[tuple[Event, ...], int]
+) -> list[int]:
+    """Factor one voice's events into the shared ``patterns`` pool, return its orderlist."""
+    vocab: dict[Event, int] = {}
+    sym = [vocab.setdefault(e, len(vocab)) for e in events]
+    inv = {i: e for e, i in vocab.items()}
+    blocks, order = factor.factor(sym)
+    orderlist = []
+    for entry in order:
+        pat = tuple(factor.expand(entry, blocks, inv))
+        pid = index.setdefault(pat, len(patterns))
+        if pid == len(patterns):
+            patterns.append(pat)
+        orderlist.append(pid)
+    return orderlist
 
 
 def _best_loop(seq: list[Row]) -> tuple[int, int, int] | None:
@@ -145,6 +207,27 @@ def fit(frames: np.ndarray) -> NoteModel:
                 model.releases.append(release)
             model.onsets[v].append((start, iid, rid))
     return model
+
+
+def unpack_onsets(
+    tempo: int,
+    first_frames: list[int],
+    patterns: list[tuple[Event, ...]],
+    orderlists: list[list[int]],
+) -> list[list[tuple[int, int, int]]]:
+    """Rebuild per-voice ``(frame, instrument, release)`` onsets -- inverse of ``pack``."""
+    onsets = []
+    for v, orderlist in enumerate(orderlists):
+        frame = first_frames[v]
+        voice: list[tuple[int, int, int]] = []
+        first = True
+        for pid in orderlist:
+            for row_delta, iid, rid in patterns[pid]:
+                frame += 0 if first else row_delta * tempo
+                first = False
+                voice.append((frame, iid, rid))
+        onsets.append(voice)
+    return onsets
 
 
 def _fill_segment(

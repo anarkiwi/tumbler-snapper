@@ -18,14 +18,13 @@ pattern (see the roadmap).
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 from functools import reduce
 from math import gcd
 
 import numpy as np
 
-from . import accum, sidreg
+from . import accum, factor, sidreg
 from .melody import _base_notes
 
 Event = tuple[int, int, int]  # (row_delta, pitch grid note, instrument)
@@ -75,53 +74,6 @@ def _events(frames: np.ndarray, note_model, grid, voice: int, tempo: int) -> lis
     return out
 
 
-def _factor(seq: list[int]) -> tuple[list[tuple[int, ...]], list[int]]:
-    """Greedy max-saving repeat extraction -> (pattern blocks, top-level order)."""
-    work = list(seq)
-    blocks: list[tuple[int, ...]] = []
-    nxt = -1  # negative ids reference extracted blocks
-    while True:
-        occ: dict[tuple[int, ...], list[int]] = defaultdict(list)
-        for length in range(2, len(work) // 2 + 1):
-            for i in range(len(work) - length + 1):
-                occ[tuple(work[i : i + length])].append(i)
-        best_saving, best_block = 0, None
-        for block, starts in occ.items():
-            cnt, last = 0, -(10**9)
-            for s in starts:
-                if s >= last + len(block):
-                    cnt += 1
-                    last = s
-            saving = cnt * len(block) - len(block) - cnt
-            if saving > best_saving:
-                best_saving, best_block = saving, block
-        if best_block is None:
-            break
-        blocks.append(best_block)
-        ref = nxt
-        nxt -= 1
-        out, k = [], 0
-        while k < len(work):
-            if tuple(work[k : k + len(best_block)]) == best_block:
-                out.append(ref)
-                k += len(best_block)
-            else:
-                out.append(work[k])
-                k += 1
-        work = out
-    return blocks, work
-
-
-def _expand(sym: int, blocks: list[tuple[int, ...]], inv: dict[int, Event]) -> list[Event]:
-    """Flatten a (possibly nested) factored symbol into original events."""
-    if sym >= 0:
-        return [inv[sym]]
-    out: list[Event] = []
-    for child in blocks[-sym - 1]:
-        out.extend(_expand(child, blocks, inv))
-    return out
-
-
 def fit(frames: np.ndarray, note_model, grid) -> Song:
     """Recover tempo, a shared pattern pool, and per-voice orderlists."""
     frames = sidreg.as_frames(frames)
@@ -136,12 +88,12 @@ def fit(frames: np.ndarray, note_model, grid) -> Song:
         vocab: dict[Event, int] = {}
         sym = [vocab.setdefault(e, len(vocab)) for e in events]
         inv = {i: e for e, i in vocab.items()}
-        blocks, order = _factor(sym)
+        blocks, order = factor.factor(sym)
         # materialize each top-level entry as a pattern in the shared pool
         orderlist: list[int] = []
         first = note_model.onsets[v][0][0] if note_model.onsets[v] else 0
         for entry in order:
-            pat = tuple(_expand(entry, blocks, inv))
+            pat = tuple(factor.expand(entry, blocks, inv))
             pid = pool_index.setdefault(pat, len(pool))
             if pid == len(pool):
                 pool.append(pat)

@@ -51,7 +51,8 @@ def cmd_report(args) -> int:
     print(
         f"model          : {rep['model_tok_per_frame']:.3f} tokens/frame "
         f"({rep['model_segments']} accumulator segments + "
-        f"{rep['note_onsets']} note-ons / {rep['instruments']} instruments + "
+        f"{rep['note_onsets']} notes in {rep['note_patterns']} patterns / "
+        f"{rep['instruments']} instruments + "
         f"{rep['residual_changepoints']} residual changepoints)"
     )
     return 0 if exact else 1
@@ -88,7 +89,7 @@ def cmd_structure(args) -> int:
 
 def cmd_compile(args) -> int:
     """Compile a tune to a .tsnp container and verify bit-exact playback."""
-    frames = grid_from_sng(args.tune, args.frames, args.subtune)
+    frames = _grid_for(args)
     blob = container.compile(frames)
     exact = np.array_equal(container.play(blob), frames)
     Path(args.out).write_bytes(blob)
