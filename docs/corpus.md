@@ -101,19 +101,20 @@ duplicated tables:
 
 ### Pitch offset is a per-tracker constant -- and a clock fingerprint (`tests/test_trackers.py`)
 
-Songs from one composer/tracker should recover the same A440 offset. Raw, they
-appear to scatter by up to 48c -- but the scatter is bimodal at exactly the
-PAL/NTSC clock ratio (**35.37c** = one semitone times the clock ratio). `melody.fit`
-always fits at the PAL clock, so an NTSC-table tune reads 35.37c sharp; the header
+Songs from one composer/tracker should recover the same A440 offset. Fit at the
+PAL clock they appeared to scatter by up to 48c -- but the scatter was bimodal at
+exactly the PAL/NTSC clock ratio (**35.37c** = one semitone times the clock ratio):
+an NTSC note table read at the PAL clock reads 35.37c sharp, and the header
 PAL/`any` flag is often wrong about which table a tune actually ships.
 
-Folding each offset modulo 35.37c collapses the two clock clusters onto the
-tracker's true table detuning: within-composer spread drops from 34-48c to
-<=1.9c for 7 of 8 composers (the eighth has one genuinely finetuned song). The
-test asserts this via a robust median-absolute-deviation bound, and separately
-that the recovered offsets reproduce from HVSC. So the pitch recovery is *stable*
-(not overfit); the "inconsistency" is a real, detectable video-standard signal
-the model currently entangles with tuning.
+This is now fixed in the model: `pitch.detect_clock` infers the table's clock from
+the tuning (the clock whose offset sits closest to 12-TET), so the recovered offset
+is the true table detuning and the video-standard fingerprint moves into
+`grid.clock`. Within-composer offset scatter drops to a median-absolute-deviation
+of <=0.5c across all 8 composers -- including ones whose tunes mix PAL and NTSC
+tables (e.g. Bayliss, detected `PPNNPPNN`), which previously split by ~35c. The
+test asserts that raw consistency plus reproduction from HVSC, so the pitch
+recovery is *stable* (not overfit) and the clock is recovered as a byproduct.
 
 ## Regenerating
 

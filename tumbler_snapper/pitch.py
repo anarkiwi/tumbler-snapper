@@ -35,6 +35,21 @@ def fit_offset(freq_values, clock: float = PAL_CLOCK) -> float:
     return float(np.median(st - np.round(st)))
 
 
+def detect_clock(freq_values) -> float:
+    """Infer whether the tune's note table is PAL or NTSC from its tuning.
+
+    A tracker's frequency table is built for 12-TET at its native clock, so at
+    that clock the fitted offset sits near zero; interpreted at the other clock it
+    is off by the PAL/NTSC ratio (~0.354 semitones). The header's video flag is
+    frequently wrong (NTSC tables ship in PAL/``any``-flagged tunes), so we pick
+    the clock whose offset is closest to the grid -- a reliable fingerprint.
+    """
+    return min(
+        (PAL_CLOCK, NTSC_CLOCK),
+        key=lambda c: abs(fit_offset(freq_values, c)),
+    )
+
+
 def to_note(fval: int, offset: float = 0.0, clock: float = PAL_CLOCK) -> int:
     """Nearest grid MIDI note of ``fval`` under ``offset`` (semitones)."""
     return int(round(semitones(fval, clock) - offset)) + _A4_MIDI
@@ -77,14 +92,18 @@ class PitchGrid:
         return self.offset * 100.0
 
 
-def build_grid(voice_freqs: list, clock: float = PAL_CLOCK) -> PitchGrid:
+def build_grid(voice_freqs: list, clock: float | None = None) -> PitchGrid:
     """Fit the global offset and build per-voice exact tables from sustained freqs.
 
     ``voice_freqs[v]`` is an iterable of the frequency values voice ``v``
     sustains; the most common exact value for each grid note becomes that voice's
-    table entry, so a held note reconstructs with a zero pitch layer.
+    table entry, so a held note reconstructs with a zero pitch layer. The note
+    table's clock (PAL/NTSC) is inferred from the tuning unless pinned.
     """
-    offset = fit_offset([f for vf in voice_freqs for f in vf], clock)
+    flat = [f for vf in voice_freqs for f in vf]
+    if clock is None:
+        clock = detect_clock(flat)
+    offset = fit_offset(flat, clock)
     tables = []
     for vf in voice_freqs:
         counts: dict[int, dict[int, int]] = {}
