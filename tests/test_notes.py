@@ -109,6 +109,23 @@ def test_periodic_wavetable_bodies_dedup_across_lengths():
     assert np.array_equal(notes.predict(model)[:, cols], grid[:, cols])
 
 
+def test_pack_unpack_round_trips_and_factors():
+    # A four-note phrase repeated three times on voice 0 -> the note-event stream
+    # factors, and unpack reproduces the exact onsets.
+    phrase = [_note(6), _note(6), _note(10), _note(6)]
+    segs, t = [], 8
+    for _ in range(3):
+        for rows in phrase:
+            segs.append((t, rows))
+            t += len(rows)
+    grid = _voice_grid(segs, t)
+    model = notes.fit(grid)
+    tempo, first_frames, patterns, orderlists = model.pack()
+    assert notes.unpack_onsets(tempo, first_frames, patterns, orderlists) == model.onsets
+    note_tokens = sum(len(p) for p in patterns) + sum(len(o) for o in orderlists)
+    assert note_tokens < model.n_onsets  # the repeated phrase compressed
+
+
 def test_silent_voice_has_no_onsets():
     grid = np.zeros((100, sidreg.NREGS), np.uint8)
     model = notes.fit(grid)

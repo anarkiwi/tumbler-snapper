@@ -51,12 +51,19 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    splits into two. Instrument pools drop toward the source counts (consultant
    8->5, cabrinigreen 49->42) and token efficiency improves (release rows dedup
    into a shared pool instead of duplicating each instrument's body: consultant
-   0.27->0.265, cabrinigreen 0.96->0.917), still bit-exact. **Pending:** fold the
-   pattern factoring and pitch into the same note event (a full note codec);
-   transpose-aware pattern matching; tie the global filter-mode switches to the
-   recovered structure to remove the last residual. (Folding *pitch* as a
-   categorical instrument channel was measured to regress -- see design.md -- so
-   pitch stays an accumulator; the note codec references it, not embeds it.)
+   0.27->0.265, cabrinigreen 0.96->0.917), still bit-exact.
+
+5c. **Done — pattern factoring folded into the note codec (`factor.py`,
+   `notes.py`).** The codec's note events ``(row_delta, instrument, release)`` are
+   factored into a shared pattern pool + per-voice orderlists (`NoteModel.pack`,
+   exact inverse `unpack_onsets`), counted in the token metric and stored in the
+   container (v3). A repeated phrase costs one pattern, not one event per note:
+   consultant 0.265->0.249, dojo 0.342->0.320, funktest 0.536->0.469, cabrinigreen
+   0.917->0.895, still bit-exact. The greedy factorer (shared with `song.py`) has a
+   ``max_len`` cap making it near-linear, so a full-length tune factors in ~1s.
+   Pitch stays an accumulator the note references (folding it in regresses -- see
+   design.md). **Pending:** transpose-aware pattern matching; tie the global
+   filter-mode switches to the recovered structure to remove the last residual.
 
 6. **Done — container + reference player (`container.py`).** Serializes the
    fitted model -- 7 accumulator columns (pw ×3, freq ×3, cutoff), the instrument

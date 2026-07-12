@@ -155,31 +155,40 @@ accumulator already codes each note's trajectory in ~1.5 segments, tighter than 
 reference plus a shared pool.
 
 **Conclusion (measured):** the bounded-accumulator model is at the efficient
-frontier for the numeric register trajectories -- frequency, pulse width, cutoff.
-Note-tied deduplication cannot beat it because per-note reference overhead exceeds
-the pattern-sharing gain. The melody and song-structure layers are genuine musical
-*recovery* (the tracker transcription the decompiler exists to produce), not a
-further token reduction. The token results above (0.27-0.96) are the model's
-frontier; the remaining work is serialization (container + reference player), not
-more compression.
+frontier for the *numeric* register trajectories -- frequency, pulse width, cutoff
+-- and folding **pitch** into the categorical note events regresses (per-note
+reference overhead exceeds the sharing gain), so pitch stays an accumulator. But
+the *categorical* note events themselves -- rhythm, instrument, note-off -- do
+compress: factoring their repeats into a shared pattern pool is a real token win
+(see "Pattern factoring" below), because whole phrases repeat where individual
+pitches do not. So the two axes are settled oppositely: pitch is already minimal as
+an accumulator; the note-event stream is minimized by arrangement-level factoring.
 
-## Song structure (`song.py`)
+## Pattern factoring (`factor.py`, `notes.py`, `song.py`)
 
 The per-voice note-event stream is quantized to a row grid -- the tempo, recovered
 as the GCD of the inter-onset gaps (every gap is a whole number of rows) -- and
 factored into a shared **pattern** pool referenced by a per-voice **orderlist**,
-the tracker-native arrangement. Each event is `(row_delta, pitch, instrument)`, so
-a repeated phrase (same pitches, instruments and rhythm) factors to one pattern;
-reconstruction of onset frames is exact. Factoring is greedy by *saving*
-(`occurrences*len - len - occurrences`) so a short unit repeated often beats a
-long one repeated twice. `tumbler-snapper structure` prints the result -- e.g.
-consultant voice 2's orderlist `[27, 28, 28, 28, 29, 30]` recovers the phrase
-pattern 28 played three times.
+the tracker-native arrangement. Factoring is greedy by *saving*
+(`occurrences*len - len - occurrences`, `factor.py`) so a short unit repeated often
+beats a long one repeated twice; a `max_len` cap keeps it near-linear (`O(max_len *
+n)`) so a full-length tune factors in ~1s instead of tens of seconds.
 
-On the sample tunes the note-event stream factors to 0.68-0.99x (repetition-
-dependent; through-composed voices barely compress). Like the melody, this is a
-structural recovery: its value is the arrangement, and it becomes a token win once
-the note model unifies pitch, instrument and pattern into a single note codec.
+This is now **folded into the note codec** (`NoteModel.pack`): the codec's note
+events are ``(row_delta, instrument, release)`` -- the *categorical* structure --
+and factoring them replaces the flat per-voice onset list in both the token count
+and the container, `unpack_onsets` being the exact inverse. A repeated phrase (same
+rhythm, instruments and note-offs) costs one pattern, not one event per note.
+Measured token improvement, still bit-exact: consultant 0.265 -> 0.249, dojo 0.342
+-> 0.320, funktest 0.536 -> 0.469, cabrinigreen 0.917 -> 0.895.
+
+Pitch is deliberately *not* in the pattern key: it stays an accumulator (the
+measured frontier for the numeric columns; folding it in regresses -- see above),
+so the note references pitch rather than embedding it, and transposed repeats of a
+rhythm still share a pattern. `tumbler-snapper structure` additionally prints a
+pitch-annotated arrangement (`song.py`) for the human reading -- e.g. consultant
+voice 2's orderlist `[27, 28, 28, 28, 29, 30]` recovers the phrase pattern 28
+played three times.
 
 ## Container + reference player (`container.py`)
 

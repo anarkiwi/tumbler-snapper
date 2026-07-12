@@ -109,12 +109,14 @@ def token_report(frames: np.ndarray) -> dict:
     baseline = residual.diff(frames)
     n_onsets = model.note_model.n_onsets if model.note_model else 0
     model_tokens = model.n_tokens + res.n_changepoints
+    n_patterns = len(model.note_model.pack()[2]) if model.note_model else 0
     return {
         "frames": length,
         "baseline_changepoints": baseline.n_changepoints,
         "baseline_tok_per_frame": baseline.n_changepoints / length,
         "model_segments": model.n_segments,
         "note_onsets": n_onsets,
+        "note_patterns": n_patterns,
         "instruments": len(model.note_model.pool) if model.note_model else 0,
         "residual_changepoints": res.n_changepoints,
         "model_tok_per_frame": model_tokens / length,
