@@ -25,7 +25,7 @@ import numpy as np
 from .sidreg import NREGS, as_frames
 
 
-def grid_from_sng(path: str, frames: int, subtune: int = 0) -> np.ndarray:
+def grid_from_sng(path: str, frames: int, subtune: int = 0) -> np.ndarray:  # pragma: no cover
     """Render ``frames`` frames of a GoatTracker ``.sng`` to a register grid."""
     from pygoattracker import read_sng  # noqa: PLC0415 - optional oracle dep
     from pygoattracker.player import Player  # noqa: PLC0415
@@ -34,7 +34,7 @@ def grid_from_sng(path: str, frames: int, subtune: int = 0) -> np.ndarray:
     return as_frames(Player(song, subtune=subtune).render_grid(frames))
 
 
-def grid_from_song(song, frames: int, subtune: int = 0) -> np.ndarray:
+def grid_from_song(song, frames: int, subtune: int = 0) -> np.ndarray:  # pragma: no cover
     """Render an in-memory pygoattracker :class:`Song` to a register grid."""
     from pygoattracker.player import Player  # noqa: PLC0415
 
@@ -68,7 +68,9 @@ def frame_writes(clock, reg, val, gap: int = 9000) -> np.ndarray:
     return as_frames(np.take_along_axis(grid, src, axis=0).astype(np.uint8))
 
 
-def grid_from_dump(path: str, frames: int | None = None, gap: int = 9000) -> np.ndarray:
+def grid_from_dump(  # pragma: no cover
+    path: str, frames: int | None = None, gap: int = 9000
+) -> np.ndarray:
     """Frame a captured ``.dump.parquet`` write log to a register grid.
 
     The parquet has ``clock, reg, val`` columns (optionally ``chipno``; only chip
@@ -109,7 +111,7 @@ def parse_psid(path: str) -> tuple[bytearray, int, int, int]:
     return mem, init, play, songs
 
 
-def grid_from_sid(path: str, frames: int, subtune: int = 0) -> np.ndarray:
+def grid_from_sid(path: str, frames: int, subtune: int = 0) -> np.ndarray:  # pragma: no cover
     """Drive a ``.sid`` playroutine through deity-informant's 6510 VM to a grid.
 
     Loads the PSID/RSID image, runs ``init`` once (accumulator = sub-tune) and

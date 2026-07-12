@@ -20,7 +20,9 @@ PAL_CLOCK = 985248.0
 PAL_FRAME_CYCLES = 19656  # 312 rasterlines x 63 cycles
 
 
-def render_grid(grid: np.ndarray, rate: int = 44100, frame_cycles: int = PAL_FRAME_CYCLES):
+def render_grid(  # pragma: no cover - reSIDfp integration, exercised when pyresidfp present
+    grid: np.ndarray, rate: int = 44100, frame_cycles: int = PAL_FRAME_CYCLES
+):
     """Emulate a register grid through reSIDfp, returning mono int16 samples."""
     from pyresidfp import SoundInterfaceDevice  # noqa: PLC0415 - optional audio dep
     from pyresidfp.registers import WritableRegister  # noqa: PLC0415
@@ -37,7 +39,7 @@ def render_grid(grid: np.ndarray, rate: int = 44100, frame_cycles: int = PAL_FRA
     return np.asarray(out, np.int16)
 
 
-def render_wav(
+def render_wav(  # pragma: no cover - reSIDfp integration, exercised when pyresidfp present
     grid: np.ndarray, path: str, rate: int = 44100, frame_cycles: int = PAL_FRAME_CYCLES
 ) -> int:
     """Render ``grid`` to a mono 16-bit WAV at ``path``; return the sample count."""

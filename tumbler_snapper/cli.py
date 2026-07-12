@@ -120,7 +120,7 @@ def cmd_dump(args) -> int:
     return 0
 
 
-def cmd_render(args) -> int:
+def cmd_render(args) -> int:  # pragma: no cover - reSIDfp render, gated on optional deps
     """Compile a tune to the IR, reconstruct the grid, and render it to a WAV."""
     frames = _grid_for(args)
     blob = container.compile(frames)
