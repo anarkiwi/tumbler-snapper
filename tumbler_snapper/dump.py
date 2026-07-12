@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from . import melody as melodymod, model as modelmod, notes, residual, sidreg, song
+from . import melody as melodymod, model as modelmod, residual, sidreg, song
 
 
 def _fmt_rows(rows: tuple) -> str:
@@ -27,13 +27,13 @@ def _fmt_rows(rows: tuple) -> str:
     return " ".join(c if n == 1 else f"{c}x{n}" for c, n in out) or "-"
 
 
-def _instrument_lines(pool: list[notes.Instrument]) -> list[str]:
-    out = [f"instruments ({len(pool)}):"]
-    for i, inst in enumerate(pool):
-        out.append(
-            f"  I{i:02d}  A[{_fmt_rows(inst.attack)}]  "
-            f"L[{_fmt_rows(inst.loop)}]  R[{_fmt_rows(inst.release)}]"
-        )
+def _instrument_lines(note_model) -> list[str]:
+    out = [f"instruments ({len(note_model.pool)}):"]
+    for i, inst in enumerate(note_model.pool):
+        out.append(f"  I{i:02d}  A[{_fmt_rows(inst.attack)}]  L[{_fmt_rows(inst.loop)}]")
+    out.append(f"releases ({len(note_model.releases)}):")
+    for i, rel in enumerate(note_model.releases):
+        out.append(f"  R{i:02d}  [{_fmt_rows(rel)}]")
     return out
 
 
@@ -48,8 +48,8 @@ def _accumulator_lines(model: modelmod.Model) -> list[str]:
 
 def _voice_lines(voice: int, mel: melodymod.Melody, note_model, arr) -> list[str]:
     onsets = note_model.onsets[voice]
-    frames = np.array([int(f) for f, _ in onsets], np.int64)
-    instrs = [iid for _, iid in onsets]
+    frames = np.array([int(o[0]) for o in onsets], np.int64)
+    instrs = [iid for _, iid, _ in onsets]
     out = [
         f"voice {voice}: {len(set(arr.orderlist))} patterns, "
         f"{len(onsets)} notes, order {arr.orderlist}"
@@ -83,11 +83,11 @@ def render(frames: np.ndarray, name: str = "song") -> str:
         f"tempo         : {arr.tempo} frames/row",
         f"model         : {tokens} tokens "
         f"({model.n_segments} accum segments + {model.note_model.n_onsets} note-ons / "
-        f"{len(model.note_model.pool)} instruments) + {res.n_changepoints} residual "
-        f"changepoints -> {tokens / length:.3f} tokens/frame",
+        f"{len(model.note_model.pool)} instruments / {len(model.note_model.releases)} releases)"
+        f" + {res.n_changepoints} residual changepoints -> {tokens / length:.3f} tokens/frame",
         "",
     ]
-    lines += _instrument_lines(model.note_model.pool) + [""]
+    lines += _instrument_lines(model.note_model) + [""]
     lines += _accumulator_lines(model) + [""]
     for v in range(sidreg.NVOICES):
         lines += _voice_lines(v, mel, model.note_model, arr.voices[v]) + [""]

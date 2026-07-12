@@ -34,7 +34,7 @@ def test_lossless_reconstruction():
     s = song.fit(grid, m.note_model, model.transcribe(grid).grid)
     rec = song.reconstruct(s)
     for v in range(3):
-        assert [(f, i) for f, _, i in rec[v]] == list(m.note_model.onsets[v])
+        assert [(f, i) for f, _, i in rec[v]] == [(o[0], o[1]) for o in m.note_model.onsets[v]]
 
 
 def test_repeated_phrase_factors_to_few_patterns():

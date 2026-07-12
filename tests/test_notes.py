@@ -24,6 +24,26 @@ def _note(sustain_len):
     return [(0x09, 0x06, 0x8C), (0x51, 0x06, 0x8C)] + body + [(0x40, 0x0F, 0x00)]
 
 
+def test_release_tail_is_separate_from_instrument():
+    # Same voiced shape (attack + held body), one note released, one cut short by
+    # the next gate-rise: one instrument, two distinct release tails.
+    released = [(0x09, 0x06, 0x8C), (0x51, 0x06, 0x8C)] + [(0x41, 0x06, 0x8C)] * 8
+    released += [(0x40, 0x0F, 0x00), (0x40, 0x0F, 0x00)]  # gate-off release tail
+    cut = [(0x09, 0x06, 0x8C), (0x51, 0x06, 0x8C)] + [(0x41, 0x06, 0x8C)] * 8  # no tail
+    segs, t = [], 5
+    for rows in (released, cut):
+        segs.append((t, rows))
+        t += len(rows)
+    grid = _voice_grid(segs, t)
+    model = notes.fit(grid)
+    assert len(model.pool) == 1  # release no longer splits the instrument
+    assert len(model.releases) == 2  # the two distinct tails are pooled separately
+    rids = {o[2] for o in model.onsets[0]}
+    assert len(rids) == 2  # the two notes reference different releases
+    cols = [sidreg.CTRL, sidreg.AD, sidreg.SR]
+    assert np.array_equal(notes.predict(model)[:, cols], grid[:, cols])  # bit-exact
+
+
 def test_identical_notes_dedup_to_one_instrument():
     # three contiguous notes (as a real tracker emits them: each note's release
     # runs straight into the next note's gate-rise, no silent gap), same shape
