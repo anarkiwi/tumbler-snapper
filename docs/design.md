@@ -10,11 +10,13 @@ efficiency: fewer than one token per frame of music.
 ## Input
 
 deity-informant is the lower layer: a cycle-exact 6510 lifter + P-Code VM whose
-output is the byte-exact SID write stream. We drive a tune's `init` once and
-`play` per frame (`run_sub`, or `run_irq_driven` for multispeed/raster tunes),
-capturing either the per-frame 25-register grid `$D400..$D418` or the ordered
-`(cycle, reg, value)` write log. That grid is the sole input; all musical
-structure is recovered here.
+output is the byte-exact SID write stream. `capture.grid_from_sid` loads a
+PSID/RSID image (`parse_psid` places the C64 data at its load address), then
+drives the tune's `init` once (the accumulator selects the sub-tune) and `play`
+per frame through the VM (`run_sub`), snapshotting the 25-register grid
+`$D400..$D418` after each call. That grid is the sole input; all musical structure
+is recovered here. (`capture.grid_from_dump` frames a pre-captured
+`(cycle, reg, value)` write log as an alternative front end -- see below.)
 
 For ground-truth validation we also render known GoatTracker `.sng` /  DefMON
 tunes via pygoattracker / pydefmon (both byte-exact vs sidplayfp), so recovered
@@ -25,8 +27,10 @@ form, stored as parquet) is framed by `capture.grid_from_dump`: a play call is a
 burst of writes and consecutive bursts are separated by a clock gap near one
 refresh period, so a new frame begins wherever the inter-write gap exceeds a
 threshold well above intra-burst spacing and well below one period; the register
-file carries forward. This lets the whole pipeline run bit-exact on arbitrary
-HVSC tunes (verified on Grid Runner) ahead of the in-process VM front end.
+file carries forward. This is an alternative to the in-process VM front end; on
+Grid Runner the two agree on ~99% of registers, diverging only on Voice-1's
+pulse-width sweep (an emulator-fidelity gap -- deity-informant is the sanctioned
+VM, so its grid is authoritative).
 
 ## Predictive codec (why it is lossless)
 
@@ -190,9 +194,20 @@ name, instrument id, pitch layer). It reconstructs and checks bit-exactness so t
 dump is a faithful view of a lossless decompilation, and accepts either a `.sng`
 tune or a captured `.dump.parquet` write log.
 
+## Audio render (`audio.py`)
+
+`tumbler-snapper render` closes the loop back to sound. It reconstructs the exact
+register grid from the IR (`container.compile` -> `container.play`) and feeds it to
+reSIDfp (`pyresidfp`) one frame at a time: write all 25 registers, clock the chip
+for one PAL frame (`19656` cycles), collect samples. reSIDfp's `WritableRegister`
+values are `0..24` in `$D400..` order, so a grid column index maps straight to a
+register. The concatenated mono 16-bit PCM is written as a WAV (Grid Runner: 50s
+at 44.1kHz). Because it renders from the IR, not the captured grid, it also audits
+the whole codec end to end.
+
 ## Next stages
 
 See [roadmap.md](roadmap.md): unify the note model (fold pitch layers and pattern
 factoring into the instrument/note events), tie the global filter switches to the
-recovered structure, and wire deity-informant's VM in-process to capture the write
-log directly from a `.sid` (the parquet framing already handles the rest).
+recovered structure, and add RSID IRQ-vector / multispeed cadence to the SID
+front end.

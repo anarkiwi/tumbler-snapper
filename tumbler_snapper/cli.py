@@ -3,18 +3,20 @@
     tumbler-snapper report     TUNE.sng [--frames N] [--subtune S]
     tumbler-snapper compile    TUNE.sng OUT.tsnp [--frames N] [--subtune S]
     tumbler-snapper play       CONTAINER.tsnp [--frames N]
-    tumbler-snapper dump       TUNE.sng|DUMP.parquet [--frames N] [--subtune S]
+    tumbler-snapper dump       TUNE [-o OUT.txt] [--frames N] [--subtune S]
+    tumbler-snapper render     TUNE OUT.wav [--rate R] [--frames N] [--subtune S]
     tumbler-snapper transcribe TUNE.sng [--voice V] [--frames N] [--subtune S]
     tumbler-snapper structure  TUNE.sng [--frames N] [--subtune S]
 
-``report`` renders a GoatTracker ``.sng`` to a SID register grid, fits the model,
-and prints the lossless token-efficiency report (baseline write-log vs model,
-with a bit-exactness check). ``compile`` serializes the fitted model + residual to
-a bit-packed ``.tsnp`` container; ``play`` -- the reference player -- decodes one
-back to the exact ``$D400..`` register grid. ``dump`` prints a reviewable text
-decompilation (tuning, tempo, instruments, accumulators, per-voice melody) of a
-``.sng`` tune or a captured ``.dump.parquet`` write log. ``transcribe`` prints the
-recovered
+``TUNE`` is a real ``.sid`` (read through deity-informant's 6510 VM), a GoatTracker
+``.sng``, or a captured ``.dump.parquet`` write log. ``report`` renders a ``.sng``
+to a SID register grid, fits the model, and prints the lossless token-efficiency
+report (baseline write-log vs model, with a bit-exactness check). ``compile``
+serializes the fitted model + residual to a bit-packed ``.tsnp`` container;
+``play`` -- the reference player -- decodes one back to the exact ``$D400..``
+register grid. ``dump`` writes a reviewable text decompilation (tuning, tempo,
+instruments, accumulators, per-voice melody); ``render`` reconstructs the grid from
+the IR and renders it to a WAV via reSIDfp. ``transcribe`` prints the recovered
 A440/12-TET melody (notes and vibrato/portamento layers) for one voice.
 ``structure`` prints the recovered tempo, pattern pool, and per-voice orderlist.
 """
@@ -27,8 +29,8 @@ from pathlib import Path
 
 import numpy as np
 
-from . import container, dump, melody, model, residual, sidreg, song
-from .capture import grid_from_dump, grid_from_sng
+from . import audio, container, dump, melody, model, residual, sidreg, song
+from .capture import grid_from_dump, grid_from_sid, grid_from_sng
 
 
 def cmd_report(args) -> int:
@@ -98,17 +100,36 @@ def cmd_compile(args) -> int:
 
 
 def _grid_for(args) -> np.ndarray:
-    """Load a register grid from a ``.sng`` tune or a ``.dump.parquet`` write log."""
+    """Load a register grid from a ``.sid``, ``.sng`` tune, or ``.dump.parquet`` log."""
+    if args.tune.endswith((".sid", ".psid", ".rsid")):
+        return grid_from_sid(args.tune, args.frames, args.subtune)
     if args.tune.endswith((".parquet", ".dump")):
         return grid_from_dump(args.tune, args.frames)
     return grid_from_sng(args.tune, args.frames, args.subtune)
 
 
 def cmd_dump(args) -> int:
-    """Print a reviewable text dump of the decompiled song."""
+    """Print (or write) a reviewable text dump of the decompiled song."""
     frames = _grid_for(args)
-    name = Path(args.tune).stem
-    print(dump.render(frames, name), end="")
+    text = dump.render(frames, Path(args.tune).stem)
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+        print(f"wrote {args.out} ({len(text)} bytes, {len(frames)} frames)")
+    else:
+        print(text, end="")
+    return 0
+
+
+def cmd_render(args) -> int:
+    """Compile a tune to the IR, reconstruct the grid, and render it to a WAV."""
+    frames = _grid_for(args)
+    blob = container.compile(frames)
+    grid = container.play(blob)  # exact register grid straight from the IR
+    n = audio.render_wav(grid, args.out, args.rate)
+    seconds = n / args.rate
+    print(f"wrote          : {args.out}")
+    print(f"frames         : {len(frames)}  ->  {n} samples ({seconds:.1f}s @ {args.rate}Hz)")
+    print(f"IR bit-exact   : {np.array_equal(grid, frames)}")
     return 0
 
 
@@ -151,11 +172,19 @@ def main(argv=None) -> int:
     p.add_argument("container")
     p.add_argument("--frames", type=int, default=16)
     p.set_defaults(fn=cmd_play)
-    p = sub.add_parser("dump", help="reviewable text dump of a decompiled .sng / .dump.parquet")
-    p.add_argument("tune", help=".sng tune or .dump.parquet write log")
+    p = sub.add_parser("dump", help="reviewable text dump of a decompiled .sid / .sng / .parquet")
+    p.add_argument("tune", help=".sid tune, .sng tune, or .dump.parquet write log")
+    p.add_argument("-o", "--out", help="write the text IR here instead of stdout")
     p.add_argument("--frames", type=int, default=2500)
     p.add_argument("--subtune", type=int, default=0)
     p.set_defaults(fn=cmd_dump)
+    p = sub.add_parser("render", help="render a tune's IR to a WAV via reSIDfp")
+    p.add_argument("tune", help=".sid tune, .sng tune, or .dump.parquet write log")
+    p.add_argument("out", help="output .wav path")
+    p.add_argument("--rate", type=int, default=44100)
+    p.add_argument("--frames", type=int, default=2500)
+    p.add_argument("--subtune", type=int, default=0)
+    p.set_defaults(fn=cmd_render)
     args = ap.parse_args(argv)
     return args.fn(args)
 

@@ -56,18 +56,28 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    `tumbler-snapper compile TUNE.sng OUT.tsnp` / `play OUT.tsnp`. Round-trips
    bit-exact at 2.0–6.4 bytes/frame (up to 12× smaller than the raw 25-byte grid).
 
-7. **Real SID front end (partial).** `capture.grid_from_dump` frames a captured
-   `(clock, reg, val)` write log (deity-informant / SID-emulator dump, stored as
-   parquet) into the register grid by snapshotting the file at each play-call
-   burst boundary -- so the whole pipeline already runs bit-exact on arbitrary
-   HVSC tunes (verified on Grid Runner: 2500 frames, 36 instruments, bit-exact at
-   1.14 tok/frame). **Pending:** wire deity-informant's VM in-process to produce
-   that write log directly from a `.sid` (init/play discovery, multispeed
-   cadence), removing the pre-capture step.
+7. **Done — real SID front end (`capture.grid_from_sid`).** Loads a PSID/RSID
+   image (`parse_psid`), places the C64 data at its load address, and drives the
+   playroutine through deity-informant's cycle-exact 6510 VM (`init` once with the
+   accumulator selecting the sub-tune, `play` per frame), snapshotting
+   `$D400..$D418` after each call -- so the pipeline reads an arbitrary `.sid`
+   directly (verified on Grid Runner: 2500 frames, 36 instruments, bit-exact at
+   1.14 tok/frame). `capture.grid_from_dump` still frames a pre-captured
+   `(clock, reg, val)` write log (parquet) as an alternative front end; the two
+   agree on ~99% of registers (they diverge only on Voice-1's pulse-width sweep,
+   an emulator-fidelity gap; deity-informant is the sanctioned VM). **Pending:**
+   RSID IRQ-vector play (multispeed cadence), PSID `speed` flag handling.
 
 8. **Reviewable text dump (`dump.py`).** `tumbler-snapper dump` renders one
    human-readable decompilation -- header (frames, tuning offset, tempo, token
    efficiency, bit-exactness), the deduplicated instrument pool (fragments
    run-length collapsed), per-column accumulator-segment counts, and each voice's
    orderlist plus a merged note list (frame, A440 note name, instrument, pitch
-   layer). Accepts a `.sng` tune or a `.dump.parquet` write log.
+   layer). Accepts a `.sid` tune, `.sng` tune, or `.dump.parquet` write log;
+   writes to a file with `-o`.
+
+9. **Done — audio render (`audio.py`).** `tumbler-snapper render` reconstructs the
+   exact register grid from the IR (compile -> container -> play) and feeds it to
+   reSIDfp (`pyresidfp`) one frame at a time -- writing all 25 registers, clocking
+   one PAL frame, collecting samples -- emitting a mono 16-bit WAV. Closes the
+   loop: `.sid` -> IR -> audio (Grid Runner: 50s at 44.1kHz).
