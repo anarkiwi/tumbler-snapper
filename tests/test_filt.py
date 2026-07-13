@@ -66,9 +66,9 @@ def test_model_predict_fills_modelled_register_bit_exact():
     assert np.array_equal(residual.apply(pred, res), grid)
 
 
-def test_container_roundtrip_with_filter_track():
+def test_container_roundtrips_filter_and_volume_columns():
+    # $D417/$D418 are ordinary accumulator columns in the container (no separate filter track)
     grid = _grid_with_filter(_repeating_series())
     blob = container.compile(grid)
-    mdl, _ = container.decode(blob)
-    assert sidreg.MODE_VOL in mdl.filter_model.orderlists
+    _model, _res, _melody = container.decode(blob)
     assert np.array_equal(container.play(blob), grid)

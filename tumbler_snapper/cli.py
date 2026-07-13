@@ -93,15 +93,15 @@ def cmd_structure(args) -> int:
 def cmd_compile(args) -> int:
     """Compile a tune to a .tsnp container (or canonical text IR) and verify playback."""
     frames = _grid_for(args)
+    pcode = _trace_for(args)  # recover from the lifted p-code when the tune has a player
     if args.out.endswith(_TEXT_IR_SUFFIXES):  # canonical text IR
-        pcode = _trace_for(args)  # recover from the lifted p-code when the tune has a player
         built = ir.build_from_trace(*pcode, frames) if pcode else ir.build(frames)
         text = ir.emit(*built)
         blob = text.encode("utf-8")
         exact = np.array_equal(ir.play(text), frames)
         kind = "text IR"
     else:
-        blob = container.compile(frames)
+        blob = container.compile_from_trace(*pcode, frames) if pcode else container.compile(frames)
         exact = np.array_equal(container.play(blob), frames)
         kind = "container"
     Path(args.out).write_bytes(blob)
@@ -158,7 +158,8 @@ def cmd_render(args) -> int:  # pragma: no cover - reSIDfp render, gated on opti
     chip = audio.DEFAULT_CHIP
     if args.tune.endswith((".sid", ".psid", ".rsid")):
         chip = capture.sid_render_params(args.tune)
-    blob = container.compile(frames)
+    pcode = _trace_for(args)
+    blob = container.compile_from_trace(*pcode, frames) if pcode else container.compile(frames)
     grid = container.play(blob)  # exact register grid straight from the IR
     n = audio.render_wav(grid, args.out, args.rate, chip)
     seconds = n / args.rate
