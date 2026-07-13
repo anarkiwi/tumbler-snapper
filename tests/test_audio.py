@@ -9,11 +9,11 @@ import wave
 
 import numpy as np
 import pytest
+from conftest import HAVE_VM, requires_vm
 
 from tumbler_snapper import audio, capture, sidreg
 
 _HAVE_RESID = importlib.util.find_spec("pyresidfp") is not None
-_HAVE_VM = importlib.util.find_spec("deity_informant") is not None
 _HAVE_ORACLE = importlib.util.find_spec("pysidtracker") is not None and shutil.which("docker")
 _SID = "/scratch/anarkiwi/preframr/preframr-tokens/tests/test_fixtures/Grid_Runner.sid"
 
@@ -86,7 +86,7 @@ def test_sid_render_params_reads_model_and_clock(tmp_path):
     assert capture.sid_render_params(str(p3))[0] == sidreg.MODEL_6581
 
 
-@pytest.mark.skipif(not _HAVE_VM, reason="deity-informant VM unavailable")
+@requires_vm
 def test_grid_from_sid_runs_tiny_psid(tmp_path):
     path = tmp_path / "t.sid"
     path.write_bytes(_tiny_psid())
@@ -96,7 +96,7 @@ def test_grid_from_sid_runs_tiny_psid(tmp_path):
     assert (grid[:, sidreg.MODE_VOL] == 0x0F).all()
 
 
-@pytest.mark.skipif(not (_HAVE_VM and os.path.exists(_SID)), reason="Grid Runner .sid unavailable")
+@pytest.mark.skipif(not (HAVE_VM and os.path.exists(_SID)), reason="Grid Runner .sid unavailable")
 def test_grid_from_sid_reads_real_tune():
     grid = capture.grid_from_sid(_SID, frames=300)
     assert grid.shape == (300, sidreg.NREGS)
@@ -106,7 +106,7 @@ def test_grid_from_sid_reads_real_tune():
 
 @pytest.mark.oracle
 @pytest.mark.skipif(
-    not (_HAVE_VM and _HAVE_ORACLE and os.path.exists(_SID)),
+    not (HAVE_VM and _HAVE_ORACLE and os.path.exists(_SID)),
     reason="deity VM / sidplayfp docker oracle / .sid unavailable",
 )
 def test_grid_from_sid_matches_sidplayfp_oracle():

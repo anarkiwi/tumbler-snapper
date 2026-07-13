@@ -7,16 +7,10 @@ The Commando check is gated on deity-informant + a local .sid, like the trace te
 
 from __future__ import annotations
 
-import importlib.util
-import os
-
-import pytest
+from conftest import COMMANDO, requires_commando
 
 from tumbler_snapper import state
 from tumbler_snapper.trace import Op
-
-_HAVE_VM = importlib.util.find_spec("deity_informant") is not None
-_TUNE = "/scratch/preframr/hvsc/C64Music/MUSICIANS/H/Hubbard_Rob/Commando.sid"
 
 
 def _dec_frame(cell, reload_addr, expired):
@@ -126,11 +120,11 @@ def test_report_labels_assignments():
     assert state.report([table_frame])[0] == "$0042 x1     table mem[($4000 + mem[96])]"
 
 
-@pytest.mark.skipif(not (_HAVE_VM and os.path.exists(_TUNE)), reason="VM/fixture unavailable")
+@requires_commando
 def test_commando_recurrences():
     from tumbler_snapper import trace  # noqa: PLC0415
 
-    recs = state.recurrences(trace.trace_sid(_TUNE, 400))
+    recs = state.recurrences(trace.trace_sid(COMMANDO, 1500))
     assert recs[0x5525].kind == "counter" and recs[0x5525].delta == 1  # up-counter, resets to 0
     dur = recs[0x5513]  # note-duration timer: counts down, reloads from $5517
     assert dur.kind == "counter" and dur.delta == -1

@@ -20,15 +20,14 @@ pitch recovery itself against regression.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 from pathlib import Path
 
 import numpy as np
 import pytest
+from conftest import requires_vm
 
-_HAVE_VM = importlib.util.find_spec("deity_informant") is not None
 _FIXTURE = Path(__file__).resolve().parent / "corpus" / "trackers.json"
 
 
@@ -84,7 +83,7 @@ def test_clock_detection_unifies_mixed_standards():
     assert any(_mad([t["offset_cents"] for t in a["tunes"]]) <= _TOL for a in mixed)
 
 
-@pytest.mark.skipif(not _HAVE_VM, reason="deity-informant VM unavailable")
+@requires_vm
 @pytest.mark.parametrize("author", _AUTHORS, ids=[a["author"] for a in _AUTHORS])
 def test_recovered_offsets_reproduce(author):
     """Re-fitting from HVSC reproduces each recorded offset (pitch-recovery guard)."""
