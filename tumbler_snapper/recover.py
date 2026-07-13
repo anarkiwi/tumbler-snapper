@@ -19,8 +19,11 @@ updates**, grounded in memory leaves. This module closes the loop:
 driver is a single indexed-table read ``mem[base + index]``, it returns the composer's
 table and the recovered index -- a note table indexed by a note pointer, an instrument
 record by an instrument pointer -- which :func:`render_table_generator` replays
-bit-exactly on the frames that form covers. This is the generator the IR emits, a
-table plus an index, in place of a per-frame dataflow replay.
+bit-exactly on the frames that form covers. :func:`melody_line` splits that into the
+melody the IR carries: a run-length **note track** (the index sequence as change-points)
+plus the **pitch table** it indexes, reconstructing the register from a small LUT and a
+line rather than a per-frame table read. :func:`render_guarded_generator` covers the
+branchy-effect frames the dominant form leaves out (:mod:`.guards`).
 
 Evaluation is exact 6502 integer arithmetic: memory reads are bytes, intermediates
 are full-width (so ``(mem[hi] << 8) | mem[lo]`` reconstructs a 16-bit pointer), and
@@ -147,27 +150,66 @@ def table_generators(frames: list[list[Op]]) -> dict[int, tuple]:
     return out
 
 
-def render_table_generator(frames: list[list[Op]], mem0: bytearray, reg: int) -> dict[int, int]:
-    """Render a register's dominant table generator: ``{frame: value}`` on covered frames.
-
-    Forward-simulates memory (as :func:`simulate` does) and, on each frame whose ``reg``
-    driver is the dominant table-read form, reads the recovered table at the recovered
-    index. Empty if ``reg`` has no table generator.
-    """
+def _table_form(frames: list[list[Op]], reg: int) -> tuple | None:
+    """``(form, base, index_expr)`` if ``reg``'s dominant driver is an indexed-table read."""
     dominant = _dominant_forms(frames).get(reg)
-    if dominant is None or _single_table(dominant[0]) is None:
-        return {}
-    form = dominant[0]
-    base, index_expr = _single_table(form)
+    if dominant is None:
+        return None
+    table = _single_table(dominant[0])
+    return None if table is None else (dominant[0], table[0], table[1])
+
+
+def _table_series(frames: list[list[Op]], mem0: bytearray, reg: int) -> list[tuple]:
+    """Per-frame ``(index, value)`` for ``reg``'s dominant table form; ``(None, None)`` off it.
+
+    Forward-simulates memory (as :func:`simulate` does); on each frame the register is
+    driven by that form, reads the recovered table at the recovered index. ``[]`` if
+    ``reg`` has no table generator.
+    """
+    tf = _table_form(frames, reg)
+    if tf is None:
+        return []
+    form, base, index_expr = tf
     mem = bytearray(mem0)
-    values = {}
-    for f, frame in enumerate(frames):
+    out = []
+    for frame in frames:
         drivers, updates = dataflow.slice_frame(frame)
         if drivers.get(reg) == form:
-            values[f] = mem[(base + evaluate(index_expr, mem)) & 0xFFFF]
+            idx = evaluate(index_expr, mem)
+            out.append((idx, mem[(base + idx) & 0xFFFF]))
+        else:
+            out.append((None, None))
         for addr, val in {a: evaluate(e, mem) & 0xFF for a, e in updates.items()}.items():
             mem[addr] = val
-    return values
+    return out
+
+
+def render_table_generator(frames: list[list[Op]], mem0: bytearray, reg: int) -> dict[int, int]:
+    """Render a register's dominant table generator: ``{frame: value}`` on covered frames."""
+    return {f: v for f, (i, v) in enumerate(_table_series(frames, mem0, reg)) if i is not None}
+
+
+def melody_line(frames: list[list[Op]], mem0: bytearray, reg: int) -> tuple[list[tuple], dict]:
+    """Recover a table-driven register as a compact melody: ``(note_track, pitch_table)``.
+
+    ``note_track`` is the run-length melodic line -- ``(frame, index)`` change-points of
+    the recovered table index, with ``index = -1`` on off-form frames (silence/effect).
+    ``pitch_table`` maps each index the line uses to its table value. Together they
+    reconstruct the register bit-exactly on covered frames (``value = pitch_table[index]``),
+    the same values :func:`render_table_generator` produces -- but as the emitted IR: a
+    small note LUT plus a run-length line, in place of a per-frame table read.
+    """
+    track: list[tuple] = []
+    table: dict = {}
+    prev = None
+    for f, (idx, val) in enumerate(_table_series(frames, mem0, reg)):
+        note = -1 if idx is None else idx
+        if note != prev:
+            track.append((f, note))
+            prev = note
+        if idx is not None:
+            table[idx] = val
+    return track, table
 
 
 def render_guarded_generator(
