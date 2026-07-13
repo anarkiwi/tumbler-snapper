@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from conftest import hvsc_tune
 
-from tumbler_snapper import filt, melody, recover, sidreg, trace
+from tumbler_snapper import filt, ir, melody, recover, residual, sidreg, trace
 from tumbler_snapper.capture import grid_from_sid, parse_psid
 
 N = 3000  # >= 60s at 50Hz PAL; short windows hide late-diverging recovery bugs
@@ -69,3 +69,8 @@ def test_recover_simulate_is_bit_exact(relpath):
         change_events = recover.categorical_generator(frames, mem0, reg)
         if change_events is not None:
             assert np.array_equal(filt.render_series(change_events, N), latched[:, reg])
+
+    # recover.model + recover.melody build the whole IR from p-code; it reconstructs the
+    # oracle as losslessly-compactly as ir.build does from the capture
+    rpred = ir.render_grid(recover.model(frames, mem0), recover.melody(frames, mem0))
+    assert residual.diff(oracle, rpred).n_changepoints == ir.build(oracle)[1].n_changepoints
