@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from . import dataflow, pitch, residual, sidreg, trace
+from . import dataflow, pitch, residual, sidreg, structure, trace
 from .trace import Op
 
 _BINOP = {
@@ -279,6 +279,28 @@ def voice_note_track(
             out.append((f, note))
             prev = note
     return out
+
+
+def constant_generator(frames: list[list[Op]], mem0: bytearray, reg: int) -> int | None:
+    """The held constant value of a register with no per-frame variation, else ``None``.
+
+    Keyed off the p-code driver structure (:func:`structure.structure`), never output
+    cardinality: a register the trace never writes holds its post-init seed
+    (``mem0[$D400 + reg]``); one whose sole driver form is a constant writes that constant
+    every driven frame. The latter is a held constant only if it is driven on the first
+    frame or its constant equals the seed, so the frames before the first write hold the
+    same value. This is the most compact column generator; ``None`` for
+    table/branchy/expr-driven registers (a table or categorical generator handles those).
+    """
+    seed = mem0[0xD400 + reg]
+    struct = structure.structure(frames).get(reg)
+    if struct is None:
+        return seed
+    if struct.kind == "const" and struct.forms == 1:
+        value = evaluate(_dominant_forms(frames)[reg][0], mem0) & 0xFF
+        if value == seed or reg in _frame_slices(frames)[0][0]:
+            return value
+    return None
 
 
 def melody(frames: list[list[Op]], mem0: bytearray):

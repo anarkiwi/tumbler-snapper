@@ -233,6 +233,30 @@ def test_melody_reproduces_commando_freq_bit_exact(commando_recovery):
         )  # FREQ bit-exact vs oracle >=3000 frames
 
 
+def _const_frame():
+    # $D418 <- const 0x0F every frame; $D402 <- mem[$10] accumulator (then mem[$10] += 1)
+    return [
+        Op("STORE", None, (("c", 0xD418, 2), ("c", 0x0F, 1)), addr=0xD418, val=0x0F),
+        Op("LOAD", ("u", 0, 1), (("c", 0x10, 2),), addr=0x10, val=0),
+        Op("STORE", None, (("c", 0xD402, 2), ("u", 0, 1)), addr=0xD402, val=0),
+        Op("INT_ADD", ("u", 1, 1), (("u", 0, 1), ("c", 1, 1))),
+        Op("STORE", None, (("c", 0x10, 2), ("u", 1, 1)), addr=0x10, val=0),
+    ]
+
+
+def test_constant_generator_recovers_held_and_unwritten_columns():
+    mem0 = bytearray(0x10000)
+    mem0[0x10] = 5  # accumulator seed
+    mem0[0xD405] = 0x42  # an unwritten register's post-init seed
+    frames = [_const_frame() for _ in range(4)]
+    assert recover.constant_generator(frames, mem0, 24) == 0x0F  # $D418 const every driven frame
+    assert recover.constant_generator(frames, mem0, 5) == 0x42  # $D405 never written -> held seed
+    assert recover.constant_generator(frames, mem0, 2) is None  # $D402 accumulator, not constant
+    sim = sidreg.latch(recover.simulate(frames, mem0))
+    for reg in (24, 5):  # each recovered constant renders bit-exact vs the simulated column
+        assert (sim[:, reg] == recover.constant_generator(frames, mem0, reg)).all()
+
+
 def _guarded_frame(next_cond):
     # $D402 <- mem[$10] (a form covered by the guard), then mem[$50] <- next_cond
     return [
