@@ -322,6 +322,36 @@ def test_classify_form_labels_const_table_and_expr():
     assert recover.classify_form(accum) == ("expr", accum)  # kept as the recovered expression
 
 
+def _categorical_frame():
+    # $D417 <- mem[$4000 + mem[$21]] (few distinct -> categorical);
+    # $D402 <- mem[$4100 + mem[$21]] (all distinct -> high entropy); then mem[$21] += 1
+    return [
+        Op("LOAD", ("u", 0, 1), (("c", 0x21, 2),), addr=0x21, val=0),
+        Op("INT_ADD", ("u", 1, 2), (("c", 0x4000, 2), ("u", 0, 1))),
+        Op("LOAD", ("u", 2, 1), (("u", 1, 2),), addr=0x4000, val=0),
+        Op("STORE", None, (("c", 0xD417, 2), ("u", 2, 1)), addr=0xD417, val=0),
+        Op("INT_ADD", ("u", 3, 2), (("c", 0x4100, 2), ("u", 0, 1))),
+        Op("LOAD", ("u", 4, 1), (("u", 3, 2),), addr=0x4100, val=0),
+        Op("STORE", None, (("c", 0xD402, 2), ("u", 4, 1)), addr=0xD402, val=0),
+        Op("INT_ADD", ("u", 5, 1), (("u", 0, 1), ("c", 1, 1))),
+        Op("STORE", None, (("c", 0x21, 2), ("u", 5, 1)), addr=0x21, val=0),
+    ]
+
+
+def test_categorical_generator_codes_low_cardinality_columns():
+    from tumbler_snapper import filt  # noqa: PLC0415
+
+    mem0 = bytearray(0x10000)
+    mem0[0x4000:0x4005] = bytes([7, 7, 7, 9, 9])  # RES_FILT: two runs -> categorical
+    mem0[0x4100:0x4105] = bytes([1, 2, 3, 4, 5])  # PW_LO: all distinct -> high entropy
+    frames = [_categorical_frame() for _ in range(5)]
+    change_events = recover.categorical_generator(frames, mem0, sidreg.RES_FILT)
+    assert change_events == [(0, 7), (3, 9)]  # one (gap, value) per change, held forward
+    series = sidreg.latch(recover.simulate(frames, mem0))[:, sidreg.RES_FILT]
+    assert np.array_equal(filt.render_series(change_events, 5), series)  # renders bit-exact
+    assert recover.categorical_generator(frames, mem0, sidreg.PW_LO) is None  # high entropy
+
+
 def _guard_form_frame(taken):
     # flag r9 = (mem[$50] < mem[$51]) at op_pos 2, then $D402 <- form A (mem[$10]) or the
     # table form B (mem[$4000 + mem[$11]]) -- the branch's taken value selects which
@@ -428,3 +458,14 @@ def test_commando_recovery_is_complete(commando_recovery):
     assert consts  # Commando holds several columns constant (e.g. cutoff, filter mode/volume)
     for reg, value in consts.items():
         assert (latched[:, reg] == value).all()
+
+    # categorical columns (filter/volume) recover as change-event streams, bit-exact
+    from tumbler_snapper import filt  # noqa: PLC0415
+
+    n_cat = 0
+    for reg in range(sidreg.NREGS):
+        change_events = recover.categorical_generator(frames, mem0, reg)
+        if change_events is not None:
+            assert np.array_equal(filt.render_series(change_events, len(frames)), latched[:, reg])
+            n_cat += 1
+    assert n_cat > 0  # Commando's filter/volume columns code categorically
