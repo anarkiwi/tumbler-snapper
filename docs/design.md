@@ -149,8 +149,18 @@ real tables directly: voice-0 frequency reads the note table at `$5429` indexed 
 the note pointer `$54FB` (with `+12` arpeggio and portamento forms → `branchy`), and
 pulse width reads the per-instrument records at `$5591`/`$5597` indexed by the
 instrument pointer `$54FE`. This is the input Pass 4 emits as note track + pitch grid
-+ instruments; the remaining work is recovering each `branchy` effect's guard (the
-sweep bounce, the arpeggio/glide) so its generator emits at its true period.
++ instruments.
+
+The `branchy` effects' guards are recovered from the program too (`guards.py`).
+`trace.trace_branches` records every executed branch as `(pc, flag, taken)` -- the
+program's control-flow decisions, which `run_record` exposes as the record's `br`
+terminator (a flag compared to a polarity). `guards.form_guard` finds the branch
+whose *taken* value bijects with a register's driver form: every taken value selects
+exactly one form. On Commando the pulse-width sweep's guard is the single branch at
+`$5269` (the triangle direction) partitioning its two sweep forms -- so the effect
+emits as `if $5269: sweep_up else sweep_down` rather than a list of per-frame forms.
+The remaining work is slicing each guard's flag back to its symbolic condition and
+emitting the guarded generators.
 
 **Pass 4 — Synthesis.** *(Forward-simulator landed: `recover.py`; compact emission
 pending.)* :func:`recover.simulate` forward-evaluates the recovered dataflow (Pass 1

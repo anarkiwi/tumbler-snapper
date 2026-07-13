@@ -62,8 +62,13 @@ def _assemble(records: list, memlog: list) -> list[Op]:
 
 
 @contextmanager
-def _hooked(vm_cls, memlog: list, records: list):  # pragma: no cover
-    """Temporarily hook the VM class to log memory accesses and record boundaries."""
+def _hooked(vm_cls, memlog: list, records: list, branches: list):  # pragma: no cover
+    """Hook the VM to log memory accesses, record boundaries, and branch decisions.
+
+    Each executed conditional branch appends ``(pc, flag_offset, taken)`` -- the
+    program's control-flow decision, whose taken value selects between a branchy
+    register's driver forms (:mod:`.guards`).
+    """
     # pylint: disable=protected-access  # deliberate class-level patch of the VM's read/write
     o_rd, o_wr, o_rr = vm_cls._rd, vm_cls._wr, vm_cls.run_record
 
@@ -78,7 +83,10 @@ def _hooked(vm_cls, memlog: list, records: list):  # pragma: no cover
 
     def run_record(self, rec, pc):
         records.append((rec, len(memlog)))
-        return o_rr(self, rec, pc)
+        ctrl, nxt = o_rr(self, rec, pc)
+        if ctrl[0] == "br":  # ("br", flag, pol, tgt, fallthrough); taken iff next == target
+            branches.append((pc, ctrl[1][1], int(nxt == ctrl[3])))
+        return ctrl, nxt
 
     vm_cls._rd, vm_cls._wr, vm_cls.run_record = rd, wr, run_record
     try:
@@ -87,10 +95,10 @@ def _hooked(vm_cls, memlog: list, records: list):  # pragma: no cover
         vm_cls._rd, vm_cls._wr, vm_cls.run_record = o_rd, o_wr, o_rr
 
 
-def trace(
-    mem: bytearray, init: int, play: int, frames: int, subtune: int = 0
-) -> list[list[Op]]:  # pragma: no cover
-    """Trace ``frames`` play calls, returning each frame's executed P-Code op stream."""
+def _run(  # pragma: no cover
+    mem: bytearray, init: int, play: int, frames: int, subtune: int
+) -> tuple[list[list[Op]], list[list[tuple]]]:
+    """Trace ``frames`` play calls, returning each frame's op stream and branch decisions."""
     from deity_informant import PcodeVM, lift, run_sub  # noqa: PLC0415 - optional VM dep
 
     vm = PcodeVM(mem)
@@ -99,15 +107,33 @@ def trace(
     cache: dict = {}
     memlog: list = []
     records: list = []
-    out: list[list[Op]] = []
-    with _hooked(PcodeVM, memlog, records):
+    branches: list = []
+    op_frames: list[list[Op]] = []
+    branch_frames: list[list[tuple]] = []
+    with _hooked(PcodeVM, memlog, records, branches):
         run_sub(vm, init, cache, lift)
         for _ in range(frames):
             memlog.clear()
             records.clear()
+            branches.clear()
             run_sub(vm, play, cache, lift)
-            out.append(_assemble(records, memlog))
-    return out
+            op_frames.append(_assemble(records, memlog))
+            branch_frames.append(list(branches))
+    return op_frames, branch_frames
+
+
+def trace(
+    mem: bytearray, init: int, play: int, frames: int, subtune: int = 0
+) -> list[list[Op]]:  # pragma: no cover
+    """Trace ``frames`` play calls, returning each frame's executed P-Code op stream."""
+    return _run(mem, init, play, frames, subtune)[0]
+
+
+def trace_branches(  # pragma: no cover
+    mem: bytearray, init: int, play: int, frames: int, subtune: int = 0
+) -> tuple[list[list[Op]], list[list[tuple]]]:
+    """Like :func:`trace`, also returning each frame's ``(pc, flag, taken)`` branch decisions."""
+    return _run(mem, init, play, frames, subtune)
 
 
 def trace_sid(path: str, frames: int, subtune: int = 0) -> list[list[Op]]:  # pragma: no cover
