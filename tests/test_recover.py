@@ -11,7 +11,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import numpy as np
-from conftest import COMMANDO, requires_commando
+from conftest import requires_commando
 
 from tumbler_snapper import pitch, recover, sidreg
 from tumbler_snapper.trace import Op
@@ -199,13 +199,8 @@ def test_render_guarded_generator_selects_form_from_the_condition():
 
 
 @requires_commando
-def test_commando_note_table_generator():
-    from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
-
-    n = 3000
-    mem, init, play, _ = parse_psid(COMMANDO)
-    frames, mem0 = trace_frames(mem, init, play, n), state0(mem, init)
-    oracle = grid_from_sid(COMMANDO, n)
+def test_commando_note_table_generator(commando_recovery):
+    frames, mem0, oracle, n = commando_recovery
     gens = recover.table_generators(frames)
     assert gens[1][0] == 0x5429 and gens[0][0] == 0x5428  # freq0 hi/lo -> the note table
     for reg in (0, 1):
@@ -236,23 +231,8 @@ def _expand_track(track, length):
 
 
 @requires_commando
-def test_commando_recovery_is_complete():
-    from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
-
-    n = 3000  # >= 60s at 50Hz PAL; short windows hide late-diverging recovery bugs
-    mem, init, play, _ = parse_psid(COMMANDO)
-    grid = recover.simulate(trace_frames(mem, init, play, n), state0(mem, init))
-    res = recover.residual_of(grid, grid_from_sid(COMMANDO, n))
+def test_commando_recovery_is_complete(commando_recovery):
+    frames, mem0, oracle, _n = commando_recovery
+    grid = recover.simulate(frames, mem0)
+    res = recover.residual_of(grid, oracle)
     assert res.n_changepoints == 0  # recovery reproduces the oracle with empty residual
-
-
-def trace_frames(mem, init, play, n):
-    from tumbler_snapper import trace  # noqa: PLC0415
-
-    return trace.trace(bytearray(mem), init, play, n)
-
-
-def state0(mem, init):
-    from tumbler_snapper import trace  # noqa: PLC0415
-
-    return trace.state_after_init(bytearray(mem), init)

@@ -186,7 +186,10 @@ bit-exactly on the frames that form covers. On Commando voice-0 frequency this i
 note table at `$5428`/`$5429` indexed by the note pointer — recovered from the program
 and reproducing the frequency exactly on all 1426 base-note frames (the `+12` arpeggio
 and portamento forms are the branchy remainder, recovered as their own generators
-next). *Remaining:* emit these as IR (`hold`/`ramp`/`wave` + note track + instruments)
+next). Every emission pass (simulate, table/guarded/melody generators, the pitch grid)
+shares one memoized slice pass (`recover._frame_slices`) so the expensive
+`dataflow.slice_frame` simplify runs once per tune, not once per generator. *Remaining:*
+emit these as IR (`hold`/`ramp`/`wave` + note track + instruments)
 and recover the branchy effects, which together retire the
 [legacy output-fitters](#representation-primitives-vs-legacy-output-fit).
 
