@@ -77,6 +77,25 @@ def evaluate(expr: tuple, mem: bytearray) -> int:
     return _BINOP[mn](evaluate(args[0], mem), evaluate(args[1], mem)) & mask
 
 
+_SLICE_CACHE: dict = {}  # id(frames) -> (frames, [(drivers, updates)]); one entry (latest)
+
+
+def _frame_slices(frames: list[list[Op]]) -> list[tuple]:
+    """``[(drivers, updates)]`` per frame, slicing each frame once (:func:`dataflow.slice_frame`).
+
+    The slice is frame-local and pure, so it is memoized for the current ``frames``
+    object -- every emission pass (``simulate``, table/guarded/melody generators, the
+    pitch grid) reuses the single expensive simplify pass instead of re-slicing.
+    """
+    hit = _SLICE_CACHE.get(id(frames))
+    if hit is not None and hit[0] is frames:  # identity guard against id reuse
+        return hit[1]
+    slices = [dataflow.slice_frame(f) for f in frames]
+    _SLICE_CACHE.clear()  # hold only the latest frames (keeps a ref, so its id stays live)
+    _SLICE_CACHE[id(frames)] = (frames, slices)
+    return slices
+
+
 def simulate(frames: list[list[Op]], mem0: bytearray) -> np.ndarray:
     """Forward-evaluate the recovered dataflow to the ``[T, 25]`` register grid.
 
@@ -88,8 +107,7 @@ def simulate(frames: list[list[Op]], mem0: bytearray) -> np.ndarray:
     mem = bytearray(mem0)
     grid = np.zeros((len(frames), sidreg.NREGS), np.uint8)
     row = np.frombuffer(bytes(mem0[0xD400 : 0xD400 + sidreg.NREGS]), np.uint8).copy()
-    for f, frame in enumerate(frames):
-        drivers, updates = dataflow.slice_frame(frame)
+    for f, (drivers, updates) in enumerate(_frame_slices(frames)):
         driven = {reg: evaluate(e, mem) & 0xFF for reg, e in drivers.items()}
         updated = {addr: evaluate(e, mem) & 0xFF for addr, e in updates.items()}
         for reg, val in driven.items():
@@ -125,8 +143,7 @@ def _dominant_forms(frames: list[list[Op]]) -> dict[int, tuple]:
     from collections import Counter  # noqa: PLC0415
 
     per_reg: dict[int, Counter] = {}
-    for frame in frames:
-        drivers, _updates = dataflow.slice_frame(frame)
+    for drivers, _updates in _frame_slices(frames):
         for reg, expr in drivers.items():
             per_reg.setdefault(reg, Counter())[expr] += 1
     return {reg: forms.most_common(1)[0] for reg, forms in per_reg.items()}
@@ -172,8 +189,7 @@ def _table_series(frames: list[list[Op]], mem0: bytearray, reg: int) -> list[tup
     form, base, index_expr = tf
     mem = bytearray(mem0)
     out = []
-    for frame in frames:
-        drivers, updates = dataflow.slice_frame(frame)
+    for drivers, updates in _frame_slices(frames):
         if drivers.get(reg) == form:
             idx = evaluate(index_expr, mem)
             out.append((idx, mem[(base + idx) & 0xFFFF]))
@@ -253,8 +269,7 @@ def render_guarded_generator(
     forms = set(guard.forms.values())
     mem = bytearray(mem0)
     values = {}
-    for f, frame in enumerate(frames):
-        drivers, updates = dataflow.slice_frame(frame)
+    for f, (drivers, updates) in enumerate(_frame_slices(frames)):
         if drivers.get(guard.reg) in forms:
             values[f] = evaluate(guard.forms[int(evaluate(cond, mem) == pol)], mem) & 0xFF
         for addr, val in {a: evaluate(e, mem) & 0xFF for a, e in updates.items()}.items():

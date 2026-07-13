@@ -20,3 +20,23 @@ requires_vm = pytest.mark.skipif(not HAVE_VM, reason="deity-informant VM unavail
 requires_commando = pytest.mark.skipif(
     not (HAVE_VM and os.path.exists(COMMANDO)), reason="VM/Commando .sid unavailable"
 )
+
+COMMANDO_FRAMES = 3000  # >= 60s at 50Hz PAL; short windows hide late-diverging recovery bugs
+
+
+@pytest.fixture(scope="session")
+def commando_recovery():
+    """Trace Commando once and share ``(frames, mem0, oracle, n)`` across recover tests.
+
+    The VM trace dominates the gated recover tests' runtime; tracing once per session
+    (instead of once per test) keeps the local dev loop fast. Lazy: the body runs only
+    when a ``@requires_commando`` test requests it, so it is inert without the VM/.sid.
+    """
+    from tumbler_snapper import trace  # noqa: PLC0415
+    from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
+
+    mem, init, play, _ = parse_psid(COMMANDO)
+    frames = trace.trace(bytearray(mem), init, play, COMMANDO_FRAMES)
+    mem0 = trace.state_after_init(bytearray(mem), init)
+    oracle = grid_from_sid(COMMANDO, COMMANDO_FRAMES)
+    return frames, mem0, oracle, COMMANDO_FRAMES
