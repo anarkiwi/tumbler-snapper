@@ -163,8 +163,12 @@ sweep's guard is the branch at `$5269`, and its condition recovers as
 `mem[$5510] == 0` (the triangle phase cell) with a polarity -- verified to predict the
 taken direction on every frame the branch fires over 60s. So the effect emits as
 `if mem[$5510] == 0: sweep_up else sweep_down` rather than a list of per-frame forms.
-The remaining work is rendering the guarded generators (evaluate the condition, pick
-the form) and folding them into the IR.
+`recover.render_guarded_generator` renders exactly that: on each covered frame it picks
+the form *from the condition alone* (`guard.forms[int(evaluate(cond) == pol)]`) and
+evaluates it against the forward-simulated memory. On Commando the pulse-width sweep
+renders **bit-exactly against the ≥60s oracle** on its >1000 covered frames. The
+remaining work is folding these guarded generators, the table generators, and the note
+track into the emitted IR.
 
 **Pass 4 — Synthesis.** *(Forward-simulator landed: `recover.py`; compact emission
 pending.)* :func:`recover.simulate` forward-evaluates the recovered dataflow (Pass 1

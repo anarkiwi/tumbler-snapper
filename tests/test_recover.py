@@ -8,6 +8,8 @@ the recovered generators reproduce the oracle grid with an empty residual.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 from conftest import COMMANDO, requires_commando
 
@@ -111,6 +113,28 @@ def test_table_generators_recovers_indexed_table():
     assert 2 not in gens  # $D402 = mem[$10] accumulator, not a single indexed table
     assert recover.render_table_generator(frames, mem0, 3) == {0: 0x11, 1: 0x22, 2: 0x33}
     assert recover.render_table_generator(frames, mem0, 2) == {}  # not a table generator
+
+
+def _guarded_frame(next_cond):
+    # $D402 <- mem[$10] (a form covered by the guard), then mem[$50] <- next_cond
+    return [
+        Op("LOAD", ("u", 0, 1), (("c", 0x10, 2),), addr=0x10, val=0),
+        Op("STORE", None, (("c", 0xD402, 2), ("u", 0, 1)), addr=0xD402, val=0),
+        Op("STORE", None, (("c", 0x50, 2), ("c", next_cond, 1)), addr=0x50, val=next_cond),
+    ]
+
+
+def test_render_guarded_generator_selects_form_from_the_condition():
+    # forms selected purely by cond=(mem[$50]==0), not by the frame's traced form
+    form_a = ("mem", ("const", 0x10), 1)
+    form_b = ("mem", ("const", 0x11), 1)
+    guard = SimpleNamespace(reg=2, forms={0: form_a, 1: form_b})
+    cond = ("op", "INT_EQUAL", (("mem", ("const", 0x50), 1), ("const", 0)), 1)
+    mem0 = bytearray(0x10000)
+    mem0[0x10], mem0[0x11], mem0[0x50] = 0xAA, 0xBB, 0  # frame 0 sees mem[$50]==0
+    frames = [_guarded_frame(1), _guarded_frame(0)]  # frame 0 flips it to 1 for frame 1
+    rendered = recover.render_guarded_generator(frames, mem0, guard, cond, pol=1)
+    assert rendered == {0: 0xBB, 1: 0xAA}  # cond true -> taken 1 -> form_b; then false -> form_a
 
 
 @requires_commando
