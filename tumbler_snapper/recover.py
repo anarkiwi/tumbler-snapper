@@ -371,6 +371,27 @@ def constant_generator(frames: list[list[Op]], mem0: bytearray, reg: int) -> int
     return None
 
 
+def categorical_generator(
+    frames: list[list[Op]], mem0: bytearray, reg: int
+) -> list[tuple[int, int]] | None:
+    """A low-cardinality register's change-event ``(gap, value)`` stream, else ``None``.
+
+    Runs filt's change-event coding on the *program-derived* column --
+    ``latch(simulate(...))[:, reg]``, the recovered cell trajectory, never the oracle --
+    yielding one ``(gap, value)`` event per change, held forward (:func:`filt.render_series`
+    inverts it exactly, so it reproduces the column bit-exact). Returned only when the events
+    are more compact than the raw column -- a categorical automation track (RES_FILT,
+    MODE_VOL, a shadow-cell mode select). ``None`` for a high-entropy column (an accumulator
+    sweep changes almost every frame), which an accumulator or table generator handles. The
+    cross-register pattern factoring (:func:`filt.fit`) is applied when assembling the model.
+    """
+    from . import filt  # noqa: PLC0415
+
+    series = sidreg.latch(simulate(frames, mem0))[:, reg]
+    change_events = filt.events(series)
+    return change_events if 2 * len(change_events) < len(series) else None
+
+
 def melody(frames: list[list[Op]], mem0: bytearray):
     """Recover the FREQ voices as a :class:`~.melody.Melody`, reproducing FREQ bit-exact.
 

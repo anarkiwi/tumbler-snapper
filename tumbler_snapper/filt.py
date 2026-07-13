@@ -43,26 +43,26 @@ class FilterModel:
         return sum(len(p) for p in self.patterns) + sum(len(o) for o in self.orderlists.values())
 
 
-def _events(series: np.ndarray) -> list[Event]:
-    """Change-event ``(gap, value)`` stream; exact inverse of :func:`_render_series`."""
+def events(series: np.ndarray) -> list[Event]:
+    """Change-event ``(gap, value)`` stream; exact inverse of :func:`render_series`."""
     length = series.shape[0]
     change = np.empty(length, bool)
     change[0] = series[0] != 0
     change[1:] = series[1:] != series[:-1]
     idx = np.flatnonzero(change)
-    events: list[Event] = []
+    out: list[Event] = []
     prev = 0
     for frame in idx:
-        events.append((int(frame) - prev, int(series[frame])))
+        out.append((int(frame) - prev, int(series[frame])))
         prev = int(frame)
-    return events
+    return out
 
 
-def _render_series(events: list[Event], length: int) -> np.ndarray:
-    """Hold each change value forward from its frame -- inverse of :func:`_events`."""
+def render_series(change_events: list[Event], length: int) -> np.ndarray:
+    """Hold each change value forward from its frame -- inverse of :func:`events`."""
     series = np.zeros(length, np.uint8)
     frame = 0
-    for gap, val in events:
+    for gap, val in change_events:
         frame += gap
         series[frame:] = val
     return series
@@ -70,10 +70,10 @@ def _render_series(events: list[Event], length: int) -> np.ndarray:
 
 def _pattern_events(orderlist: list[int], patterns: list[tuple[Event, ...]]) -> list[Event]:
     """Flatten an orderlist back into its change-event stream."""
-    events: list[Event] = []
+    out: list[Event] = []
     for pid in orderlist:
-        events.extend(patterns[pid])
-    return events
+        out.extend(patterns[pid])
+    return out
 
 
 def fit(frames: np.ndarray) -> FilterModel:
@@ -82,17 +82,17 @@ def fit(frames: np.ndarray) -> FilterModel:
     m = FilterModel(frames.shape[0])
     index: dict[tuple[Event, ...], int] = {}
     for reg in FILT_REGS:
-        events = _events(frames[:, reg])
+        reg_events = events(frames[:, reg])
         trial: list[tuple[Event, ...]] = []
-        orderlist = factor.pack_stream(events, trial, {})
-        if sum(len(p) for p in trial) + len(orderlist) < len(events):  # cheaper than residual
-            m.orderlists[reg] = factor.pack_stream(events, m.patterns, index)
+        orderlist = factor.pack_stream(reg_events, trial, {})
+        if sum(len(p) for p in trial) + len(orderlist) < len(reg_events):  # cheaper than residual
+            m.orderlists[reg] = factor.pack_stream(reg_events, m.patterns, index)
     return m
 
 
 def predict(model: FilterModel) -> dict[int, np.ndarray]:
     """Render ``reg -> [T]`` value series for every modelled filter register."""
     return {
-        reg: _render_series(_pattern_events(orderlist, model.patterns), model.length)
+        reg: render_series(_pattern_events(orderlist, model.patterns), model.length)
         for reg, orderlist in model.orderlists.items()
     }

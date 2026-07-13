@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from conftest import hvsc_tune
 
-from tumbler_snapper import melody, recover, sidreg, trace
+from tumbler_snapper import filt, melody, recover, sidreg, trace
 from tumbler_snapper.capture import grid_from_sid, parse_psid
 
 N = 3000  # >= 60s at 50Hz PAL; short windows hide late-diverging recovery bugs
@@ -62,3 +62,10 @@ def test_recover_simulate_is_bit_exact(relpath):
         value = recover.constant_generator(frames, mem0, reg)
         if value is not None:
             assert (latched[:, reg] == value).all()  # a held constant, recovered from p-code
+
+    # every categorical column (RES_FILT/MODE_VOL and any low-card register) that codes as a
+    # change-event stream renders bit-exact vs the simulated grid
+    for reg in range(sidreg.NREGS):
+        change_events = recover.categorical_generator(frames, mem0, reg)
+        if change_events is not None:
+            assert np.array_equal(filt.render_series(change_events, N), latched[:, reg])

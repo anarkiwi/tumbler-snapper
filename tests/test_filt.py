@@ -32,12 +32,12 @@ def test_events_render_roundtrip(seed):
         run = int(rng.integers(1, 20))
         series[t : t + run] = int(rng.integers(0, 256))
         t += run
-    assert np.array_equal(filt._render_series(filt._events(series), 400), series)
+    assert np.array_equal(filt.render_series(filt.events(series), 400), series)
 
 
 def test_all_zero_series_has_no_events():
-    assert filt._events(np.zeros(100, np.uint8)) == []
-    assert np.array_equal(filt._render_series([], 100), np.zeros(100, np.uint8))
+    assert filt.events(np.zeros(100, np.uint8)) == []
+    assert np.array_equal(filt.render_series([], 100), np.zeros(100, np.uint8))
 
 
 def test_repeating_stream_is_modelled_and_exact():
