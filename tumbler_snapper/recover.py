@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from . import dataflow, pitch, residual, sidreg, structure, trace
+from . import dataflow, pitch, residual, sidreg, trace
 from .trace import Op
 
 _BINOP = {
@@ -138,6 +138,50 @@ def _single_table(expr: tuple) -> tuple | None:
     return None
 
 
+def _table_transform(expr: tuple) -> tuple | None:
+    """``(base, index, transform)`` if ``expr`` is a fixed op-tree over one indexed read.
+
+    Peels a fixed post-transform (e.g. ``(mem[base+idx] >> 1) & 7`` for a cutoff wavetable,
+    ``mem[base+idx] | nibble`` for a packed column) whose only leaf that varies with the
+    table is the single :func:`_single_table` read ``mem[base + index]``; every other
+    operand in the wrapping ops is a constant. ``transform`` is that op-tree with the table
+    read replaced by the ``("hole",)`` marker, so :func:`_fill_hole` + :func:`evaluate`
+    reconstructs the register value from the raw table byte. A direct table read peels to
+    the identity transform ``("hole",)``. ``None`` if more than one leaf varies or a
+    wrapping operand is non-constant (not a fixed single-table transform).
+    """
+    direct = _single_table(expr)
+    if direct is not None:
+        return direct[0], direct[1], ("hole",)
+    if expr[0] != "op":
+        return None
+    peeled = None
+    new_args = []
+    for arg in expr[2]:
+        sub = _table_transform(arg)
+        if sub is not None:
+            if peeled is not None:  # a second varying leaf -> not a fixed single-table transform
+                return None
+            peeled = sub
+            new_args.append(sub[2])
+        elif arg[0] == "const":
+            new_args.append(arg)
+        else:  # a non-const, non-table operand -> the transform is not fixed
+            return None
+    if peeled is None:
+        return None
+    return peeled[0], peeled[1], ("op", expr[1], tuple(new_args), expr[3])
+
+
+def _fill_hole(transform: tuple, value: int) -> tuple:
+    """Bind a :func:`_table_transform` hole to a table byte, yielding an evaluable expr."""
+    if transform[0] == "hole":
+        return ("const", value)
+    if transform[0] == "op":
+        return ("op", transform[1], tuple(_fill_hole(a, value) for a in transform[2]), transform[3])
+    return transform
+
+
 def _dominant_forms(frames: list[list[Op]]) -> dict[int, tuple]:
     """Per SID register, its most frequent driver expression and that form's frame count."""
     from collections import Counter  # noqa: PLC0415
@@ -152,47 +196,50 @@ def _dominant_forms(frames: list[list[Op]]) -> dict[int, tuple]:
 def table_generators(frames: list[list[Op]]) -> dict[int, tuple]:
     """Pass 4: the compact table-read generator for each register with a table-driven form.
 
-    For every SID register whose *dominant* driver form is a single indexed-table read
-    ``mem[base + index]``, returns ``(base, index_expr, count)``: the composer's table
-    and the recovered index into it (a note table indexed by a note pointer, an
-    instrument record by an instrument pointer). This is the generator Pass 4 emits --
-    a table plus an index -- for the frames the dominant form covers; the remaining
-    (effect) forms of a branchy register are recovered separately.
+    For every SID register whose *dominant* driver form is an indexed-table read
+    ``mem[base + index]`` -- possibly under a fixed post-transform (:func:`_table_transform`,
+    e.g. a cutoff wavetable's ``>> 1 & 7``) -- returns ``(base, index_expr, count)``: the
+    composer's table and the recovered index into it (a note table indexed by a note
+    pointer, an instrument record by an instrument pointer). This is the generator Pass 4
+    emits -- a table plus an index -- for the frames the dominant form covers; the
+    remaining (effect) forms of a branchy register are recovered separately.
     """
     out = {}
     for reg, (expr, count) in _dominant_forms(frames).items():
-        table = _single_table(expr)
+        table = _table_transform(expr)
         if table is not None:
             out[reg] = (table[0], table[1], count)
     return out
 
 
 def _table_form(frames: list[list[Op]], reg: int) -> tuple | None:
-    """``(form, base, index_expr)`` if ``reg``'s dominant driver is an indexed-table read."""
+    """``(form, base, index_expr, transform)`` if ``reg``'s dominant driver is a table read."""
     dominant = _dominant_forms(frames).get(reg)
     if dominant is None:
         return None
-    table = _single_table(dominant[0])
-    return None if table is None else (dominant[0], table[0], table[1])
+    table = _table_transform(dominant[0])
+    return None if table is None else (dominant[0], *table)
 
 
 def _table_series(frames: list[list[Op]], mem0: bytearray, reg: int) -> list[tuple]:
     """Per-frame ``(index, value)`` for ``reg``'s dominant table form; ``(None, None)`` off it.
 
     Forward-simulates memory (as :func:`simulate` does); on each frame the register is
-    driven by that form, reads the recovered table at the recovered index. ``[]`` if
-    ``reg`` has no table generator.
+    driven by that form, reads the recovered table at the recovered index and applies the
+    form's fixed post-transform (:func:`_fill_hole`). ``[]`` if ``reg`` has no table
+    generator.
     """
     tf = _table_form(frames, reg)
     if tf is None:
         return []
-    form, base, index_expr = tf
+    form, base, index_expr, transform = tf
     mem = bytearray(mem0)
     out = []
     for drivers, updates in _frame_slices(frames):
         if drivers.get(reg) == form:
             idx = evaluate(index_expr, mem)
-            out.append((idx, mem[(base + idx) & 0xFFFF]))
+            byte = mem[(base + idx) & 0xFFFF]
+            out.append((idx, evaluate(_fill_hole(transform, byte), mem) & 0xFF))
         else:
             out.append((None, None))
         for addr, val in {a: evaluate(e, mem) & 0xFF for a, e in updates.items()}.items():
@@ -284,22 +331,23 @@ def voice_note_track(
 def constant_generator(frames: list[list[Op]], mem0: bytearray, reg: int) -> int | None:
     """The held constant value of a register with no per-frame variation, else ``None``.
 
-    Keyed off the p-code driver structure (:func:`structure.structure`), never output
-    cardinality: a register the trace never writes holds its post-init seed
-    (``mem0[$D400 + reg]``); one whose sole driver form is a constant writes that constant
-    every driven frame. The latter is a held constant only if it is driven on the first
-    frame or its constant equals the seed, so the frames before the first write hold the
-    same value. This is the most compact column generator; ``None`` for
-    table/branchy/expr-driven registers (a table or categorical generator handles those).
+    Keyed off the p-code driver forms (the cached frame slices), never output cardinality:
+    a register the trace never writes holds its post-init seed (``mem0[$D400 + reg]``); one
+    whose sole driver form is a constant writes that constant every driven frame. The latter
+    is a held constant only if it is driven on the first frame or its constant equals the
+    seed, so the frames before the first write hold the same value. This is the most compact
+    column generator; ``None`` for table/branchy/expr-driven registers (a table or
+    categorical generator handles those).
     """
     seed = mem0[0xD400 + reg]
-    struct = structure.structure(frames).get(reg)
-    if struct is None:
+    slices = _frame_slices(frames)
+    forms = {drivers[reg] for drivers, _ in slices if reg in drivers}
+    if not forms:  # never written -> holds the post-init seed
         return seed
-    if struct.kind == "const" and struct.forms == 1:
-        value = evaluate(_dominant_forms(frames)[reg][0], mem0) & 0xFF
-        if value == seed or reg in _frame_slices(frames)[0][0]:
-            return value
+    if len(forms) == 1:
+        (form,) = tuple(forms)
+        if form[0] == "const" and (form[1] == seed or reg in slices[0][0]):
+            return form[1] & 0xFF
     return None
 
 
