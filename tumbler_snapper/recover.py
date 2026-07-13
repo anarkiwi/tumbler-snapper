@@ -253,6 +253,34 @@ def pitch_grid(frames: list[list[Op]], mem0: bytearray) -> pitch.PitchGrid:
     return pitch.build_grid([note_values(frames, mem0, v) for v in range(sidreg.NVOICES)])
 
 
+def voice_note_track(
+    frames: list[list[Op]], mem0: bytearray, voice: int, grid: pitch.PitchGrid
+) -> list[tuple]:
+    """The voice's melodic line as run-length ``(frame, grid MIDI note)``; ``0`` = off-form.
+
+    Maps the recovered note-table index sequence (:func:`melody_line` on FREQ_LO, shared
+    with FREQ_HI) through the paired 16-bit note values to grid notes
+    (:func:`pitch.to_note` under ``grid``), collapsing consecutive equal notes. Off-form
+    frames (effect/silence) are note ``0``, held by the run-length line. This composes the
+    recovered note table (:func:`pitch_grid`) into the note vocabulary the emitted melody
+    carries -- ``grid.freq(note, voice)`` reconstructs each covered frame's base value --
+    in place of ``melody.fit``'s output-fitted on-grid base-note detection.
+    """
+    lo_track, lo = melody_line(frames, mem0, sidreg.voice_reg(voice, sidreg.FREQ_LO))
+    hi = melody_line(frames, mem0, sidreg.voice_reg(voice, sidreg.FREQ_HI))[1]
+    out: list[tuple] = []
+    prev = None
+    for f, idx in lo_track:
+        if idx < 0 or idx not in lo or idx not in hi:
+            note = 0
+        else:
+            note = max(pitch.to_note((hi[idx] << 8) | lo[idx], grid.offset, grid.clock), 0)
+        if note != prev:
+            out.append((f, note))
+            prev = note
+    return out
+
+
 def render_guarded_generator(
     frames: list[list[Op]], mem0: bytearray, guard, cond: tuple, pol: int
 ) -> dict[int, int]:

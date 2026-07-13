@@ -69,11 +69,16 @@ primitive by primitive, by p-code recovery:
      `PitchGrid` (offset/clock/detune/exceptions) -- the recovery-sourced replacement for
      `melody.fit`'s output-fitted `build_grid` seed. On Commando it recovers the voice-0
      PAL note table and reproduces every recovered note exactly.
+   - **Per-voice note track in grid notes (`recover.voice_note_track`).** Maps the
+     recovered note-index sequence through the pitch grid to run-length `(frame, grid MIDI
+     note)`, the note vocabulary `melody.Melody` carries. On Commando `grid.freq(note, 0)`
+     reconstructs the base frequency bit-exactly on every covered voice-0 frame.
    - **Next (to retire the fitters), each verified against the ≥60s oracle:**
-     (a) build the per-voice note tracks + pitch layer into `melody.Melody` and wire it
-     through the container (retires `melody.fit`); (b) emit the instrument records →
-     instruments (retires `notes.fit`); (c) emit the continuous columns + guarded
-     generators as recovered IR (retires `accum.fit`/`filt.fit`). Only then delete them.
+     (a) recover the pitch **layer** (arp/porta/vibrato residual) and assemble the per-voice
+     note track + layer into `melody.Melody`, wired through the container (retires
+     `melody.fit`); (b) emit the instrument records → instruments (retires `notes.fit`);
+     (c) emit the continuous columns + guarded generators as recovered IR (retires
+     `accum.fit`/`filt.fit`). Only then delete them.
 
 ---
 
