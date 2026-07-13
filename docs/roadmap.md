@@ -63,12 +63,17 @@ primitive by primitive, by p-code recovery:
      into a run-length note track (the index sequence as change-points) plus the pitch
      table it indexes. On Commando the note track + a <256-entry pitch table reconstruct
      freq0 lo/hi bit-exactly against the ≥60s oracle on their >1000 covered frames.
+   - **Pitch grid built from the recovered note table (`recover.pitch_grid`).**
+     `note_values` pairs a voice's FREQ_LO/FREQ_HI recovered pitch tables (shared note
+     pointer) into the exact 16-bit note values, which `pitch.build_grid` turns into the
+     `PitchGrid` (offset/clock/detune/exceptions) -- the recovery-sourced replacement for
+     `melody.fit`'s output-fitted `build_grid` seed. On Commando it recovers the voice-0
+     PAL note table and reproduces every recovered note exactly.
    - **Next (to retire the fitters), each verified against the ≥60s oracle:**
-     (a) fold the recovered pitch table + note track into `pitch.PitchGrid` /
-     `melody.Melody` and wire it through the container (retires `melody.fit`); (b) emit
-     the instrument records → instruments (retires `notes.fit`); (c) emit the continuous
-     columns + guarded generators as recovered IR (retires `accum.fit`/`filt.fit`). Only
-     then delete them.
+     (a) build the per-voice note tracks + pitch layer into `melody.Melody` and wire it
+     through the container (retires `melody.fit`); (b) emit the instrument records →
+     instruments (retires `notes.fit`); (c) emit the continuous columns + guarded
+     generators as recovered IR (retires `accum.fit`/`filt.fit`). Only then delete them.
 
 ---
 

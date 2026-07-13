@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import numpy as np
 from conftest import COMMANDO, requires_commando
 
-from tumbler_snapper import recover, sidreg
+from tumbler_snapper import pitch, recover, sidreg
 from tumbler_snapper.trace import Op
 
 
@@ -138,6 +138,44 @@ def test_melody_line_is_a_run_length_note_track_plus_pitch_table():
     assert track == [(0, 0), (1, 1), (2, -1)] and table == {0: 0x11, 1: 0x22}
 
 
+def _freq_table_frame():
+    # $D400 <- mem[$4000 + mem[$11]] (lo table); $D401 <- mem[$4100 + mem[$11]] (hi table)
+    # then mem[$11] += 1 -- voice 0's note table read through one note pointer
+    return [
+        Op("LOAD", ("u", 0, 1), (("c", 0x11, 2),), addr=0x11, val=0),
+        Op("INT_ADD", ("u", 1, 2), (("c", 0x4000, 2), ("u", 0, 1))),
+        Op("LOAD", ("u", 2, 1), (("u", 1, 2),), addr=0x4000, val=0),
+        Op("STORE", None, (("c", 0xD400, 2), ("u", 2, 1)), addr=0xD400, val=0),
+        Op("INT_ADD", ("u", 3, 2), (("c", 0x4100, 2), ("u", 0, 1))),
+        Op("LOAD", ("u", 4, 1), (("u", 3, 2),), addr=0x4100, val=0),
+        Op("STORE", None, (("c", 0xD401, 2), ("u", 4, 1)), addr=0xD401, val=0),
+        Op("INT_ADD", ("u", 5, 1), (("u", 0, 1), ("c", 1, 1))),
+        Op("STORE", None, (("c", 0x11, 2), ("u", 5, 1)), addr=0x11, val=0),
+    ]
+
+
+def test_note_values_pairs_the_lo_hi_note_tables():
+    mem0 = bytearray(0x10000)
+    mem0[0x4000:0x4003] = bytes([0x10, 0x20, 0x30])  # FREQ_LO table
+    mem0[0x4100:0x4103] = bytes([0x01, 0x02, 0x03])  # FREQ_HI table
+    frames = [_freq_table_frame() for _ in range(3)]  # note pointer walks 0,1,2
+    assert recover.note_values(frames, mem0, 0) == [0x0110, 0x0220, 0x0330]  # (hi << 8) | lo
+    assert recover.note_values(frames, mem0, 1) == []  # voice 1 is not driven
+
+
+def test_pitch_grid_reproduces_the_recovered_note_table():
+    mem0 = bytearray(0x10000)
+    # a run of exact 12-TET values so the grid fits a clean offset; each must round-trip
+    notes = [pitch.note_freq(n, 0.0, pitch.PAL_CLOCK) for n in range(60, 66)]
+    mem0[0x4000 : 0x4000 + len(notes)] = bytes(v & 0xFF for v in notes)
+    mem0[0x4100 : 0x4100 + len(notes)] = bytes((v >> 8) & 0xFF for v in notes)
+    frames = [_freq_table_frame() for _ in range(len(notes))]
+    grid = recover.pitch_grid(frames, mem0)
+    for val in recover.note_values(frames, mem0, 0):
+        note = pitch.to_note(val, grid.offset, grid.clock)
+        assert grid.freq(note, 0) == val  # every recovered note reconstructs exactly
+
+
 def _guarded_frame(next_cond):
     # $D402 <- mem[$10] (a form covered by the guard), then mem[$50] <- next_cond
     return [
@@ -182,6 +220,11 @@ def test_commando_note_table_generator():
         base = _expand_track(track, n)
         covered = [(f, int(i)) for f, i in enumerate(base) if i >= 0]
         assert len(covered) > 1000 and all(table[i] == oracle[f, reg] for f, i in covered)
+
+    # the pitch grid built from the recovered note table reproduces every recovered note
+    grid = recover.pitch_grid(frames, mem0)
+    assert grid.clock == pitch.PAL_CLOCK and len(grid.tables[0]) > 4  # voice-0 PAL note table
+    assert all(grid.freq(note, 0) == val for note, val in grid.tables[0].items())
 
 
 def _expand_track(track, length):
