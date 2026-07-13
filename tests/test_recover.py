@@ -352,6 +352,21 @@ def test_categorical_generator_codes_low_cardinality_columns():
     assert recover.categorical_generator(frames, mem0, sidreg.PW_LO) is None  # high entropy
 
 
+def test_model_recovers_accumulator_columns_from_pcode():
+    from tumbler_snapper import accum  # noqa: PLC0415
+
+    mem0 = bytearray(0x10000)
+    mem0[0x10] = 5
+    mem0[0x4000:0x4004] = bytes([0x11, 0x22, 0x33, 0x44])
+    frames = [_acc_and_table_frame() for _ in range(3)]  # $D402 accumulator + $D403 table -> pw0
+    m = recover.model(frames, mem0)
+    assert m.filter_model is None  # filter/volume fold into accumulator columns
+    assert {"pw0", "pw1", "pw2", "cutoff", "resfilt", "modevol"} <= set(m.columns)
+    sim = recover.simulate(frames, mem0)
+    pw0 = sidreg.pw_words(sim)[:, 0]  # the 12-bit combined word, program-derived
+    assert np.array_equal(accum.render(m.columns["pw0"], len(frames)), pw0)  # accumulator recovered
+
+
 def _guard_form_frame(taken):
     # flag r9 = (mem[$50] < mem[$51]) at op_pos 2, then $D402 <- form A (mem[$10]) or the
     # table form B (mem[$4000 + mem[$11]]) -- the branch's taken value selects which

@@ -247,12 +247,8 @@ def render_grid(model: modelmod.Model, melody: melodymod.Melody) -> np.ndarray:
 def build(frames) -> tuple[modelmod.Model, residual.Residual, melodymod.Melody]:
     """Fit the IR's model (accumulator columns + notes), melody, and lossless residual."""
     frames = sidreg.as_frames(frames)
-    fit = modelmod.fit(frames)
+    model = modelmod.from_grid(frames)
     melody = melodymod.fit(frames)
-    cols = {name: fit.columns[name] for name in _ACCUM_COLUMNS if name in fit.columns}
-    cols["resfilt"] = accum.fit(frames[:, sidreg.RES_FILT].astype(np.int64))
-    cols["modevol"] = accum.fit(frames[:, sidreg.MODE_VOL].astype(np.int64))
-    model = modelmod.Model(frames.shape[0], cols, fit.note_model, None)
     res = residual.diff(frames, render_grid(model, melody))
     return model, res, melody
 

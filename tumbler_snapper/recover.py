@@ -413,6 +413,21 @@ def melody(frames: list[list[Op]], mem0: bytearray):
     return _melody.from_freq(freq, _melody.seed_grid(freq, extra))
 
 
+def model(frames: list[list[Op]], mem0: bytearray):
+    """Recover the non-melody register model from p-code as a :class:`~.model.Model`.
+
+    Assembles the PW/cutoff accumulator columns, the categorical filter/volume columns, and
+    the CTRL/ADSR instruments (:func:`model.from_grid`) from the *program-derived* register
+    grid -- ``simulate(frames, mem0)``, never the oracle. Because ``simulate`` reproduces the
+    oracle bit-exact, this Model is identical to the one :func:`ir.build` fits from the
+    capture, but recovered entirely from the lifted p-code; with :func:`recover.melody` it
+    builds the whole IR from the program, the oracle only verifying (:func:`residual.diff`).
+    """
+    from . import model as _model  # noqa: PLC0415 -- module name shadows this function
+
+    return _model.from_grid(simulate(frames, mem0))
+
+
 def render_guarded_generator(
     frames: list[list[Op]], mem0: bytearray, guard, cond: tuple, pol: int
 ) -> dict[int, int]:

@@ -74,6 +74,27 @@ def fit(frames: np.ndarray) -> Model:
     return Model(frames.shape[0], cols, notes.fit(frames), filt.fit(frames))
 
 
+def from_grid(grid: np.ndarray) -> Model:
+    """Assemble the codec's :class:`Model` from a register grid.
+
+    The continuous PW/cutoff columns become accumulator segments over their combined
+    words; the categorical filter/volume columns ($D417/$D418) become accumulator change
+    streams; instruments come from :func:`notes.fit`. This is the Model shape the container
+    carries (``filter_model`` folded into accumulator columns, not a separate track). Shared
+    by :func:`ir.build` (``grid`` = oracle capture) and :func:`recover.model` (``grid`` =
+    program-derived ``simulate`` output), so the recovered model never reads the oracle.
+    """
+    grid = sidreg.as_frames(grid)
+    cols = {
+        name: accum.fit(series)
+        for name, series in _semantic_columns(grid).items()
+        if name.startswith("pw") or name == "cutoff"
+    }
+    cols["resfilt"] = accum.fit(grid[:, sidreg.RES_FILT].astype(np.int64))
+    cols["modevol"] = accum.fit(grid[:, sidreg.MODE_VOL].astype(np.int64))
+    return Model(grid.shape[0], cols, notes.fit(grid), None)
+
+
 def transcribe(frames: np.ndarray) -> melodymod.Melody:
     """Recover the A440/12-TET pitch grid, note tracks, and pitch layers."""
     return melodymod.fit(sidreg.as_frames(frames))
