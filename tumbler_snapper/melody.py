@@ -208,7 +208,6 @@ def _vibrato(freq: np.ndarray, base_freq: np.ndarray) -> tuple[int, int] | None:
 def fit(frames: np.ndarray) -> Melody:
     """Recover the pitch grid and per-voice note tracks, arpeggios, and vibrato."""
     frames = sidreg.as_frames(frames)
-    length = frames.shape[0]
     freq = sidreg.freq_words(frames).astype(np.int64)
     per_voice_segs = [accum.fit(freq[:, v]) for v in range(sidreg.NVOICES)]
     sustained = [
@@ -221,6 +220,18 @@ def fit(frames: np.ndarray) -> Melody:
     ]
     seed = pitch.build_grid(sustained)  # offset + clock from stable notes
     grid = pitch.PitchGrid(seed.offset, seed.clock, _augment_tables(freq, seed))
+    return from_freq(freq, grid)
+
+
+def from_freq(freq: np.ndarray, grid: pitch.PitchGrid) -> Melody:
+    """Decompose a per-voice [T, NVOICES] freq-word array against a grid into a Melody.
+
+    base + accum.render(layer) losslessly covers each voice's freq series, so
+    predict() reproduces it exactly regardless of how much on-grid structure the grid
+    captures. Shared by fit() (grid seeded from the series) and recover.melody (grid
+    recovered from the p-code note table).
+    """
+    length = freq.shape[0]
     voices = []
     for v in range(sidreg.NVOICES):
         base = _ongrid_base(freq[:, v], grid, v)

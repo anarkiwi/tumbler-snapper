@@ -281,6 +281,24 @@ def voice_note_track(
     return out
 
 
+def melody(frames: list[list[Op]], mem0: bytearray):
+    """Recover the FREQ voices as a :class:`~.melody.Melody`, reproducing FREQ bit-exact.
+
+    The pitch grid comes from the p-code note table (:func:`pitch_grid`); the per-voice
+    lines come from decomposing the *program-derived* frequency series --
+    ``freq_words(simulate(...))``, never the oracle -- with :func:`melody.from_freq`. Since
+    ``base + accum.render(layer)`` losslessly covers that series, ``melody.predict``
+    renders the FREQ columns exactly for every archetype, regardless of how much on-grid
+    structure the recovered grid captures. This replaces ``melody.fit``'s output-fitting:
+    the grid and notes are recovered from p-code, the layer is the recovered freq's own
+    residual.
+    """
+    from . import melody as _melody  # noqa: PLC0415 -- module name shadows this function
+
+    freq = sidreg.freq_words(simulate(frames, mem0)).astype(np.int64)
+    return _melody.from_freq(freq, pitch_grid(frames, mem0))
+
+
 def render_guarded_generator(
     frames: list[list[Op]], mem0: bytearray, guard, cond: tuple, pol: int
 ) -> dict[int, int]:

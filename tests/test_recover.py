@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import numpy as np
 from conftest import requires_commando
 
+from tumbler_snapper import melody as melodymod
 from tumbler_snapper import pitch, recover, sidreg
 from tumbler_snapper.trace import Op
 
@@ -198,6 +199,38 @@ def test_voice_note_track_maps_indices_to_grid_notes():
     assert track == [(0, 60), (2, 64), (3, 67)]  # index 0,1 both note 60 collapse into one run
     for _f, note in track:
         assert grid.freq(note, 0) in recover.note_values(frames, mem0, 0)  # note reconstructs
+
+
+def _freq_cols():
+    return [
+        sidreg.voice_reg(v, off)
+        for v in range(sidreg.NVOICES)
+        for off in (sidreg.FREQ_LO, sidreg.FREQ_HI)
+    ]
+
+
+def test_melody_reproduces_freq_from_the_recovered_note_table():
+    mem0 = bytearray(0x10000)
+    notes = [pitch.note_freq(n, 0.0, pitch.PAL_CLOCK) for n in (60, 62, 64, 65, 67)]
+    mem0[0x4000 : 0x4000 + len(notes)] = bytes(v & 0xFF for v in notes)
+    mem0[0x4100 : 0x4100 + len(notes)] = bytes((v >> 8) & 0xFF for v in notes)
+    frames = [_freq_table_frame() for _ in range(len(notes))]  # voice 0 walks the note table
+    mel = recover.melody(frames, mem0)
+    assert mel.grid.clock == pitch.PAL_CLOCK and len(mel.voices) == sidreg.NVOICES
+    pred, sim = melodymod.predict(mel), recover.simulate(frames, mem0)
+    for reg in _freq_cols():
+        assert np.array_equal(pred[:, reg], sim[:, reg])  # FREQ reproduced bit-exact
+    assert len(mel.voices[0].note_track) > 0  # voice 0 is a recovered on-grid melodic line
+
+
+@requires_commando
+def test_melody_reproduces_commando_freq_bit_exact(commando_recovery):
+    frames, mem0, oracle, _n = commando_recovery
+    pred = melodymod.predict(recover.melody(frames, mem0))
+    for reg in _freq_cols():
+        assert np.array_equal(
+            pred[:, reg], oracle[:, reg]
+        )  # FREQ bit-exact vs oracle >=3000 frames
 
 
 def _guarded_frame(next_cond):
