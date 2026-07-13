@@ -132,14 +132,25 @@ sweep cells (`$5507/$5518/$5523`) as instrument-table reads — one bounded accu
 each, not the dozen redundant `wave` segments an output-fit produces by chopping the
 same sweep at unrelated note boundaries.
 
-**Pass 3 — Musical structure.** Trace the sequencer: the order/pattern pointers and
-the row/tempo counter give the arrangement and note-on events; a note-on writes a
-new base frequency and triggers an instrument. The **note table** the play routine
-indexes *is* the pitch grid (recovered exactly, as the composer's own frequency
-table, not fitted); the **wavetable/ADSR tables** are the instruments; the
-**effect routines** (arpeggio cycling note offsets, vibrato/portamento adding an
-LFO/glide to the base) are their own generators — each the program's real data
-structure, shared across every use.
+**Pass 3 — Musical structure.** *(Structure extraction landed: `structure.py`.)*
+Trace the sequencer: the order/pattern pointers and the row/tempo counter give the
+arrangement and note-on events; a note-on writes a new base frequency and triggers
+an instrument. The **note table** the play routine indexes *is* the pitch grid
+(recovered exactly, as the composer's own frequency table, not fitted); the
+**wavetable/ADSR tables** are the instruments; the **effect routines** (arpeggio
+cycling note offsets, vibrato/portamento adding an LFO/glide to the base) are their
+own generators — each the program's real data structure, shared across every use.
+
+`structure.structure(frames)` recovers the machine-readable core of this: for each
+SID register it reads its driver's *shape* — the memory **tables** it indexes
+(`mem[base + index]`) and the scalar **pointer cells** that select into them — and
+classifies it `const` / `table` / `branchy`. On Commando it names the composer's
+real tables directly: voice-0 frequency reads the note table at `$5429` indexed by
+the note pointer `$54FB` (with `+12` arpeggio and portamento forms → `branchy`), and
+pulse width reads the per-instrument records at `$5591`/`$5597` indexed by the
+instrument pointer `$54FE`. This is the input Pass 4 emits as note track + pitch grid
++ instruments; the remaining work is recovering each `branchy` effect's guard (the
+sweep bounce, the arpeggio/glide) so its generator emits at its true period.
 
 **Pass 4 — Synthesis.** *(Forward-simulator landed: `recover.py`; compact emission
 pending.)* :func:`recover.simulate` forward-evaluates the recovered dataflow (Pass 1
