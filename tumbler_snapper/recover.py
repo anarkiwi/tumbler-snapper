@@ -15,6 +15,13 @@ updates**, grounded in memory leaves. This module closes the loop:
   fitted to the output. A nonzero residual on a periodic register is a recovery bug
   -- it names the register and frames to debug, per the recovery principle.
 
+:func:`table_generators` begins the compact **emission**: where a register's dominant
+driver is a single indexed-table read ``mem[base + index]``, it returns the composer's
+table and the recovered index -- a note table indexed by a note pointer, an instrument
+record by an instrument pointer -- which :func:`render_table_generator` replays
+bit-exactly on the frames that form covers. This is the generator the IR emits, a
+table plus an index, in place of a per-frame dataflow replay.
+
 Evaluation is exact 6502 integer arithmetic: memory reads are bytes, intermediates
 are full-width (so ``(mem[hi] << 8) | mem[lo]`` reconstructs a 16-bit pointer), and
 only the byte written to a register or RAM cell is masked.
@@ -93,6 +100,74 @@ def simulate(frames: list[list[Op]], mem0: bytearray) -> np.ndarray:
 def residual_of(recovered: np.ndarray, oracle: np.ndarray) -> residual.Residual:
     """Pass 5: the residual of the oracle against the recovered grid (empty == complete)."""
     return residual.diff(oracle, sidreg.latch(recovered))
+
+
+def _single_table(expr: tuple) -> tuple | None:
+    """If ``expr`` is one indexed-table read ``mem[base + index]``, return ``(base, index)``."""
+    if expr[0] != "mem":
+        return None
+    addr = expr[1]
+    if not (addr[0] == "op" and addr[1] == "INT_ADD"):
+        return None
+    a, b = addr[2]
+    if a[0] == "const":
+        return a[1], b
+    if b[0] == "const":
+        return b[1], a
+    return None
+
+
+def _dominant_forms(frames: list[list[Op]]) -> dict[int, tuple]:
+    """Per SID register, its most frequent driver expression and that form's frame count."""
+    from collections import Counter  # noqa: PLC0415
+
+    per_reg: dict[int, Counter] = {}
+    for frame in frames:
+        drivers, _updates = dataflow.slice_frame(frame)
+        for reg, expr in drivers.items():
+            per_reg.setdefault(reg, Counter())[expr] += 1
+    return {reg: forms.most_common(1)[0] for reg, forms in per_reg.items()}
+
+
+def table_generators(frames: list[list[Op]]) -> dict[int, tuple]:
+    """Pass 4: the compact table-read generator for each register with a table-driven form.
+
+    For every SID register whose *dominant* driver form is a single indexed-table read
+    ``mem[base + index]``, returns ``(base, index_expr, count)``: the composer's table
+    and the recovered index into it (a note table indexed by a note pointer, an
+    instrument record by an instrument pointer). This is the generator Pass 4 emits --
+    a table plus an index -- for the frames the dominant form covers; the remaining
+    (effect) forms of a branchy register are recovered separately.
+    """
+    out = {}
+    for reg, (expr, count) in _dominant_forms(frames).items():
+        table = _single_table(expr)
+        if table is not None:
+            out[reg] = (table[0], table[1], count)
+    return out
+
+
+def render_table_generator(frames: list[list[Op]], mem0: bytearray, reg: int) -> dict[int, int]:
+    """Render a register's dominant table generator: ``{frame: value}`` on covered frames.
+
+    Forward-simulates memory (as :func:`simulate` does) and, on each frame whose ``reg``
+    driver is the dominant table-read form, reads the recovered table at the recovered
+    index. Empty if ``reg`` has no table generator.
+    """
+    dominant = _dominant_forms(frames).get(reg)
+    if dominant is None or _single_table(dominant[0]) is None:
+        return {}
+    form = dominant[0]
+    base, index_expr = _single_table(form)
+    mem = bytearray(mem0)
+    values = {}
+    for f, frame in enumerate(frames):
+        drivers, updates = dataflow.slice_frame(frame)
+        if drivers.get(reg) == form:
+            values[f] = mem[(base + evaluate(index_expr, mem)) & 0xFFFF]
+        for addr, val in {a: evaluate(e, mem) & 0xFF for a, e in updates.items()}.items():
+            mem[addr] = val
+    return values
 
 
 def recover(  # pragma: no cover

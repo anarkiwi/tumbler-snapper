@@ -44,6 +44,11 @@ primitive by primitive, by p-code recovery:
      `branchy`. On Commando it names the composer's real tables: voice-0 frequency →
      note table `$5429` indexed by note pointer `$54FB`; pulse width → instrument
      records `$5591`/`$5597` indexed by instrument pointer `$54FE`.
+   - **Pass 4 table generators started (`recover.table_generators`).** For each
+     register whose dominant driver is a single indexed-table read `mem[base + index]`,
+     recovers the composer's table + index and replays it bit-exactly on the frames
+     that form covers. Commando voice-0 frequency → the note table `$5428`/`$5429`,
+     exact on all 1426 base-note frames.
    - **Next (to retire the fitters), each verified against the ≥60s oracle:**
      (a) recover each `branchy` effect's guard so the sweep/arp/glide emits at its
      true period; (b) emit the recovered note table → pitch grid + note track →

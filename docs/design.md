@@ -160,9 +160,17 @@ frame's leaves from it, and **never consults the VM again**. Evaluation is exact
 6502 arithmetic: every recovered `mem`/`op` node carries its varnode **width**, and
 each result is masked to it, so a byte value wraps at 8 bits (unsigned shift, byte
 borrow) and a 16-bit address at 16. The output is the register grid the recovered
-generators produce. *Remaining:* emit those generators as compact IR
-(`hold`/`ramp`/`wave` + note track + instruments) rather than a per-frame dataflow
-replay — that is what retires the [legacy output-fitters](#representation-primitives-vs-legacy-output-fit).
+generators produce. Compact **emission** then replaces that per-frame replay with the
+recovered generators: :func:`recover.table_generators` reads, for each register whose
+dominant driver is a single indexed-table read `mem[base + index]`, the composer's
+table and the recovered index, and :func:`recover.render_table_generator` replays it
+bit-exactly on the frames that form covers. On Commando voice-0 frequency this is the
+note table at `$5428`/`$5429` indexed by the note pointer — recovered from the program
+and reproducing the frequency exactly on all 1426 base-note frames (the `+12` arpeggio
+and portamento forms are the branchy remainder, recovered as their own generators
+next). *Remaining:* emit these as IR (`hold`/`ramp`/`wave` + note track + instruments)
+and recover the branchy effects, which together retire the
+[legacy output-fitters](#representation-primitives-vs-legacy-output-fit).
 
 **Pass 5 — Oracle verify.** *(Landed: `recover.residual_of`.)* Diff the simulated
 grid against the VM's captured grid via the residual: an **empty residual** means the
