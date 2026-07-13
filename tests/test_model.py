@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-import importlib.util
-
 import numpy as np
-import pytest
+from conftest import requires_commando
 
 from tumbler_snapper import model, residual, sidreg
-
-_HAVE_ORACLE = importlib.util.find_spec("pygoattracker") is not None
-_FIX = "/scratch/anarkiwi/cbm/pygoattracker/tests/.fixture_cache"
 
 
 def _synthetic_grid(length=600):
@@ -46,12 +41,10 @@ def test_model_beats_baseline_on_accumulators():
     assert r["model_tok_per_frame"] < 1.0
 
 
-@pytest.mark.skipif(not _HAVE_ORACLE, reason="pygoattracker oracle not installed")
-@pytest.mark.parametrize("tune", ["consultant", "dojo"])
-def test_real_tune_bit_exact_and_under_one_token(tune):
-    from tumbler_snapper import capture  # noqa: PLC0415
-
-    frames = capture.grid_from_sng(f"{_FIX}/{tune}.sng", 2500)
+@requires_commando
+def test_real_tune_bit_exact_and_under_one_token(commando_recovery):
+    _frames, _mem0, oracle, _n = commando_recovery
+    frames = sidreg.as_frames(oracle)
     m = model.fit(frames)
     pred = model.predict(m)
     res = residual.diff(frames, pred)

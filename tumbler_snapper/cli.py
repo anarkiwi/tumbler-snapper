@@ -1,24 +1,24 @@
 """Command-line interface for tumbler-snapper.
 
-    tumbler-snapper report     TUNE.sng [--frames N] [--subtune S]
-    tumbler-snapper compile    TUNE.sng OUT.tsnp [--frames N] [--subtune S]
+    tumbler-snapper report     TUNE.sid [--frames N] [--subtune S]
+    tumbler-snapper compile    TUNE.sid OUT.tsnp [--frames N] [--subtune S]
     tumbler-snapper play       CONTAINER.tsnp [--frames N]
-    tumbler-snapper dump       TUNE [-o OUT.txt] [--frames N] [--subtune S]
-    tumbler-snapper render     TUNE OUT.wav [--rate R] [--frames N] [--subtune S]
-    tumbler-snapper transcribe TUNE.sng [--voice V] [--frames N] [--subtune S]
-    tumbler-snapper structure  TUNE.sng [--frames N] [--subtune S]
+    tumbler-snapper dump       TUNE.sid [-o OUT.txt] [--frames N] [--subtune S]
+    tumbler-snapper render     TUNE.sid OUT.wav [--rate R] [--frames N] [--subtune S]
+    tumbler-snapper transcribe TUNE.sid [--voice V] [--frames N] [--subtune S]
+    tumbler-snapper structure  TUNE.sid [--frames N] [--subtune S]
 
-``TUNE`` is a real ``.sid`` (read through deity-informant's 6510 VM), a GoatTracker
-``.sng``, or a captured ``.dump.parquet`` write log. ``report`` renders a ``.sng``
-to a SID register grid, fits the model, and prints the lossless token-efficiency
-report (baseline write-log vs model, with a bit-exactness check). ``compile``
-serializes the fitted model + residual to a bit-packed ``.tsnp`` container;
-``play`` -- the reference player -- decodes one back to the exact ``$D400..``
-register grid. ``dump`` writes a reviewable text decompilation (tuning, tempo,
-instruments, accumulators, per-voice melody); ``render`` reconstructs the grid from
-the IR and renders it to a WAV via reSIDfp. ``transcribe`` prints the recovered
-A440/12-TET melody (notes and vibrato/portamento layers) for one voice.
-``structure`` prints the recovered tempo, pattern pool, and per-voice orderlist.
+``TUNE`` is a real ``.sid`` tune, driven through deity-informant's cycle-exact 6510
+VM: the register grid is an oracle for correctness, while the IR is recovered from
+the lifted p-code program. ``report`` prints the lossless token-efficiency report
+(baseline write-log vs model, with a bit-exactness check). ``compile`` serializes the
+recovered model + melody + residual to a bit-packed ``.tsnp`` container; ``play`` --
+the reference player -- decodes one back to the exact ``$D400..`` register grid.
+``dump`` writes a reviewable text decompilation (tuning, tempo, instruments,
+accumulators, per-voice melody); ``render`` reconstructs the grid from the IR and
+renders it to a WAV via reSIDfp. ``transcribe`` prints the recovered A440/12-TET
+melody (notes and vibrato/portamento layers) for one voice. ``structure`` prints the
+recovered tempo, pattern pool, and per-voice orderlist.
 """
 
 from __future__ import annotations
@@ -30,14 +30,14 @@ from pathlib import Path
 import numpy as np
 
 from . import audio, capture, container, dump, ir, melody, model, residual, sidreg, song
-from .capture import grid_from_dump, grid_from_sid, grid_from_sng
+from .capture import grid_from_sid
 
 _TEXT_IR_SUFFIXES = (".txt", ".ir")
 
 
 def cmd_report(args) -> int:
-    """Print the lossless token-efficiency report for a ``.sng`` tune."""
-    frames = grid_from_sng(args.tune, args.frames, args.subtune)
+    """Print the lossless token-efficiency report for a ``.sid`` tune."""
+    frames = grid_from_sid(args.tune, args.frames, args.subtune)
     mdl = model.fit(frames)
     pred = model.predict(mdl)
     res = residual.diff(frames, pred)
@@ -63,7 +63,7 @@ def cmd_report(args) -> int:
 
 def cmd_transcribe(args) -> int:
     """Print the A440/12-TET melody recovered for one voice."""
-    frames = grid_from_sng(args.tune, args.frames, args.subtune)
+    frames = grid_from_sid(args.tune, args.frames, args.subtune)
     mel = model.transcribe(frames)
     print(f"tuning offset  : {mel.grid.offset_cents:+.2f} cents from A440")
     print(f"pitch table    : {mel.grid.n_entries} note entries across {sidreg.NVOICES} voices")
@@ -75,7 +75,7 @@ def cmd_transcribe(args) -> int:
 
 def cmd_structure(args) -> int:
     """Print the recovered tempo, pattern pool, and per-voice orderlist."""
-    frames = grid_from_sng(args.tune, args.frames, args.subtune)
+    frames = grid_from_sid(args.tune, args.frames, args.subtune)
     m = model.fit(frames)
     mel = model.transcribe(frames)
     s = song.fit(frames, m.note_model, mel.grid)
@@ -93,15 +93,14 @@ def cmd_structure(args) -> int:
 def cmd_compile(args) -> int:
     """Compile a tune to a .tsnp container (or canonical text IR) and verify playback."""
     frames = _grid_for(args)
-    pcode = _trace_for(args)  # recover from the lifted p-code when the tune has a player
+    pcode = _trace_for(args)  # the IR is recovered from the lifted p-code, not the grid
     if args.out.endswith(_TEXT_IR_SUFFIXES):  # canonical text IR
-        built = ir.build_from_trace(*pcode, frames) if pcode else ir.build(frames)
-        text = ir.emit(*built)
+        text = ir.emit(*ir.build_from_trace(*pcode, frames))
         blob = text.encode("utf-8")
         exact = np.array_equal(ir.play(text), frames)
         kind = "text IR"
     else:
-        blob = container.compile_from_trace(*pcode, frames) if pcode else container.compile(frames)
+        blob = container.compile_from_trace(*pcode, frames)
         exact = np.array_equal(container.play(blob), frames)
         kind = "container"
     Path(args.out).write_bytes(blob)
@@ -113,25 +112,15 @@ def cmd_compile(args) -> int:
 
 
 def _grid_for(args) -> np.ndarray:
-    """Load a register grid from a ``.sid``, ``.sng`` tune, or ``.dump.parquet`` log."""
-    if args.tune.endswith((".sid", ".psid", ".rsid")):
-        return grid_from_sid(args.tune, args.frames, args.subtune)
-    if args.tune.endswith((".parquet", ".dump")):
-        return grid_from_dump(args.tune, args.frames)
-    return grid_from_sng(args.tune, args.frames, args.subtune)
+    """Load the oracle register grid for a ``.sid`` tune (correctness reference only)."""
+    return grid_from_sid(args.tune, args.frames, args.subtune)
 
 
 def _trace_for(args):  # pragma: no cover -- needs the VM; the p-code recovery source
-    """The lifted p-code ``(op_frames, mem0)`` for a ``.sid`` player, else ``None``.
-
-    Player-based tunes are recovered from the program (:func:`ir.build_from_trace`); dumps
-    and ``.sng`` grids have no player to trace and stay on the grid-fitting :func:`ir.build`.
-    """
+    """The lifted p-code ``(op_frames, mem0)`` recovered from a ``.sid`` player."""
     from . import trace  # noqa: PLC0415
     from .capture import parse_psid  # noqa: PLC0415
 
-    if not args.tune.endswith((".sid", ".psid", ".rsid")):
-        return None
     mem, init, play, _ = parse_psid(args.tune)
     op_frames = trace.trace(bytearray(mem), init, play, args.frames, args.subtune)
     mem0 = trace.state_after_init(bytearray(mem), init, args.subtune)
@@ -153,13 +142,8 @@ def cmd_dump(args) -> int:
 def cmd_render(args) -> int:  # pragma: no cover - reSIDfp render, gated on optional deps
     """Compile a tune to the IR, reconstruct the grid, and render it to a WAV."""
     frames = _grid_for(args)
-    # A .sid carries the SID model / video standard the render must match; other
-    # inputs have no header, so fall back to the render defaults (6581 / PAL).
-    chip = audio.DEFAULT_CHIP
-    if args.tune.endswith((".sid", ".psid", ".rsid")):
-        chip = capture.sid_render_params(args.tune)
-    pcode = _trace_for(args)
-    blob = container.compile_from_trace(*pcode, frames) if pcode else container.compile(frames)
+    chip = capture.sid_render_params(args.tune)  # the .sid header picks the SID model / clock
+    blob = container.compile_from_trace(*_trace_for(args), frames)
     grid = container.play(blob)  # exact register grid straight from the IR
     n = audio.render_wav(grid, args.out, args.rate, chip)
     seconds = n / args.rate
@@ -185,7 +169,7 @@ def main(argv=None) -> int:
     """Parse arguments and dispatch to the selected subcommand."""
     ap = argparse.ArgumentParser(prog="tumbler-snapper", description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("report", help="token-efficiency report for a .sng tune")
+    p = sub.add_parser("report", help="token-efficiency report for a .sid tune")
     p.add_argument("tune")
     p.add_argument("--frames", type=int, default=2500)
     p.add_argument("--subtune", type=int, default=0)
@@ -211,14 +195,14 @@ def main(argv=None) -> int:
     p.add_argument("container", help=".tsnp container or canonical text IR")
     p.add_argument("--frames", type=int, default=16)
     p.set_defaults(fn=cmd_play)
-    p = sub.add_parser("dump", help="reviewable text dump of a decompiled .sid / .sng / .parquet")
-    p.add_argument("tune", help=".sid tune, .sng tune, or .dump.parquet write log")
+    p = sub.add_parser("dump", help="reviewable text dump of a decompiled .sid tune")
+    p.add_argument("tune", help=".sid tune")
     p.add_argument("-o", "--out", help="write the text IR here instead of stdout")
     p.add_argument("--frames", type=int, default=2500)
     p.add_argument("--subtune", type=int, default=0)
     p.set_defaults(fn=cmd_dump)
     p = sub.add_parser("render", help="render a tune's IR to a WAV via reSIDfp")
-    p.add_argument("tune", help=".sid tune, .sng tune, or .dump.parquet write log")
+    p.add_argument("tune", help=".sid tune")
     p.add_argument("out", help="output .wav path")
     p.add_argument("--rate", type=int, default=44100)
     p.add_argument("--frames", type=int, default=2500)
