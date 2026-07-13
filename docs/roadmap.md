@@ -38,10 +38,18 @@ primitive by primitive, by p-code recovery:
      bits, address at 16). **Bit-exact, zero residual on Commando over 3000 frames
      (60s)** — the recovery-principle proof; nothing fitted. Validate on ≥60s: the
      width bug was invisible for 4s, then diverged at frame 817.
-   - **Next:** compact IR *emission* from the recovered generators (hold/ramp/wave +
-     note track + instruments), replacing `accum.fit`/`melody.fit`/`notes.fit`/
-     `filt.fit`; then Pass 3 musical labelling (timers → tempo, pointers →
-     arrangement, note table → pitch grid).
+   - **Pass 3 structure extraction done (`structure.py`).** Per SID register, reads
+     its driver's shape — the memory tables it indexes (`mem[base + index]`) and the
+     scalar pointer cells that select into them — and classifies it `const`/`table`/
+     `branchy`. On Commando it names the composer's real tables: voice-0 frequency →
+     note table `$5429` indexed by note pointer `$54FB`; pulse width → instrument
+     records `$5591`/`$5597` indexed by instrument pointer `$54FE`.
+   - **Next (to retire the fitters), each verified against the ≥60s oracle:**
+     (a) recover each `branchy` effect's guard so the sweep/arp/glide emits at its
+     true period; (b) emit the recovered note table → pitch grid + note track →
+     melody (retires `melody.fit`); (c) emit the instrument records → instruments
+     (retires `notes.fit`); (d) emit the continuous columns as recovered generators
+     (retires `accum.fit`/`filt.fit`). Only then delete the output-fitters.
 
 ---
 
