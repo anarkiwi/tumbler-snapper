@@ -8,17 +8,11 @@ the recovered generators reproduce the oracle grid with an empty residual.
 
 from __future__ import annotations
 
-import importlib.util
-import os
-
 import numpy as np
-import pytest
+from conftest import COMMANDO, requires_commando
 
 from tumbler_snapper import recover, sidreg
 from tumbler_snapper.trace import Op
-
-_HAVE_VM = importlib.util.find_spec("deity_informant") is not None
-_TUNE = "/scratch/preframr/hvsc/C64Music/MUSICIANS/H/Hubbard_Rob/Commando.sid"
 
 
 def _bin(mn, a, b, size=1):
@@ -96,14 +90,14 @@ def test_simulate_holds_unwritten_registers():
     assert list(grid[:, sidreg.MODE_VOL]) == [0x0F, 0x0F]  # held from the seed
 
 
-@pytest.mark.skipif(not (_HAVE_VM and os.path.exists(_TUNE)), reason="VM/fixture unavailable")
+@requires_commando
 def test_commando_recovery_is_complete():
     from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
 
     n = 1500  # >= 30s at 50Hz PAL; short windows hide late-diverging recovery bugs
-    mem, init, play, _ = parse_psid(_TUNE)
+    mem, init, play, _ = parse_psid(COMMANDO)
     grid = recover.simulate(trace_frames(mem, init, play, n), state0(mem, init))
-    res = recover.residual_of(grid, grid_from_sid(_TUNE, n))
+    res = recover.residual_of(grid, grid_from_sid(COMMANDO, n))
     assert res.n_changepoints == 0  # recovery reproduces the oracle with empty residual
 
 

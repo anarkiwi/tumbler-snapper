@@ -34,10 +34,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from conftest import HAVE_VM, requires_vm
 
 from tumbler_snapper import capture, container
 
-_HAVE_VM = importlib.util.find_spec("deity_informant") is not None
 _HAVE_ORACLE = importlib.util.find_spec("pysidtracker") is not None and shutil.which("docker")
 
 _MANIFEST_PATH = Path(__file__).resolve().parent / "corpus" / "manifest.json"
@@ -95,7 +95,7 @@ def test_manifest_is_diverse():
     assert all(t["lossless"] for t in _TUNES)  # every corpus tune is lossless
 
 
-@pytest.mark.skipif(not _HAVE_VM, reason="deity-informant VM unavailable")
+@requires_vm
 @pytest.mark.parametrize("rec", _TUNES, ids=_ids(_TUNES))
 def test_tune_lossless_and_efficient(rec):
     """Front-end reproducibility, bit-exact roundtrip, and footprint regression."""
@@ -135,7 +135,7 @@ def test_player_decode_throughput():
 
 @pytest.mark.oracle
 @pytest.mark.skipif(
-    not (_HAVE_VM and _HAVE_ORACLE and _ORACLE_TUNES),
+    not (HAVE_VM and _HAVE_ORACLE and _ORACLE_TUNES),
     reason="deity VM / sidplayfp docker oracle / oracle-verified corpus unavailable",
 )
 @pytest.mark.parametrize("rec", _ORACLE_TUNES, ids=_ids(_ORACLE_TUNES))
