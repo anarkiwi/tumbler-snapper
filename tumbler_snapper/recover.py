@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from . import dataflow, residual, sidreg, trace
+from . import dataflow, pitch, residual, sidreg, trace
 from .trace import Op
 
 _BINOP = {
@@ -210,6 +210,31 @@ def melody_line(frames: list[list[Op]], mem0: bytearray, reg: int) -> tuple[list
         if idx is not None:
             table[idx] = val
     return track, table
+
+
+def note_values(frames: list[list[Op]], mem0: bytearray, voice: int) -> list[int]:
+    """The recovered note-table frequency values (16-bit) a voice uses.
+
+    The voice's FREQ_LO/FREQ_HI registers read the same note table through the same
+    note pointer, so their recovered pitch tables (:func:`melody_line`) share indices;
+    pairing them gives the exact 16-bit values of the voice's note table -- the
+    tracker's own pitch table, read from the program, not fitted to the output.
+    """
+    lo = melody_line(frames, mem0, sidreg.voice_reg(voice, sidreg.FREQ_LO))[1]
+    hi = melody_line(frames, mem0, sidreg.voice_reg(voice, sidreg.FREQ_HI))[1]
+    return [(hi[i] << 8) | lo[i] for i in sorted(lo.keys() & hi.keys())]
+
+
+def pitch_grid(frames: list[list[Op]], mem0: bytearray) -> pitch.PitchGrid:
+    """Build the :class:`~.pitch.PitchGrid` from the recovered per-voice note tables.
+
+    Feeds the recovered note-table values (not the fitted output series) to
+    :func:`pitch.build_grid`, which fits the global tuning offset/clock and per-voice
+    detune + exceptions, so every recovered note reconstructs to its exact register
+    value. This is the pitch grid the emitted melody indexes; it replaces
+    ``melody.fit``'s output-fitted ``build_grid`` seed.
+    """
+    return pitch.build_grid([note_values(frames, mem0, v) for v in range(sidreg.NVOICES)])
 
 
 def render_guarded_generator(
