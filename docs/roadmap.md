@@ -31,9 +31,17 @@ primitive by primitive, by p-code recovery:
      reloads), a latch/copy, or a table read. Recovers Commando's note-duration timer
      (`$5513` counter −1, reload `$5517`), frame counter (`$5525` counter +1, reset
      0), and PW sweep cells as instrument-table reads.
-   - **Next: Pass 3** — read these recurrences as tracker state (duration timers →
-     tempo/note lengths, order/pattern pointers → arrangement, table reads →
-     wavetables/instruments) and bind the note table to the pitch grid.
+   - **Pass 4/5 forward-sim + verify done (`recover.py`).** `simulate` forward-
+     evaluates the recovered dataflow from the post-init memory image alone (never
+     re-reading the VM); `residual_of` diffs vs the oracle. Exact 6502 widths: expr
+     nodes carry varnode size and `evaluate` masks each result (byte value wraps at 8
+     bits, address at 16). **Bit-exact, zero residual on Commando over 1500 frames
+     (30s)** — the recovery-principle proof; nothing fitted. Validate on ≥30s: the
+     width bug was invisible for 4s, then diverged at frame 817.
+   - **Next:** compact IR *emission* from the recovered generators (hold/ramp/wave +
+     note track + instruments), replacing `accum.fit`/`melody.fit`/`notes.fit`/
+     `filt.fit`; then Pass 3 musical labelling (timers → tempo, pointers →
+     arrangement, note table → pitch grid).
 
 ---
 

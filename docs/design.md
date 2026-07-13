@@ -141,17 +141,26 @@ table, not fitted); the **wavetable/ADSR tables** are the instruments; the
 LFO/glide to the base) are their own generators — each the program's real data
 structure, shared across every use.
 
-**Pass 4 — IR synthesis.** Emit the recovered generators in the [IR
-language](#canonical-text-ir-irpy): `hold`/`ramp`/`wave` for accumulator/table
-columns, a note track + shared pitch grid for frequency, instruments and note-ons,
-effect layers. Because these are the program's actual structures, the emission
-carries no per-segment redundancy: one routine, one generator, at its true period.
+**Pass 4 — Synthesis.** *(Forward-simulator landed: `recover.py`; compact emission
+pending.)* :func:`recover.simulate` forward-evaluates the recovered dataflow (Pass 1
+drivers + Pass 2 state updates) from the post-init memory image **alone** — it
+maintains its own memory, applying each frame's state updates and reading each
+frame's leaves from it, and **never consults the VM again**. Evaluation is exact
+6502 arithmetic: every recovered `mem`/`op` node carries its varnode **width**, and
+each result is masked to it, so a byte value wraps at 8 bits (unsigned shift, byte
+borrow) and a 16-bit address at 16. The output is the register grid the recovered
+generators produce. *Remaining:* emit those generators as compact IR
+(`hold`/`ramp`/`wave` + note track + instruments) rather than a per-frame dataflow
+replay — that is what retires the [legacy output-fitters](#representation-primitives-vs-legacy-output-fit).
 
-**Pass 5 — Oracle verify.** Render the IR to a grid `P[T,25]` and assert
-`P == A` against the VM's captured grid. A mismatch is a *recovery bug to fix*, not
-a residual to hide behind. The residual (below) remains as the correctness
-mechanism and a fallback for genuinely data-driven, aperiodic writes, but it is not
-where structure is allowed to accumulate.
+**Pass 5 — Oracle verify.** *(Landed: `recover.residual_of`.)* Diff the simulated
+grid against the VM's captured grid via the residual: an **empty residual** means the
+recovery is complete. A nonzero residual on a periodic register is a *recovery bug to
+fix*, not a residual to hide behind — and it names the register and frames to debug.
+On Commando the recovered generators reproduce the oracle **bit-exact with zero
+residual over 1500 frames (30s)**; validation must span ≥30s of playback, since short
+windows hide late-diverging bugs (the width bug above was invisible for 4s, then
+diverged on a portamento `(hi−lo)>>1` at frame 817).
 
 ## Predictive codec (why it stays lossless)
 

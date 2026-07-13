@@ -10,9 +10,12 @@ expression** -- e.g. ``$D402 <- mem[$5504] + 224`` (a bounded accumulator) or
 program; the register output is never consulted.
 
 Expressions are immutable tuples: ``('const', v)``, ``('reg', off)`` (a value
-entering the frame), ``('mem', addr_expr)`` (a load), ``('op', mn, args)``. The
-per-frame **state updates** (last store to each non-SID RAM cell) are returned
-alongside -- Pass 2 folds those across frames into accumulator/table recurrences.
+entering the frame), ``('mem', addr_expr, size)`` (a load of ``size`` bytes), and
+``('op', mn, args, size)`` (an op producing a ``size``-byte result). The **width**
+carried on loads and ops is the varnode size from the lifter: it is what lets the
+recovered expression be evaluated with exact 6502 semantics (a byte value masks to
+8 bits, a 16-bit address to 16). The per-frame **state updates** (last store to
+each non-SID RAM cell) are returned alongside -- Pass 2 folds those across frames.
 """
 
 from __future__ import annotations
@@ -51,31 +54,31 @@ def _key(vn: tuple) -> tuple:
 
 
 def simplify(e: tuple) -> tuple:
-    """Fold constant arithmetic and drop identity ops, for a readable expression."""
+    """Fold constant arithmetic and drop identity ops, preserving each node's width."""
     if e[0] != "op":
-        return ("mem", simplify(e[1])) if e[0] == "mem" else e
-    mn, args = e[1], tuple(simplify(a) for a in e[2])
+        return ("mem", simplify(e[1]), e[2]) if e[0] == "mem" else e
+    mn, args, size = e[1], tuple(simplify(a) for a in e[2]), e[3]
     if mn in ("COPY", "INT_ZEXT", "INT_SEXT"):  # transparent to value
         return args[0]
     if mn in _FOLD and all(a[0] == "const" for a in args):
-        return ("const", _FOLD[mn](args[0][1], args[1][1]))
+        return ("const", _FOLD[mn](args[0][1], args[1][1]) & ((1 << (8 * size)) - 1))
     if mn == "INT_ADD":
-        return _simplify_add(args)  # drop +0 and reassociate to expose the net delta
-    merged = _merge_shiftmask(mn, args)  # ((x<<a)&255 << b)&255 -> (x << a+b)&255
-    return merged if merged is not None else ("op", mn, args)
+        return _simplify_add(args, size)  # drop +0 and reassociate to expose the net delta
+    merged = _merge_shiftmask(mn, args, size)  # ((x<<a)&255 << b)&255 -> (x << a+b)&255
+    return merged if merged is not None else ("op", mn, args, size)
 
 
-def _simplify_add(args: tuple) -> tuple:
+def _simplify_add(args: tuple, size: int) -> tuple:
     """Simplify an ``INT_ADD``: drop identity ``+0`` and collapse ``(y + a) + b``."""
     if args[1] == ("const", 0):
         return args[0]
     if args[0] == ("const", 0):
         return args[1]
-    reassoc = _reassoc_add(args)
-    return reassoc if reassoc is not None else ("op", "INT_ADD", args)
+    reassoc = _reassoc_add(args, size)
+    return reassoc if reassoc is not None else ("op", "INT_ADD", args, size)
 
 
-def _reassoc_add(args: tuple) -> tuple | None:
+def _reassoc_add(args: tuple, size: int) -> tuple | None:
     """Collapse ``(y + a) + b`` (one constant addend each) into ``y + (a+b)``."""
     if args[0][0] == "const":  # exactly one const here (both-const is folded earlier)
         const, other = args[0][1], args[1]
@@ -92,10 +95,10 @@ def _reassoc_add(args: tuple) -> tuple | None:
         total, base = const + inner[1][1], inner[0]
     else:
         return None
-    return base if total == 0 else ("op", "INT_ADD", (base, ("const", total)))
+    return base if total == 0 else ("op", "INT_ADD", (base, ("const", total)), size)
 
 
-def _merge_shiftmask(mn: tuple, args: tuple) -> tuple | None:
+def _merge_shiftmask(mn: str, args: tuple, size: int) -> tuple | None:
     """Collapse a chain of 8-bit ``(_ << k) & 255`` into one ``(base << sum) & 255``."""
     if not (mn == "INT_AND" and args[1] == ("const", 255)):
         return None
@@ -107,8 +110,8 @@ def _merge_shiftmask(mn: tuple, args: tuple) -> tuple | None:
         b2 = base[2][0]
         if b2[0] == "op" and b2[1] == "INT_LEFT":
             x, inner_shift = b2[2]
-            step = ("op", "INT_LEFT", (x, ("const", shift[1] + inner_shift[1])))
-            return simplify(("op", "INT_AND", (step, ("const", 255))))
+            step = ("op", "INT_LEFT", (x, ("const", shift[1] + inner_shift[1])), size)
+            return simplify(("op", "INT_AND", (step, ("const", 255)), size))
     return None
 
 
@@ -134,7 +137,7 @@ def slice_frame(frame: list[Op]) -> tuple[dict, dict]:
 
     for op in frame:
         if op.mn == "LOAD":
-            env[_key(op.out)] = mem_def.get(op.addr, ("mem", read(op.ins[0])))
+            env[_key(op.out)] = mem_def.get(op.addr, ("mem", read(op.ins[0]), op.out[2]))
         elif op.mn == "STORE":
             val = read(op.ins[1])
             mem_def[op.addr] = val
@@ -145,7 +148,7 @@ def slice_frame(frame: list[Op]) -> tuple[dict, dict]:
         elif op.mn in ("COPY", "INT_ZEXT", "INT_SEXT"):
             env[_key(op.out)] = read(op.ins[0])
         elif op.out is not None:
-            env[_key(op.out)] = ("op", op.mn, tuple(read(i) for i in op.ins))
+            env[_key(op.out)] = ("op", op.mn, tuple(read(i) for i in op.ins), op.out[2])
     return (
         {r: simplify(e) for r, e in drivers.items()},
         {a: simplify(e) for a, e in state.items()},

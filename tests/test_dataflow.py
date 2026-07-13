@@ -29,7 +29,7 @@ def _accumulator_frame():
 
 def test_accumulator_slice():
     drivers, state = dataflow.slice_frame(_accumulator_frame())
-    assert drivers[2] == ("op", "INT_ADD", (("mem", ("const", 2)), ("const", 1)))
+    assert drivers[2] == ("op", "INT_ADD", (("mem", ("const", 2), 1), ("const", 1)), 1)
     assert dataflow.format_expr(drivers[2]) == "(mem[2] + 1)"
     assert state[2] == drivers[2]  # the state cell's recurrence, for Pass 2
 
@@ -54,19 +54,24 @@ def test_driver_report():
 
 
 def test_simplify_constant_fold_and_identity():
-    assert dataflow.simplify(("op", "INT_ADD", (("const", 3), ("const", 4)))) == ("const", 7)
-    assert dataflow.simplify(("op", "INT_ADD", (("reg", 1), ("const", 0)))) == ("reg", 1)
-    assert dataflow.simplify(("op", "COPY", (("reg", 0),))) == ("reg", 0)
+    assert dataflow.simplify(("op", "INT_ADD", (("const", 3), ("const", 4)), 1)) == ("const", 7)
+    assert dataflow.simplify(("op", "INT_ADD", (("reg", 1), ("const", 0)), 1)) == ("reg", 1)
+    assert dataflow.simplify(("op", "COPY", (("reg", 0),), 1)) == ("reg", 0)
 
 
 def test_simplify_collapses_shift_mask_chain():
-    x = ("mem", ("const", 0x54FE))
+    x = ("mem", ("const", 0x54FE), 1)
 
     def shl(e):  # one 8-bit (e << 1) & 255
-        return ("op", "INT_AND", (("op", "INT_LEFT", (e, ("const", 1))), ("const", 255)))
+        return ("op", "INT_AND", (("op", "INT_LEFT", (e, ("const", 1)), 1), ("const", 255)), 1)
 
     collapsed = dataflow.simplify(shl(shl(shl(x))))  # (((x<<1)&255 <<1)&255 <<1)&255
-    assert collapsed == ("op", "INT_AND", (("op", "INT_LEFT", (x, ("const", 3))), ("const", 255)))
+    assert collapsed == (
+        "op",
+        "INT_AND",
+        (("op", "INT_LEFT", (x, ("const", 3)), 1), ("const", 255)),
+        1,
+    )
     assert dataflow.format_expr(collapsed) == "((mem[$54FE] << 3) & 255)"
 
 
