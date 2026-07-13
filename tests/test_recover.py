@@ -306,6 +306,57 @@ def _guarded_frame(next_cond):
     ]
 
 
+def test_classify_form_labels_const_table_and_expr():
+    assert recover.classify_form(("const", 0x2A)) == ("const", 0x2A)
+    idx = ("mem", ("const", 0x11), 1)
+    read = ("mem", ("op", "INT_ADD", (("const", 0x4000), idx), 2), 1)
+    assert recover.classify_form(read) == ("table", 0x4000, idx, ("hole",))  # direct table
+    shifted = ("op", "INT_RIGHT", (read, ("const", 1)), 1)  # a wavetable's post-transform
+    assert recover.classify_form(shifted) == (
+        "table",
+        0x4000,
+        idx,
+        ("op", "INT_RIGHT", (("hole",), ("const", 1)), 1),
+    )
+    accum = ("op", "INT_ADD", (("mem", ("const", 0x30), 1), ("const", 1)), 1)  # self-add, no table
+    assert recover.classify_form(accum) == ("expr", accum)  # kept as the recovered expression
+
+
+def _guard_form_frame(taken):
+    # flag r9 = (mem[$50] < mem[$51]) at op_pos 2, then $D402 <- form A (mem[$10]) or the
+    # table form B (mem[$4000 + mem[$11]]) -- the branch's taken value selects which
+    head = [
+        Op("LOAD", ("u", 0, 1), (("c", 0x50, 2),), addr=0x50, val=0),
+        Op("LOAD", ("u", 1, 1), (("c", 0x51, 2),), addr=0x51, val=0),
+        Op("INT_LESS", ("r", 9, 1), (("u", 0, 1), ("u", 1, 1))),
+    ]
+    if taken == 0:
+        return head + [
+            Op("LOAD", ("u", 2, 1), (("c", 0x10, 2),), addr=0x10, val=0),
+            Op("STORE", None, (("c", 0xD402, 2), ("u", 2, 1)), addr=0xD402, val=0),
+        ]
+    return head + [
+        Op("LOAD", ("u", 2, 1), (("c", 0x11, 2),), addr=0x11, val=0),
+        Op("INT_ADD", ("u", 3, 2), (("c", 0x4000, 2), ("u", 2, 1))),
+        Op("LOAD", ("u", 4, 1), (("u", 3, 2),), addr=0x4000, val=0),
+        Op("STORE", None, (("c", 0xD402, 2), ("u", 4, 1)), addr=0xD402, val=0),
+    ]
+
+
+def test_guarded_generator_recovers_condition_and_classifies_forms():
+    op_frames = [_guard_form_frame(0), _guard_form_frame(1)]
+    branch_frames = [[(0x1234, 9, 0, 1, 3)], [(0x1234, 9, 1, 1, 3)]]  # taken 0 / 1 at pc $1234
+    gen = recover.guarded_generator(op_frames, branch_frames, 2)  # $D402 pulse-width lo
+    assert gen is not None and gen.guard.pc == 0x1234 and gen.pol == 1
+    from tumbler_snapper import dataflow  # noqa: PLC0415
+
+    assert dataflow.format_expr(gen.cond) == "(mem[80] < mem[81])"  # the sliced branch condition
+    assert gen.generators[0] == ("expr", ("mem", ("const", 0x10), 1))  # form A: a scalar copy
+    table = gen.generators[1]  # form B: the indexed table read
+    assert table[0] == "table" and table[1] == 0x4000 and table[3] == ("hole",)
+    assert recover.guarded_generator(op_frames, [[], []], 2) is None  # no branch -> no guard
+
+
 def test_render_guarded_generator_selects_form_from_the_condition():
     # forms selected purely by cond=(mem[$50]==0), not by the frame's traced form
     form_a = ("mem", ("const", 0x10), 1)
