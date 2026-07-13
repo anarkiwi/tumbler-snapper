@@ -55,12 +55,10 @@ def test_recover_simulate_is_bit_exact(relpath):
     # cell-copy/shadow voices whose note table is not a direct register read
     assert sum(len(t) for t in mel.grid.tables) > 0
 
-    # structural constant columns (held/unwritten) render bit-exact vs the simulated grid
+    # every structural constant column (held/unwritten) renders bit-exact vs the simulated
+    # grid (shadow-copy tunes may have none -- every register is an expr driver every frame)
     latched = sidreg.latch(recover.simulate(frames, mem0))
-    n_const = 0
     for reg in range(sidreg.NREGS):
         value = recover.constant_generator(frames, mem0, reg)
         if value is not None:
-            assert (latched[:, reg] == value).all()  # a held constant, recovered from structure
-            n_const += 1
-    assert n_const > 0  # every corpus tune has at least one held/unwritten register
+            assert (latched[:, reg] == value).all()  # a held constant, recovered from p-code

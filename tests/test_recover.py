@@ -115,6 +115,46 @@ def test_single_table_matches_either_operand_order():
     assert recover._single_table(("mem", ("op", "INT_ADD", (idx, idx), 2), 1)) is None  # no base
 
 
+def test_table_transform_peels_a_fixed_post_transform():
+    idx = ("mem", ("const", 0x11), 1)
+    read = ("mem", ("op", "INT_ADD", (("const", 0x4000), idx), 2), 1)
+    assert recover._table_transform(read) == (0x4000, idx, ("hole",))  # direct -> identity hole
+    # (read >> 1) & 7: a cutoff wavetable's fixed post-transform -> same base/index
+    shifted = ("op", "INT_AND", (("op", "INT_RIGHT", (read, ("const", 1)), 1), ("const", 7)), 1)
+    base, index, transform = recover._table_transform(shifted)
+    assert base == 0x4000 and index == idx
+    assert recover.evaluate(recover._fill_hole(transform, 0xF0), bytearray(1)) == (0xF0 >> 1) & 7
+    read2 = ("mem", ("op", "INT_ADD", (("const", 0x5000), idx), 2), 1)
+    assert recover._table_transform(("op", "INT_ADD", (read, read2), 1)) is None  # two tables
+    nonconst = ("mem", ("const", 0x22), 1)
+    assert recover._table_transform(("op", "INT_ADD", (read, nonconst), 1)) is None  # not fixed
+    assert recover._table_transform(("mem", ("const", 0x50), 1)) is None  # scalar, no table
+
+
+def _transformed_table_frame():
+    # $D415 <- (mem[$4000 + mem[$11]] >> 1) & 7 (a cutoff wavetable); then mem[$11] += 1
+    return [
+        Op("LOAD", ("u", 0, 1), (("c", 0x11, 2),), addr=0x11, val=0),
+        Op("INT_ADD", ("u", 1, 2), (("c", 0x4000, 2), ("u", 0, 1))),
+        Op("LOAD", ("u", 2, 1), (("u", 1, 2),), addr=0x4000, val=0),
+        Op("INT_RIGHT", ("u", 3, 1), (("u", 2, 1), ("c", 1, 1))),
+        Op("INT_AND", ("u", 4, 1), (("u", 3, 1), ("c", 7, 1))),
+        Op("STORE", None, (("c", 0xD415, 2), ("u", 4, 1)), addr=0xD415, val=0),
+        Op("INT_ADD", ("u", 5, 1), (("u", 0, 1), ("c", 1, 1))),
+        Op("STORE", None, (("c", 0x11, 2), ("u", 5, 1)), addr=0x11, val=0),
+    ]
+
+
+def test_render_table_generator_applies_a_post_transform():
+    mem0 = bytearray(0x10000)
+    mem0[0x4000:0x4003] = bytes([0xF0, 0x0E, 0x22])
+    frames = [_transformed_table_frame() for _ in range(3)]
+    rendered = recover.render_table_generator(frames, mem0, 21)  # $D415 = FC_LO
+    assert rendered == {0: (0xF0 >> 1) & 7, 1: (0x0E >> 1) & 7, 2: (0x22 >> 1) & 7}
+    sim = recover.simulate(frames, mem0)  # matches the simulated column bit-exact
+    assert all(v == sim[f, 21] for f, v in rendered.items())
+
+
 def test_table_generators_recovers_indexed_table():
     mem0 = bytearray(0x10000)
     mem0[0x10] = 5
@@ -329,3 +369,11 @@ def test_commando_recovery_is_complete(commando_recovery):
     grid = recover.simulate(frames, mem0)
     res = recover.residual_of(grid, oracle)
     assert res.n_changepoints == 0  # recovery reproduces the oracle with empty residual
+
+    # held/unwritten columns recover as compact constants, bit-exact vs the oracle
+    latched = sidreg.latch(oracle)
+    consts = {r: recover.constant_generator(frames, mem0, r) for r in range(sidreg.NREGS)}
+    consts = {r: v for r, v in consts.items() if v is not None}
+    assert consts  # Commando holds several columns constant (e.g. cutoff, filter mode/volume)
+    for reg, value in consts.items():
+        assert (latched[:, reg] == value).all()
