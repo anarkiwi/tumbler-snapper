@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from conftest import COMMANDO, requires_commando
 
-from tumbler_snapper import guards
+from tumbler_snapper import dataflow, guards
 from tumbler_snapper.trace import Op
 
 FORM_A = ("mem", ("const", 0x10), 1)
@@ -54,9 +54,23 @@ def test_branch_mapping_one_taken_to_two_forms_is_rejected():
     assert g.pc == 0x1234  # $3000 rejected (taken 1 -> both forms)
 
 
+def test_guard_condition_slices_the_flag_comparison():
+    # INT_LESS r9 = mem[$50] < mem[$51] ; a branch on flag 9 (FZ) at pc $1234, op_pos 3
+    frame = [
+        Op("LOAD", ("u", 0, 1), (("c", 0x50, 2),), addr=0x50, val=3),
+        Op("LOAD", ("u", 1, 1), (("c", 0x51, 2),), addr=0x51, val=5),
+        Op("INT_LESS", ("r", 9, 1), (("u", 0, 1), ("u", 1, 1))),
+        Op("STORE", None, (("c", 0xD402, 2), ("r", 9, 1)), addr=0xD402, val=1),
+    ]
+    g = guards.Guard(2, 0x1234, 9, {}, 1)
+    cond, pol = guards.guard_condition([frame], [[(0x1234, 9, 0, 1, 3)]], g)
+    assert dataflow.format_expr(cond) == "(mem[80] < mem[81])" and pol == 1
+    assert guards.guard_condition([frame], [[(0x9999, 9, 0, 1, 3)]], g) is None  # pc not found
+
+
 @requires_commando
 def test_commando_pulse_width_sweep_guard():
-    from tumbler_snapper import trace  # noqa: PLC0415
+    from tumbler_snapper import recover, trace  # noqa: PLC0415
     from tumbler_snapper.capture import parse_psid  # noqa: PLC0415
 
     mem, init, play, _ = parse_psid(COMMANDO)
@@ -64,3 +78,18 @@ def test_commando_pulse_width_sweep_guard():
     g = guards.form_guard(op_frames, branch_frames, 2)  # $D402 pulse-width lo
     assert g is not None and g.pc == 0x5269  # the triangle direction branch
     assert len(g.forms) == 2 and g.coverage > 1000  # partitions the two sweep forms
+
+    cond, pol = guards.guard_condition(op_frames, branch_frames, g)
+    assert dataflow.format_expr(cond) == "(mem[$5510] == 0)"  # the sweep phase cell
+    sim = bytearray(trace.state_after_init(mem, init))
+    checked = 0
+    for frame, decisions in zip(op_frames, branch_frames):
+        for pc, _flag, taken, _pol, _pos in decisions:
+            if pc == g.pc:
+                assert int(recover.evaluate(cond, sim) == pol) == taken  # condition predicts taken
+                checked += 1
+        for addr, val in {
+            a: recover.evaluate(e, sim) & 0xFF for a, e in dataflow.slice_frame(frame)[1].items()
+        }.items():
+            sim[addr] = val
+    assert checked > 1000

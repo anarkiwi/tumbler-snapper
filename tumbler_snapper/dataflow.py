@@ -155,6 +155,33 @@ def slice_frame(frame: list[Op]) -> tuple[dict, dict]:
     )
 
 
+def reg_expr_at(frame: list[Op], stop: int, reg_off: int) -> tuple:
+    """The simplified expression of register ``reg_off`` after the frame's first ``stop`` ops.
+
+    Slices a branch's flag back to the comparison that set it: run the op stream up to
+    the branch position and read the flag register's producer (:mod:`.guards`).
+    """
+    env: dict = {}
+    mem_def: dict = {}
+
+    def read(vn: tuple) -> tuple:
+        space, off, _sz = vn
+        if space == "c":
+            return ("const", off)
+        return env.get((space if space == "r" else "u", off), ("reg", off))
+
+    for op in frame[:stop]:
+        if op.mn == "LOAD":
+            env[_key(op.out)] = mem_def.get(op.addr, ("mem", read(op.ins[0]), op.out[2]))
+        elif op.mn == "STORE":
+            mem_def[op.addr] = read(op.ins[1])
+        elif op.mn in ("COPY", "INT_ZEXT", "INT_SEXT"):
+            env[_key(op.out)] = read(op.ins[0])
+        elif op.out is not None:
+            env[_key(op.out)] = ("op", op.mn, tuple(read(i) for i in op.ins), op.out[2])
+    return simplify(env.get(("r", reg_off), ("reg", reg_off)))
+
+
 def _num(v: int) -> str:
     return f"${v:04X}" if v >= 0x100 else str(v)
 

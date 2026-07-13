@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+from itertools import accumulate
 
 from . import sidreg
 from .capture import parse_psid
@@ -65,9 +66,11 @@ def _assemble(records: list, memlog: list) -> list[Op]:
 def _hooked(vm_cls, memlog: list, records: list, branches: list):  # pragma: no cover
     """Hook the VM to log memory accesses, record boundaries, and branch decisions.
 
-    Each executed conditional branch appends ``(pc, flag_offset, taken)`` -- the
-    program's control-flow decision, whose taken value selects between a branchy
-    register's driver forms (:mod:`.guards`).
+    Each executed conditional branch appends ``(pc, flag, taken, pol, record_index)``
+    -- the program's control-flow decision (taken iff the record's flag equals its
+    polarity), whose taken value selects between a branchy register's driver forms
+    (:mod:`.guards`). ``_run`` rewrites ``record_index`` to the op-stream position, so
+    the flag's condition can be sliced up to the branch.
     """
     # pylint: disable=protected-access  # deliberate class-level patch of the VM's read/write
     o_rd, o_wr, o_rr = vm_cls._rd, vm_cls._wr, vm_cls.run_record
@@ -85,7 +88,7 @@ def _hooked(vm_cls, memlog: list, records: list, branches: list):  # pragma: no 
         records.append((rec, len(memlog)))
         ctrl, nxt = o_rr(self, rec, pc)
         if ctrl[0] == "br":  # ("br", flag, pol, tgt, fallthrough); taken iff next == target
-            branches.append((pc, ctrl[1][1], int(nxt == ctrl[3])))
+            branches.append((pc, ctrl[1][1], int(nxt == ctrl[3]), ctrl[2], len(records) - 1))
         return ctrl, nxt
 
     vm_cls._rd, vm_cls._wr, vm_cls.run_record = rd, wr, run_record
@@ -118,7 +121,10 @@ def _run(  # pragma: no cover
             branches.clear()
             run_sub(vm, play, cache, lift)
             op_frames.append(_assemble(records, memlog))
-            branch_frames.append(list(branches))
+            ops_through = list(accumulate(len(rec["ops"]) for rec, _ in records))
+            branch_frames.append(
+                [(pc, flag, taken, pol, ops_through[ri]) for pc, flag, taken, pol, ri in branches]
+            )
     return op_frames, branch_frames
 
 
@@ -132,7 +138,8 @@ def trace(
 def trace_branches(  # pragma: no cover
     mem: bytearray, init: int, play: int, frames: int, subtune: int = 0
 ) -> tuple[list[list[Op]], list[list[tuple]]]:
-    """Like :func:`trace`, also returning each frame's ``(pc, flag, taken)`` branch decisions."""
+    """Like :func:`trace`, also returning each frame's ``(pc, flag, taken, pol, op_pos)``
+    branch decisions -- ``op_pos`` is the op-stream index just past the branch."""
     return _run(mem, init, play, frames, subtune)
 
 
