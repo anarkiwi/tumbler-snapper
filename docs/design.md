@@ -114,16 +114,23 @@ instrument-table read, `$D402 ← mem[$5591 + ((mem[$54FE] << 3) & 255)]` while 
 and `$D402 ← (mem[$5597 + idx] & 224) + mem[$5591 + idx]` while swept — the single
 generator that output-fitting had shattered into a dozen redundant `wave` segments.
 
-**Pass 2 — State & tables.** Classify the leaves. RAM cells that are *read and
-written every frame* are the player's **state** (accumulators, sequence pointers);
-contiguous regions indexed by an advancing pointer are **tables** (note tables,
-wavetables, PW/filter LFO tables). Recover each state cell's **recurrence** from
-the store that updates it — `new = old + Δ` with `Δ` an immediate or a table read,
-plus the bound/reset the program applies — *not* from the output series. A single
-`pw += 224`-with-triangle-bounce accumulator (Commando's PW state lives at
-`$5504/$5507/$5513…`, stepping the 12-bit value by a clean ±224) is recovered once,
-as one bounded accumulator, instead of the dozen redundant `wave` segments an
-output-fit produces by chopping the same sweep at unrelated note boundaries.
+**Pass 2 — State & tables.** *(Landed: `state.py`.)* Classify the leaves. RAM cells
+that are *read and written every frame* are the player's **state** (accumulators,
+sequence pointers); contiguous regions indexed by an advancing pointer are **tables**
+(note tables, wavetables, PW/filter LFO tables). `state.recurrences` folds the
+per-frame state updates Pass 1 emits across the whole trace and classifies each cell
+by the *shape* of its update relative to its own prior value `mem[a]`: a **counter**
+`mem[a] + Δ` (signed Δ, so a down-timer and an advancing pointer are the same family,
+their net stride recovered even when the loop increments the pointer several times a
+frame), whose minority non-self-referential forms are its **reloads**; or an
+**assign** — a `latch` (constant), `copy` (`mem[b]`), or `table` read (`mem[base +
+index]`) — refreshed each frame. The dominant form (by frame count) is the steady
+step; the rest are the transitions, all read from the program's ops, never the
+output. On Commando this recovers the note-duration timer `$5513` as a counter −1
+reloading from `$5517`, the frame counter `$5525` as +1 resetting to 0, and the PW
+sweep cells (`$5507/$5518/$5523`) as instrument-table reads — one bounded accumulator
+each, not the dozen redundant `wave` segments an output-fit produces by chopping the
+same sweep at unrelated note boundaries.
 
 **Pass 3 — Musical structure.** Trace the sequencer: the order/pattern pointers and
 the row/tempo counter give the arrangement and note-on events; a note-on writes a
@@ -456,9 +463,12 @@ build-out:
    `dataflow.py` back-slices each `$D400..` store to a grounded source expression
    (Commando PW recovered as one indexed accumulator). Pure additions on top of
    deity-informant; the oracle grid is unchanged.
-2. **State & table recovery (Pass 2).** Detect per-frame state cells and indexed
-   tables; recover each accumulator's recurrence and each table's base/stride/clock
-   from the program. Replace `accum.fit`-on-output for the continuous columns.
+2. **State & table recovery (Pass 2).** *Done* — `state.py` folds Pass 1's per-frame
+   state updates into cross-frame recurrences, classifying each cell as a signed
+   counter (with reloads), a latch/copy, or a table read (Commando's duration timer,
+   frame counter, and PW sweep cells all recovered). Still to do: bind each recovered
+   table read to its `base/stride/clock` and drive the continuous columns from these
+   recurrences instead of `accum.fit`-on-output.
 3. **Note/instrument/effect recovery (Pass 3).** Recover the note table (→ exact
    pitch grid), wavetable/ADSR tables (→ instruments), and arpeggio/vibrato/porta
    routines from the sequencer and effect code. Replace `melody.fit` / `notes.fit`

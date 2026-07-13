@@ -26,8 +26,14 @@ primitive by primitive, by p-code recovery:
      Recovers Commando's pulse width as one indexed instrument-table accumulator
      (`$D402 ← mem[$5591 + ((mem[$54FE] << 3) & 255)]`), the generator output-fit
      had shattered into a dozen redundant `wave` segments.
-   - **Next: Pass 2** — fold the per-frame state updates `dataflow` already emits
-     into cross-frame accumulator/table recurrences.
+   - **Pass 2 done (`state.py`).** Folds Pass 1's per-frame state updates into
+     cross-frame recurrences, classifying each RAM cell as a signed counter (with
+     reloads), a latch/copy, or a table read. Recovers Commando's note-duration timer
+     (`$5513` counter −1, reload `$5517`), frame counter (`$5525` counter +1, reset
+     0), and PW sweep cells as instrument-table reads.
+   - **Next: Pass 3** — read these recurrences as tracker state (duration timers →
+     tempo/note lengths, order/pattern pointers → arrangement, table reads →
+     wavetables/instruments) and bind the note table to the pitch grid.
 
 ---
 

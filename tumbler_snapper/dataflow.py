@@ -59,12 +59,40 @@ def simplify(e: tuple) -> tuple:
         return args[0]
     if mn in _FOLD and all(a[0] == "const" for a in args):
         return ("const", _FOLD[mn](args[0][1], args[1][1]))
-    if mn == "INT_ADD" and args[1] == ("const", 0):
-        return args[0]
-    if mn == "INT_ADD" and args[0] == ("const", 0):
-        return args[1]
+    if mn == "INT_ADD":
+        return _simplify_add(args)  # drop +0 and reassociate to expose the net delta
     merged = _merge_shiftmask(mn, args)  # ((x<<a)&255 << b)&255 -> (x << a+b)&255
     return merged if merged is not None else ("op", mn, args)
+
+
+def _simplify_add(args: tuple) -> tuple:
+    """Simplify an ``INT_ADD``: drop identity ``+0`` and collapse ``(y + a) + b``."""
+    if args[1] == ("const", 0):
+        return args[0]
+    if args[0] == ("const", 0):
+        return args[1]
+    reassoc = _reassoc_add(args)
+    return reassoc if reassoc is not None else ("op", "INT_ADD", args)
+
+
+def _reassoc_add(args: tuple) -> tuple | None:
+    """Collapse ``(y + a) + b`` (one constant addend each) into ``y + (a+b)``."""
+    if args[0][0] == "const":  # exactly one const here (both-const is folded earlier)
+        const, other = args[0][1], args[1]
+    elif args[1][0] == "const":
+        const, other = args[1][1], args[0]
+    else:
+        return None
+    if not (other[0] == "op" and other[1] == "INT_ADD"):
+        return None
+    inner = other[2]
+    if inner[0][0] == "const":
+        total, base = const + inner[0][1], inner[1]
+    elif inner[1][0] == "const":
+        total, base = const + inner[1][1], inner[0]
+    else:
+        return None
+    return base if total == 0 else ("op", "INT_ADD", (base, ("const", total)))
 
 
 def _merge_shiftmask(mn: tuple, args: tuple) -> tuple | None:
