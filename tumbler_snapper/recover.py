@@ -314,8 +314,8 @@ def pitch_grid(frames: list[list[Op]], mem0: bytearray) -> pitch.PitchGrid:
     Feeds the recovered note-table values (not the fitted output series) to
     :func:`pitch.build_grid`, which fits the global tuning offset/clock and per-voice
     detune + exceptions, so every recovered note reconstructs to its exact register
-    value. This is the pitch grid the emitted melody indexes; it replaces
-    ``melody.fit``'s output-fitted ``build_grid`` seed.
+    value. This is the pitch grid the emitted melody indexes, seeded entirely from the
+    program's note tables rather than the oracle output series.
     """
     return pitch.build_grid([note_values(frames, mem0, v) for v in range(sidreg.NVOICES)])
 
@@ -331,7 +331,7 @@ def voice_note_track(
     frames (effect/silence) are note ``0``, held by the run-length line. This composes the
     recovered note table (:func:`pitch_grid`) into the note vocabulary the emitted melody
     carries -- ``grid.freq(note, voice)`` reconstructs each covered frame's base value --
-    in place of ``melody.fit``'s output-fitted on-grid base-note detection.
+    entirely from the program's note table, never fitted to the oracle output.
     """
     lo_track, lo = melody_line(frames, mem0, sidreg.voice_reg(voice, sidreg.FREQ_LO))
     hi = melody_line(frames, mem0, sidreg.voice_reg(voice, sidreg.FREQ_HI))[1]
@@ -382,8 +382,7 @@ def categorical_generator(
     inverts it exactly, so it reproduces the column bit-exact). Returned only when the events
     are more compact than the raw column -- a categorical automation track (RES_FILT,
     MODE_VOL, a shadow-cell mode select). ``None`` for a high-entropy column (an accumulator
-    sweep changes almost every frame), which an accumulator or table generator handles. The
-    cross-register pattern factoring (:func:`filt.fit`) is applied when assembling the model.
+    sweep changes almost every frame), which an accumulator or table generator handles.
     """
     from . import filt  # noqa: PLC0415
 
@@ -403,8 +402,8 @@ def melody(frames: list[list[Op]], mem0: bytearray):
     (:func:`melody.seed_grid`, which covers cell-copy/shadow voices whose note table is not
     a direct register read). Since ``base + accum.render(layer)`` losslessly covers the
     series, ``melody.predict`` renders the FREQ columns exactly for every archetype
-    regardless of grid quality; a richer grid only shrinks the layer. This replaces
-    ``melody.fit``'s output-fitting -- both grid sources are recovered from p-code.
+    regardless of grid quality; a richer grid only shrinks the layer. Both grid sources are
+    recovered from the p-code program, never the oracle output.
     """
     from . import melody as _melody  # noqa: PLC0415 -- module name shadows this function
 

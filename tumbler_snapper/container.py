@@ -257,7 +257,7 @@ def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual, melodymod.Me
     note_model = notes.NoteModel(length, pool, releases, onsets)
     melody = _read_melody(r, length)
     res = residual.decode(r.buf[r.i :])
-    return modelmod.Model(length, columns, note_model, None), res, melody
+    return modelmod.Model(length, columns, note_model), res, melody
 
 
 def compile_from_trace(op_frames: list, mem0: bytearray, oracle) -> bytes:  # pragma: no cover
@@ -273,17 +273,6 @@ def compile_from_trace(op_frames: list, mem0: bytearray, oracle) -> bytes:  # pr
     melody = recover.melody(op_frames, mem0)
     res = residual.diff(sidreg.as_frames(oracle), ir.render_grid(model, melody))
     return encode(model, res, melody)
-
-
-def compile(frames) -> bytes:  # pylint: disable=redefined-builtin
-    """Fit a model + melody from a register grid and serialize it.
-
-    A grid-fit convenience over :func:`ir.build`; ``.sid`` tunes recover from the program
-    via :func:`compile_from_trace`. Retained only for the dependency-free container tests.
-    """
-    from . import ir  # noqa: PLC0415 -- shared grid-fit build
-
-    return encode(*ir.build(frames))
 
 
 def play(blob: bytes) -> np.ndarray:

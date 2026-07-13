@@ -360,8 +360,8 @@ def test_model_recovers_accumulator_columns_from_pcode():
     mem0[0x4000:0x4004] = bytes([0x11, 0x22, 0x33, 0x44])
     frames = [_acc_and_table_frame() for _ in range(3)]  # $D402 accumulator + $D403 table -> pw0
     m = recover.model(frames, mem0)
-    assert m.filter_model is None  # filter/volume fold into accumulator columns
     assert {"pw0", "pw1", "pw2", "cutoff", "resfilt", "modevol"} <= set(m.columns)
+    assert not any(c.startswith("freq") for c in m.columns)  # frequency is the melody, not a column
     sim = recover.simulate(frames, mem0)
     pw0 = sidreg.pw_words(sim)[:, 0]  # the 12-bit combined word, program-derived
     assert np.array_equal(accum.render(m.columns["pw0"], len(frames)), pw0)  # accumulator recovered
@@ -467,11 +467,17 @@ def test_commando_recovery_is_complete(commando_recovery):
     assert res.n_changepoints == 0  # recovery reproduces the oracle with empty residual
 
     # the p-code build path produces a lossless text IR that round-trips to the oracle
-    from tumbler_snapper import ir  # noqa: PLC0415
+    from tumbler_snapper import ir, residual  # noqa: PLC0415
+    from tumbler_snapper import model as modelmod  # noqa: PLC0415
 
     built = ir.build_from_trace(frames, mem0, oracle)
     assert np.array_equal(ir.play(ir.emit(*built)), sidreg.as_frames(oracle))  # round-trips exact
-    assert built[1].n_changepoints == ir.build(oracle)[1].n_changepoints  # as compact as grid build
+    # as compact as an independent grid-fit: model.from_grid(oracle) == recover.model here,
+    # since simulate reproduces the oracle bit-exact, so the residual is identical
+    grid_side = residual.diff(
+        sidreg.as_frames(oracle), ir.render_grid(modelmod.from_grid(oracle), built[2])
+    )
+    assert built[1].n_changepoints == grid_side.n_changepoints
     assert built[2].grid.clock == pitch.PAL_CLOCK  # melody carries the recovered p-code note grid
 
     # the p-code-only binary container round-trips to the oracle bit-exact

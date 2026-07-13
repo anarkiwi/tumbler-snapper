@@ -1,16 +1,24 @@
 """Container round-trip: encode then play must reproduce the grid exactly.
 
 The container is p-code-only (:func:`container.compile_from_trace`); these dep-free tests
-build a consistent model + melody + residual from a synthetic grid via :func:`ir.build`
-and check the v6 serialization (columns + instruments + melody + residual) round-trips.
+recover a consistent model + melody + residual from a synthetic p-code program (via
+:func:`conftest.replay_program` + :func:`ir.build_from_trace`) and check the v6
+serialization (columns + instruments + melody + residual) round-trips.
 """
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
+from conftest import replay_program
 
 from tumbler_snapper import container, ir, sidreg
+
+
+def _built(grid, melody_voices=()):
+    """Recover model + melody + residual from a synthetic program reproducing ``grid``."""
+    op_frames, mem0 = replay_program(grid, melody_voices)
+    return ir.build_from_trace(op_frames, mem0, grid)
 
 
 def _synthetic_grid(length=600):
@@ -35,7 +43,7 @@ def _synthetic_grid(length=600):
 
 
 def _roundtrip(grid):
-    return container.play(container.encode(*ir.build(grid)))
+    return container.play(container.encode(*_built(grid)))
 
 
 @pytest.mark.parametrize("seed", range(4))
@@ -53,7 +61,7 @@ def test_encode_play_roundtrip(seed):
 
 def test_structured_grid_roundtrip_and_compact():
     grid = _synthetic_grid()
-    blob = container.encode(*ir.build(grid))
+    blob = container.encode(*_built(grid))
     assert np.array_equal(container.play(blob), grid)
     assert len(blob) < grid.size  # smaller than the raw 25-byte-per-frame grid
 
@@ -66,18 +74,20 @@ def test_long_held_note_is_run_length_compact():
     grid[:, sidreg.AD] = 0x0A
     grid[:, sidreg.SR] = 0xF0
     grid[:, sidreg.MODE_VOL] = 0x0F
-    blob = container.encode(*ir.build(grid))
+    blob = container.encode(*_built(grid))
     assert np.array_equal(container.play(blob), grid)
     assert len(blob) < 200  # a 999-frame hold codes to a handful of runs, not 999 rows
 
 
 def test_melody_section_round_trips_the_pitch_grid():
     # frequency is carried by the melody section, not accumulator columns
-    grid = _synthetic_grid()
-    _model, _res, melody = ir.build(grid)
-    _model2, _res2, melody2 = container.decode(container.encode(*ir.build(grid)))
+    grid = _synthetic_grid(200)
+    built = _built(grid, melody_voices=(0,))  # voice 0 recovers a real note track
+    melody = built[2]
+    _model2, _res2, melody2 = container.decode(container.encode(*built))
     assert melody2.grid.offset == melody.grid.offset and melody2.grid.clock == melody.grid.clock
     assert [v.note_track for v in melody2.voices] == [v.note_track for v in melody.voices]
+    assert melody.voices[0].note_track  # a non-empty recovered line actually round-tripped
 
 
 def test_rejects_bad_magic():
@@ -86,7 +96,7 @@ def test_rejects_bad_magic():
 
 
 def test_rejects_bad_version():
-    blob = bytearray(container.encode(*ir.build(_synthetic_grid(120))))
+    blob = bytearray(container.encode(*_built(_synthetic_grid(120))))
     blob[4] = 99
     with pytest.raises(ValueError):
         container.decode(bytes(blob))

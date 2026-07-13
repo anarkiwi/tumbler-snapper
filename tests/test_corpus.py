@@ -51,6 +51,16 @@ _MIN_PLAY_FPS = 5000.0
 _FOOTPRINT_EPS = 0.02
 
 
+def _compile_from_sid(sid, oracle, frames) -> bytes:
+    """Compile a container from the tune's lifted p-code, residualised against ``oracle``."""
+    from tumbler_snapper import trace  # noqa: PLC0415 -- optional VM dep
+
+    mem, init, play, _ = capture.parse_psid(str(sid))
+    op_frames = trace.trace(bytearray(mem), init, play, frames)
+    mem0 = trace.state_after_init(bytearray(mem), init)
+    return container.compile_from_trace(op_frames, mem0, oracle)
+
+
 def _hvsc_root() -> Path | None:
     root = Path(os.environ.get("TS_HVSC", "/scratch/hvsc/C64Music"))
     return root if root.is_dir() else None
@@ -106,25 +116,26 @@ def test_tune_lossless_and_efficient(rec):
     # Front end reproduces the exact grid the manifest was measured from.
     assert hashlib.sha256(grid.tobytes()).hexdigest() == rec["grid_sha256"]
 
-    blob = container.compile(grid)
+    blob = _compile_from_sid(sid, grid, _FRAMES)
     back = container.play(blob)
     assert np.array_equal(back, grid), "container roundtrip not bit-exact"
 
     bytes_per_frame = len(blob) / rec["frames"]
     assert bytes_per_frame <= rec["bytes_per_frame"] + _FOOTPRINT_EPS
 
-    mdl, res = container.decode(blob)
-    tok_per_frame = (mdl.n_tokens + res.n_changepoints) / rec["frames"]
+    mdl, res, mel = container.decode(blob)
+    tok_per_frame = (mdl.n_tokens + mel.tokens + res.n_changepoints) / rec["frames"]
     assert tok_per_frame <= rec["tok_per_frame"] + _FOOTPRINT_EPS
 
 
+@requires_vm
 @pytest.mark.skipif(not _TUNES, reason="corpus manifest empty")
 def test_player_decode_throughput():
     """The reference player decodes a representative container fast (linear)."""
     rec = max(_TUNES, key=lambda t: t["frames"])  # largest grid in the corpus
     sid = _sid_path(rec)
     grid = capture.grid_from_sid(str(sid), _FRAMES)
-    blob = container.compile(grid)
+    blob = _compile_from_sid(sid, grid, _FRAMES)
     t0 = time.perf_counter()
     reps = 5
     for _ in range(reps):

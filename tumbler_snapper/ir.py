@@ -214,7 +214,7 @@ class _Build(lark.Transformer):
         length, cols, pool, releases, onsets, grid, tracks, res_data = c
         note_model = notes.NoteModel(length, pool, releases, onsets)
         res = residual.from_points(length, [(reg, _gaps(ch)) for reg, ch in res_data])
-        model = modelmod.Model(length, cols, note_model, None)
+        model = modelmod.Model(length, cols, note_model)
         return model, res, melodymod.from_tracks(length, grid, tracks)
 
 
@@ -244,28 +244,18 @@ def render_grid(model: modelmod.Model, melody: melodymod.Melody) -> np.ndarray:
     return grid
 
 
-def build(frames) -> tuple[modelmod.Model, residual.Residual, melodymod.Melody]:
-    """Fit the IR's model (accumulator columns + notes), melody, and lossless residual."""
-    frames = sidreg.as_frames(frames)
-    model = modelmod.from_grid(frames)
-    melody = melodymod.fit(frames)
-    res = residual.diff(frames, render_grid(model, melody))
-    return model, res, melody
-
-
 def build_from_trace(
     op_frames: list, mem0: bytearray, oracle
 ) -> tuple[modelmod.Model, residual.Residual, melodymod.Melody]:
     """Build the IR from the lifted p-code, residualising against the oracle grid.
 
-    The ``.sid`` path: the model and melody are recovered from the program itself --
-    :func:`recover.model` / :func:`recover.melody` over the traced ``op_frames`` and post-init
-    ``mem0``, never fitted to the capture -- and the ``oracle`` register grid is used only to
-    form the lossless residual (:func:`residual.diff`), the correctness oracle. Since the
-    recovered generators reproduce the oracle bit-exact, the residual is as small as
-    :func:`build`'s while the model/melody now carry p-code-recovered structure (the exact
-    note table, held/table/categorical column generators). The grid-fitting :func:`build`
-    survives only as a synthetic-grid helper for the dependency-free tests.
+    The model and melody are recovered from the program itself -- :func:`recover.model` /
+    :func:`recover.melody` over the traced ``op_frames`` and post-init ``mem0``, never fitted
+    to the capture -- and the ``oracle`` register grid is used only to form the lossless
+    residual (:func:`residual.diff`), the correctness oracle. Since the recovered generators
+    reproduce the oracle bit-exact, the residual is empty on a fully-recovered tune while the
+    model/melody carry p-code-recovered structure (the exact note table, held/table/categorical
+    column generators).
     """
     from . import recover  # noqa: PLC0415 -- .sid recovery path; keep the import local
 

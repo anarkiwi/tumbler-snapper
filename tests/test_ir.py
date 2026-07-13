@@ -10,9 +10,16 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from conftest import replay_program
 
 from tumbler_snapper import container, ir, melody as melodymod, model as modelmod
 from tumbler_snapper import notes, pitch, residual, sidreg
+
+
+def _built(grid, melody_voices=()):
+    """Recover the IR from a synthetic p-code program that reproduces ``grid``."""
+    op_frames, mem0 = replay_program(grid, melody_voices)
+    return ir.build_from_trace(op_frames, mem0, grid)
 
 
 def _structured_grid(length=600):
@@ -45,12 +52,12 @@ def test_random_grid_roundtrip_is_bit_exact(seed):
             run = int(rng.integers(1, 25))
             grid[t : t + run, reg] = int(rng.integers(0, 256))
             t += run
-    assert np.array_equal(ir.play(ir.emit(*ir.build(grid))), grid)
+    assert np.array_equal(ir.play(ir.emit(*_built(grid))), grid)
 
 
 def test_structured_grid_roundtrip_and_idempotent():
     grid = _structured_grid()
-    model, res, mel = ir.build(grid)
+    model, res, mel = _built(grid)
     text = ir.emit(model, res, mel)
     assert np.array_equal(ir.play(text), grid)
     assert ir.emit(*ir.parse(text)) == text  # canonical: emit is a fixed point of parse
@@ -62,7 +69,7 @@ def test_filter_sweep_is_recovered_as_a_curve():
     grid = _structured_grid(400)
     t = np.arange(400)
     grid[:, sidreg.RES_FILT] = (0x10 * ((t // 8) % 16)).astype(np.uint8) | 0x03
-    text = ir.emit(*ir.build(grid))
+    text = ir.emit(*_built(grid))
     block = text.split("column resfilt")[1].split("column modevol")[0]
     ops = [ln for ln in block.splitlines() if ln.strip().startswith(("hold", "ramp", "wave"))]
     assert any(op.strip().startswith(("ramp", "wave")) for op in ops)  # a curve, not a toggle
@@ -74,22 +81,22 @@ def test_filter_sweep_is_recovered_as_a_curve():
 def test_arpeggio_note_track_roundtrips():
     # A voice stepping between two exact grid notes is an arpeggio: the pitch is a
     # first-class note track, recovered and bit-exact.
-    grid = np.zeros((400, sidreg.NREGS), np.uint8)
+    grid = np.zeros((200, sidreg.NREGS), np.uint8)
     grid[:, sidreg.CTRL] = 0x41
     grid[:, sidreg.MODE_VOL] = 0x0F
     root = pitch.note_freq(48, 0.0, pitch.PAL_CLOCK)
     third = pitch.note_freq(52, 0.0, pitch.PAL_CLOCK)
-    seq = np.where((np.arange(400) // 2) % 2, third, root)
+    seq = np.where((np.arange(200) // 2) % 2, third, root)
     grid[:, sidreg.FREQ_LO] = seq & 0xFF
     grid[:, sidreg.FREQ_HI] = (seq >> 8) & 0xFF
-    text = ir.emit(*ir.build(grid))
+    text = ir.emit(*_built(grid, (0,)))  # voice 0 driven by a recoverable note table
     assert "melody" in text and "C-3" in text  # note names are first-class
     assert np.array_equal(ir.play(text), grid)
 
 
 def test_matches_binary_container():
     grid = _structured_grid()
-    built = ir.build(grid)  # same model/melody/residual feeds both codecs
+    built = _built(grid)  # same model/melody/residual feeds both codecs
     assert np.array_equal(ir.play(ir.emit(*built)), container.play(container.encode(*built)))
 
 
@@ -108,7 +115,6 @@ def test_empty_model_roundtrips():
         0,
         {name: [] for name in ir._ACCUM_COLUMNS},
         notes.NoteModel(0, [], [], [[] for _ in range(sidreg.NVOICES)]),
-        None,
     )
     res = residual.Residual(0, [np.empty((0, 2), np.int32) for _ in range(sidreg.NREGS)])
     text = ir.emit(model, res, mel)
@@ -118,7 +124,7 @@ def test_empty_model_roundtrips():
 
 def test_comments_and_whitespace_are_ignored():
     grid = _structured_grid(200)
-    text = ir.emit(*ir.build(grid))
+    text = ir.emit(*_built(grid))
     annotated = "# a header comment\n" + text.replace("\n", "  # trailing\n", 3) + "\n# footer\n"
     assert np.array_equal(ir.play(annotated), grid)
 

@@ -3,8 +3,20 @@
 from __future__ import annotations
 
 import numpy as np
+from conftest import replay_program
 
-from tumbler_snapper import model, pitch, sidreg, song
+from tumbler_snapper import pitch, recover, sidreg, song
+
+
+def _recovered(grid):
+    """Recover ``(note_model, pitch_grid)`` from a synthetic p-code program for ``grid``.
+
+    ``replay_program`` makes ``simulate == grid``, so the recovered note model
+    (:func:`notes.fit`) and pitch grid feed :func:`song.fit` exactly as the retired
+    ``model.fit`` / ``model.transcribe`` did -- but sourced from a lifted program.
+    """
+    op_frames, mem0 = replay_program(grid)
+    return recover.model(op_frames, mem0).note_model, recover.melody(op_frames, mem0).grid
 
 
 def _grid_from_notes(voice_notes, tempo, length):
@@ -30,19 +42,19 @@ def test_lossless_reconstruction():
     phrase = [(0, 60), (2, 64), (4, 67), (6, 64)]
     notes = [(r + 8 * k, m) for k in range(4) for r, m in phrase]  # repeated 4x
     grid = _grid_from_notes([notes, [], []], tempo=5, length=8 * 4 * 5 + 10)
-    m = model.fit(grid)
-    s = song.fit(grid, m.note_model, model.transcribe(grid).grid)
+    note_model, pgrid = _recovered(grid)
+    s = song.fit(grid, note_model, pgrid)
     rec = song.reconstruct(s)
     for v in range(3):
-        assert [(f, i) for f, _, i in rec[v]] == [(o[0], o[1]) for o in m.note_model.onsets[v]]
+        assert [(f, i) for f, _, i in rec[v]] == [(o[0], o[1]) for o in note_model.onsets[v]]
 
 
 def test_repeated_phrase_factors_to_few_patterns():
     phrase = [(0, 60), (2, 64), (4, 67), (6, 64)]
     notes = [(r + 8 * k, m) for k in range(4) for r, m in phrase]
     grid = _grid_from_notes([notes, [], []], tempo=5, length=8 * 4 * 5 + 10)
-    m = model.fit(grid)
-    s = song.fit(grid, m.note_model, model.transcribe(grid).grid)
+    note_model, pgrid = _recovered(grid)
+    s = song.fit(grid, note_model, pgrid)
     # the repeated phrase collapses to a small pattern pool referenced many times
     assert s.tokens < s.raw_events
     assert len(s.patterns) <= 5
@@ -53,6 +65,6 @@ def test_repeated_phrase_factors_to_few_patterns():
 def test_tempo_is_gap_gcd():
     notes = [(0, 60), (3, 62), (6, 64), (9, 60)]  # gaps of 3 rows at tempo 5 -> 15 frames
     grid = _grid_from_notes([notes, [], []], tempo=5, length=200)
-    m = model.fit(grid)
-    s = song.fit(grid, m.note_model, model.transcribe(grid).grid)
+    note_model, pgrid = _recovered(grid)
+    s = song.fit(grid, note_model, pgrid)
     assert s.tempo == 15

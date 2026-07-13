@@ -230,12 +230,6 @@ def seed_grid(freq: np.ndarray, extra: list[list[int]] | None = None) -> pitch.P
     return pitch.PitchGrid(seed.offset, seed.clock, _augment_tables(freq, seed))
 
 
-def fit(frames: np.ndarray) -> Melody:
-    """Recover the pitch grid and per-voice note tracks, arpeggios, and vibrato."""
-    freq = sidreg.freq_words(sidreg.as_frames(frames)).astype(np.int64)
-    return from_freq(freq, seed_grid(freq))
-
-
 def from_freq(freq: np.ndarray, grid: pitch.PitchGrid) -> Melody:
     """Decompose a per-voice [T, NVOICES] freq-word array against a grid into a Melody.
 

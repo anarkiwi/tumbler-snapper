@@ -61,10 +61,18 @@ def _note_comments(d: _Decomp) -> list[list[str]]:
     return comments
 
 
-def render(frames: np.ndarray, name: str = "song") -> str:
-    """Emit the annotated canonical text IR for ``frames``."""
-    frames = sidreg.as_frames(frames)
-    model, res, mel = ir.build(frames)
+def render(op_frames: list, mem0: bytearray, oracle: np.ndarray, name: str = "song") -> str:
+    """Emit the annotated canonical text IR recovered from the lifted p-code.
+
+    The model / melody are recovered from ``(op_frames, mem0)`` (:func:`ir.build_from_trace`),
+    never fitted to ``oracle``; the arrangement factors the recovered note model over the
+    program-derived (simulated) pitch base, and ``oracle`` only forms the residual.
+    """
+    from . import recover  # noqa: PLC0415 -- p-code recovery + simulated pitch base
+
+    oracle = sidreg.as_frames(oracle)
+    model, res, mel = ir.build_from_trace(op_frames, mem0, oracle)
+    frames = recover.simulate(op_frames, mem0)
     d = _Decomp(model, res, mel, song.fit(frames, model.note_model, mel.grid))
-    exact = np.array_equal(residual.apply(ir.render_grid(model, mel), res), frames)
+    exact = np.array_equal(residual.apply(ir.render_grid(model, mel), res), oracle)
     return "\n".join(_header(name, d, exact)) + ir.emit(model, res, mel, _note_comments(d))

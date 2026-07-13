@@ -1,11 +1,17 @@
-"""Filter-track model: change-event factoring, include decision, bit-exactness."""
+"""Filter/volume ($D417/$D418) change-event coding and bit-exact container round-trip.
+
+``filt.events`` / ``filt.render_series`` are the exact change-event inverse pair the
+categorical column generator uses; the container carries $D417/$D418 as ordinary
+accumulator columns, recovered from a synthetic p-code program.
+"""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
+from conftest import replay_program
 
-from tumbler_snapper import container, filt, model, residual, sidreg
+from tumbler_snapper import container, filt, ir, sidreg
 
 
 def _grid_with_filter(series, length=None):
@@ -40,35 +46,12 @@ def test_all_zero_series_has_no_events():
     assert np.array_equal(filt.render_series([], 100), np.zeros(100, np.uint8))
 
 
-def test_repeating_stream_is_modelled_and_exact():
-    series = _repeating_series()
-    fm = filt.fit(_grid_with_filter(series))
-    assert sidreg.MODE_VOL in fm.orderlists
-    assert fm.tokens > 0
-    assert np.array_equal(filt.predict(fm)[sidreg.MODE_VOL], series)
-
-
-def test_nonrepeating_stream_stays_in_residual():
-    # a single constant value never benefits from the pool/orderlist overhead
-    fm = filt.fit(_grid_with_filter(np.full(300, 0x0F, np.uint8)))
-    assert fm.orderlists == {}
-    assert fm.tokens == 0
-
-
-def test_model_predict_fills_modelled_register_bit_exact():
-    grid = _grid_with_filter(_repeating_series())
-    mdl = model.fit(grid)
-    assert len(mdl.filter_model.orderlists) == 1
-    pred = model.predict(mdl)
-    assert np.array_equal(pred[:, sidreg.MODE_VOL], grid[:, sidreg.MODE_VOL])
-    res = residual.diff(grid, pred)
-    assert res.points[sidreg.MODE_VOL].shape[0] == 0  # nothing left in the residual
-    assert np.array_equal(residual.apply(pred, res), grid)
-
-
 def test_container_roundtrips_filter_and_volume_columns():
     # $D417/$D418 are ordinary accumulator columns in the container (no separate filter track)
     grid = _grid_with_filter(_repeating_series())
-    blob = container.compile(grid)
+    op_frames, mem0 = replay_program(grid)
+    blob = container.encode(*ir.build_from_trace(op_frames, mem0, grid))
     _model, _res, _melody = container.decode(blob)
-    assert np.array_equal(container.play(blob), grid)
+    played = container.play(blob)
+    assert np.array_equal(played, grid)
+    assert np.array_equal(played[:, sidreg.MODE_VOL], grid[:, sidreg.MODE_VOL])  # bit-exact volume

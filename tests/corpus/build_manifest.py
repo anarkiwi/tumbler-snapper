@@ -182,25 +182,31 @@ def _best_alignment(grid: np.ndarray, oracle: np.ndarray) -> tuple[int, int, int
     return best_off, max(best_match, 0), best_n
 
 
-def _run_codec(rec: TuneRecord, grid: np.ndarray, t_grid: float) -> None:
-    """Compile / replay ``grid`` and fill the codec metrics on ``rec``."""
+def _run_codec(rec: TuneRecord, grid: np.ndarray, sid: str, frames: int, t_grid: float) -> None:
+    """Recover ``grid`` from the tune's lifted p-code and fill the codec metrics on ``rec``."""
     import time  # noqa: PLC0415
 
-    from tumbler_snapper import container  # noqa: PLC0415
+    from tumbler_snapper import container, trace  # noqa: PLC0415
+    from tumbler_snapper.capture import parse_psid  # noqa: PLC0415
 
     rec.frames = int(grid.shape[0])
     rec.grid_sha256 = hashlib.sha256(grid.tobytes()).hexdigest()
+    mem, init, play, _ = parse_psid(sid)
+    op_frames = trace.trace(bytearray(mem), init, play, frames)
+    mem0 = trace.state_after_init(bytearray(mem), init)
     t0 = time.time()
-    blob = container.compile(grid)
+    blob = container.compile_from_trace(op_frames, mem0, grid)
     t_compile = time.time() - t0
     t0 = time.time()
     back = container.play(blob)
     t_play = time.time() - t0
-    mdl, res = container.decode(blob)
+    mdl, res, mel = container.decode(blob)
     rec.lossless = bool(np.array_equal(back, grid))
     rec.bytes_per_frame = round(len(blob) / max(rec.frames, 1), 4)
     rec.residual_changepoints = int(res.n_changepoints)
-    rec.tok_per_frame = round((mdl.n_tokens + res.n_changepoints) / max(rec.frames, 1), 4)
+    rec.tok_per_frame = round(
+        (mdl.n_tokens + mel.tokens + res.n_changepoints) / max(rec.frames, 1), 4
+    )
     codec_s = t_compile + t_play
     rec.timings = {
         "grid_fps": round(rec.frames / t_grid, 1) if t_grid else 0.0,
@@ -231,7 +237,7 @@ def _analyze(args) -> dict:
     try:
         t0 = time.time()
         grid = capture.grid_from_sid(sid, frames)
-        _run_codec(rec, grid, time.time() - t0)
+        _run_codec(rec, grid, sid, frames, time.time() - t0)
     except Exception as exc:  # pylint: disable=broad-except
         rec.error = f"{type(exc).__name__}: {exc}"[:200]  # record and move on
         return asdict(rec)

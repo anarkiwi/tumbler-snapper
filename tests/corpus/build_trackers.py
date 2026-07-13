@@ -2,7 +2,7 @@
 
 Songs by one composer are made in one tracker, whose note-frequency table has a
 fixed detuning from A440. So the recovered global offset (:func:`pitch.fit_offset`
-via :func:`melody.fit`) should be the *same* for every song that composer wrote.
+via :func:`recover.melody`) should be the *same* for every song that composer wrote.
 A scatter would mean the pitch recovery is fitting noise rather than the table.
 
 The one confound -- an NTSC note table read at the PAL clock comes out ~35.37c
@@ -56,13 +56,16 @@ def _pick_authors(hvsc: Path):
 
 
 def _offset(args) -> dict:
-    """Worker: fit one tune's global pitch offset via the full transcribe path."""
+    """Worker: recover one tune's global pitch offset from its lifted p-code."""
     relpath, hvsc, frames = args
-    from tumbler_snapper import capture, model, pitch  # noqa: PLC0415
+    from tumbler_snapper import capture, pitch, recover, trace  # noqa: PLC0415
 
     try:
-        grid = capture.grid_from_sid(str(Path(hvsc) / relpath), frames)
-        mel = model.transcribe(grid)
+        sid = str(Path(hvsc) / relpath)
+        mem, init, play, _ = capture.parse_psid(sid)
+        op_frames = trace.trace(bytearray(mem), init, play, frames)
+        mem0 = trace.state_after_init(bytearray(mem), init)
+        mel = recover.melody(op_frames, mem0)
         return {
             "relpath": relpath,
             "offset_cents": round(mel.grid.offset_cents, 2),

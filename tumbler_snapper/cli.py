@@ -29,42 +29,45 @@ from pathlib import Path
 
 import numpy as np
 
-from . import audio, capture, container, dump, ir, melody, model, residual, sidreg, song
+from . import audio, capture, container, dump, ir, melody, residual, sidreg, song
 from .capture import grid_from_sid
 
 _TEXT_IR_SUFFIXES = (".txt", ".ir")
 
 
 def cmd_report(args) -> int:
-    """Print the lossless token-efficiency report for a ``.sid`` tune."""
-    frames = grid_from_sid(args.tune, args.frames, args.subtune)
-    mdl = model.fit(frames)
-    pred = model.predict(mdl)
-    res = residual.diff(frames, pred)
-    exact = np.array_equal(residual.apply(pred, res), frames)
-    rep = model.token_report(frames)
+    """Print the lossless token-efficiency report for a ``.sid`` tune (p-code recovery)."""
+    frames = _grid_for(args)
+    mdl, res, mel = ir.build_from_trace(*_trace_for(args), frames)
+    exact = np.array_equal(residual.apply(ir.render_grid(mdl, mel), res), frames)
+    baseline = residual.diff(frames)
+    length = len(frames)
+    nm = mdl.note_model
+    n_patterns = len(nm.pack()[2]) if nm else 0
+    tokens = mdl.n_tokens + mel.tokens + res.n_changepoints
     print(f"tune           : {args.tune}")
-    print(f"frames         : {rep['frames']}")
+    print(f"frames         : {length}")
     print(f"bit-exact      : {exact}")
     print(
-        f"baseline       : {rep['baseline_tok_per_frame']:.3f} tokens/frame "
-        f"({rep['baseline_changepoints']} write-log changepoints)"
+        f"baseline       : {baseline.n_changepoints / length:.3f} tokens/frame "
+        f"({baseline.n_changepoints} write-log changepoints)"
     )
     print(
-        f"model          : {rep['model_tok_per_frame']:.3f} tokens/frame "
-        f"({rep['model_segments']} accumulator segments + "
-        f"{rep['note_onsets']} notes in {rep['note_patterns']} patterns / "
-        f"{rep['instruments']} instruments + "
-        f"{rep['filter_tokens']} filter tokens ({rep['filter_regs']} regs) + "
-        f"{rep['residual_changepoints']} residual changepoints)"
+        f"model          : {tokens / length:.3f} tokens/frame "
+        f"({mdl.n_segments} accumulator segments + "
+        f"{nm.n_onsets if nm else 0} notes in {n_patterns} patterns / "
+        f"{len(nm.pool) if nm else 0} instruments + "
+        f"{mel.tokens} melody tokens + "
+        f"{res.n_changepoints} residual changepoints)"
     )
     return 0 if exact else 1
 
 
 def cmd_transcribe(args) -> int:
-    """Print the A440/12-TET melody recovered for one voice."""
-    frames = grid_from_sid(args.tune, args.frames, args.subtune)
-    mel = model.transcribe(frames)
+    """Print the A440/12-TET melody recovered for one voice (p-code recovery)."""
+    from . import recover  # noqa: PLC0415 -- p-code melody recovery
+
+    mel = recover.melody(*_trace_for(args))
     print(f"tuning offset  : {mel.grid.offset_cents:+.2f} cents from A440")
     print(f"pitch table    : {mel.grid.n_entries} note entries across {sidreg.NVOICES} voices")
     print(f"voice {args.voice} melody :")
@@ -74,11 +77,12 @@ def cmd_transcribe(args) -> int:
 
 
 def cmd_structure(args) -> int:
-    """Print the recovered tempo, pattern pool, and per-voice orderlist."""
-    frames = grid_from_sid(args.tune, args.frames, args.subtune)
-    m = model.fit(frames)
-    mel = model.transcribe(frames)
-    s = song.fit(frames, m.note_model, mel.grid)
+    """Print the recovered tempo, pattern pool, and per-voice orderlist (p-code recovery)."""
+    from . import recover  # noqa: PLC0415 -- p-code recovery + simulated pitch base
+
+    op_frames, mem0 = _trace_for(args)
+    mdl, _res, mel = ir.build_from_trace(op_frames, mem0, _grid_for(args))
+    s = song.fit(recover.simulate(op_frames, mem0), mdl.note_model, mel.grid)
     print(f"tempo          : {s.tempo} frames/row")
     print(f"pattern pool   : {len(s.patterns)} unique patterns")
     print(
@@ -130,7 +134,7 @@ def _trace_for(args):  # pragma: no cover -- needs the VM; the p-code recovery s
 def cmd_dump(args) -> int:
     """Print (or write) a reviewable text dump of the decompiled song."""
     frames = _grid_for(args)
-    text = dump.render(frames, Path(args.tune).stem)
+    text = dump.render(*_trace_for(args), frames, Path(args.tune).stem)
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")
         print(f"wrote {args.out} ({len(text)} bytes, {len(frames)} frames)")

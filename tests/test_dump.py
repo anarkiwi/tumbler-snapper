@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 import numpy as np
+from conftest import replay_program
 
 from tumbler_snapper import dump, ir, sidreg
+
+
+def _render(grid, name):
+    """Annotated dump recovered from a synthetic p-code program reproducing ``grid``."""
+    op_frames, mem0 = replay_program(grid)
+    return dump.render(op_frames, mem0, grid, name)
 
 
 def _gated_grid(length=600):
@@ -26,7 +33,7 @@ def _gated_grid(length=600):
 
 def test_render_is_annotated_canonical_ir():
     grid = _gated_grid()
-    report = dump.render(grid, "unit")
+    report = _render(grid, "unit")
     # review-only header comment...
     assert "# tumbler-snapper dump: unit" in report
     assert "# bit-exact     : True" in report
@@ -48,7 +55,7 @@ def test_render_is_compact_and_roundtrips():
     grid[:, sidreg.AD] = 0x0A
     grid[:, sidreg.SR] = 0xF0
     grid[:, sidreg.FREQ_HI] = 0x10
-    report = dump.render(grid, "rle")
+    report = _render(grid, "rle")
     # the 399-frame hold is the instrument's period-1 loop, not 399 emitted rows
     ir_body = report[report.index("tsnp-ir") :]
     assert len(ir_body) < grid.size and np.array_equal(ir.play(report), grid)

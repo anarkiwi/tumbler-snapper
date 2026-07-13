@@ -1,7 +1,7 @@
 """Per-tracker pitch-offset consistency.
 
 A composer works in one tracker, whose note-frequency table has a fixed detuning
-from A440, so :func:`model.transcribe` should recover the *same* global offset for
+from A440, so :func:`recover.melody` should recover the *same* global offset for
 all of that composer's songs. If it scatters, the pitch recovery is fitting noise.
 
 The historical confound -- an NTSC note table read at the PAL clock reads ~35.37c
@@ -87,7 +87,7 @@ def test_clock_detection_unifies_mixed_standards():
 @pytest.mark.parametrize("author", _AUTHORS, ids=[a["author"] for a in _AUTHORS])
 def test_recovered_offsets_reproduce(author):
     """Re-fitting from HVSC reproduces each recorded offset (pitch-recovery guard)."""
-    from tumbler_snapper import capture, model  # noqa: PLC0415
+    from tumbler_snapper import capture, recover, trace  # noqa: PLC0415
 
     root = _hvsc_root()
     if root is None:
@@ -97,5 +97,8 @@ def test_recovered_offsets_reproduce(author):
         sid = root / tune["relpath"]
         if not sid.exists():
             pytest.skip(f"{tune['relpath']} not present in local HVSC")
-        got = model.transcribe(capture.grid_from_sid(str(sid), frames)).grid.offset_cents
+        mem, init, play, _ = capture.parse_psid(str(sid))
+        op_frames = trace.trace(bytearray(mem), init, play, frames)
+        mem0 = trace.state_after_init(bytearray(mem), init)
+        got = recover.melody(op_frames, mem0).grid.offset_cents
         assert abs(got - tune["offset_cents"]) < 1.0, tune["relpath"]

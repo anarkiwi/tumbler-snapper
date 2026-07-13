@@ -70,7 +70,7 @@ def test_recover_simulate_is_bit_exact(relpath):
         if change_events is not None:
             assert np.array_equal(filt.render_series(change_events, N), latched[:, reg])
 
-    # recover.model + recover.melody build the whole IR from p-code; it reconstructs the
-    # oracle as losslessly-compactly as ir.build does from the capture
+    # recover.model + recover.melody build the whole IR from p-code; render_grid reconstructs
+    # the oracle with an empty residual -- a complete recovery, nothing left to residualise
     rpred = ir.render_grid(recover.model(frames, mem0), recover.melody(frames, mem0))
-    assert residual.diff(oracle, rpred).n_changepoints == ir.build(oracle)[1].n_changepoints
+    assert residual.diff(oracle, rpred).n_changepoints == 0
