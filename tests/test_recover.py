@@ -466,6 +466,14 @@ def test_commando_recovery_is_complete(commando_recovery):
     res = recover.residual_of(grid, oracle)
     assert res.n_changepoints == 0  # recovery reproduces the oracle with empty residual
 
+    # the p-code build path produces a lossless text IR that round-trips to the oracle
+    from tumbler_snapper import ir  # noqa: PLC0415
+
+    built = ir.build_from_trace(frames, mem0, oracle)
+    assert np.array_equal(ir.play(ir.emit(*built)), sidreg.as_frames(oracle))  # round-trips exact
+    assert built[1].n_changepoints == ir.build(oracle)[1].n_changepoints  # as compact as grid build
+    assert built[2].grid.clock == pitch.PAL_CLOCK  # melody carries the recovered p-code note grid
+
     # held/unwritten columns recover as compact constants, bit-exact vs the oracle
     latched = sidreg.latch(oracle)
     consts = {r: recover.constant_generator(frames, mem0, r) for r in range(sidreg.NREGS)}

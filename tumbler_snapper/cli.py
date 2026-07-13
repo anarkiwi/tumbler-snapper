@@ -94,7 +94,9 @@ def cmd_compile(args) -> int:
     """Compile a tune to a .tsnp container (or canonical text IR) and verify playback."""
     frames = _grid_for(args)
     if args.out.endswith(_TEXT_IR_SUFFIXES):  # canonical text IR
-        text = ir.emit(*ir.build(frames))
+        pcode = _trace_for(args)  # recover from the lifted p-code when the tune has a player
+        built = ir.build_from_trace(*pcode, frames) if pcode else ir.build(frames)
+        text = ir.emit(*built)
         blob = text.encode("utf-8")
         exact = np.array_equal(ir.play(text), frames)
         kind = "text IR"
@@ -117,6 +119,23 @@ def _grid_for(args) -> np.ndarray:
     if args.tune.endswith((".parquet", ".dump")):
         return grid_from_dump(args.tune, args.frames)
     return grid_from_sng(args.tune, args.frames, args.subtune)
+
+
+def _trace_for(args):  # pragma: no cover -- needs the VM; the p-code recovery source
+    """The lifted p-code ``(op_frames, mem0)`` for a ``.sid`` player, else ``None``.
+
+    Player-based tunes are recovered from the program (:func:`ir.build_from_trace`); dumps
+    and ``.sng`` grids have no player to trace and stay on the grid-fitting :func:`ir.build`.
+    """
+    from . import trace  # noqa: PLC0415
+    from .capture import parse_psid  # noqa: PLC0415
+
+    if not args.tune.endswith((".sid", ".psid", ".rsid")):
+        return None
+    mem, init, play, _ = parse_psid(args.tune)
+    op_frames = trace.trace(bytearray(mem), init, play, args.frames, args.subtune)
+    mem0 = trace.state_after_init(bytearray(mem), init, args.subtune)
+    return op_frames, mem0
 
 
 def cmd_dump(args) -> int:

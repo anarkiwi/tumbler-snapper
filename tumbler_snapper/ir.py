@@ -253,6 +253,28 @@ def build(frames) -> tuple[modelmod.Model, residual.Residual, melodymod.Melody]:
     return model, res, melody
 
 
+def build_from_trace(
+    op_frames: list, mem0: bytearray, oracle
+) -> tuple[modelmod.Model, residual.Residual, melodymod.Melody]:
+    """Build the IR from the lifted p-code, residualising against the oracle grid.
+
+    The ``.sid`` path: the model and melody are recovered from the program itself --
+    :func:`recover.model` / :func:`recover.melody` over the traced ``op_frames`` and post-init
+    ``mem0``, never fitted to the capture -- and the ``oracle`` register grid is used only to
+    form the lossless residual (:func:`residual.diff`), the correctness oracle. Since the
+    recovered generators reproduce the oracle bit-exact, the residual is as small as
+    :func:`build`'s while the model/melody now carry p-code-recovered structure (the exact
+    note table, held/table/categorical column generators). Player-less inputs (register
+    dumps, ``.sng``) that have no trace keep the grid-fitting :func:`build`.
+    """
+    from . import recover  # noqa: PLC0415 -- .sid recovery path; keep the import local
+
+    model = recover.model(op_frames, mem0)
+    melody = recover.melody(op_frames, mem0)
+    res = residual.diff(sidreg.as_frames(oracle), render_grid(model, melody))
+    return model, res, melody
+
+
 def _emit_op(s: accum.Segment) -> str:
     """Render one accumulator segment as its generator op (BACC / CITG)."""
     d = s.deltas
