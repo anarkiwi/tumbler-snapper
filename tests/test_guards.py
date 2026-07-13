@@ -73,15 +73,19 @@ def test_commando_pulse_width_sweep_guard():
     from tumbler_snapper import recover, trace  # noqa: PLC0415
     from tumbler_snapper.capture import parse_psid  # noqa: PLC0415
 
+    from tumbler_snapper.capture import grid_from_sid  # noqa: PLC0415
+
+    n = 3000  # >= 60s at 50Hz PAL
     mem, init, play, _ = parse_psid(COMMANDO)
-    op_frames, branch_frames = trace.trace_branches(mem, init, play, 3000)
+    op_frames, branch_frames = trace.trace_branches(mem, init, play, n)
     g = guards.form_guard(op_frames, branch_frames, 2)  # $D402 pulse-width lo
     assert g is not None and g.pc == 0x5269  # the triangle direction branch
     assert len(g.forms) == 2 and g.coverage > 1000  # partitions the two sweep forms
 
     cond, pol = guards.guard_condition(op_frames, branch_frames, g)
     assert dataflow.format_expr(cond) == "(mem[$5510] == 0)"  # the sweep phase cell
-    sim = bytearray(trace.state_after_init(mem, init))
+    mem0 = trace.state_after_init(mem, init)
+    sim = bytearray(mem0)
     checked = 0
     for frame, decisions in zip(op_frames, branch_frames):
         for pc, _flag, taken, _pol, _pos in decisions:
@@ -93,3 +97,9 @@ def test_commando_pulse_width_sweep_guard():
         }.items():
             sim[addr] = val
     assert checked > 1000
+
+    # the guarded generator (pick form from the condition) reproduces the sweep bit-exactly
+    oracle = grid_from_sid(COMMANDO, n)
+    rendered = recover.render_guarded_generator(op_frames, mem0, g, cond, pol)
+    assert len(rendered) > 1000  # covers the sweep frames
+    assert all(v == oracle[f, g.reg] for f, v in rendered.items())  # bit-exact where it applies

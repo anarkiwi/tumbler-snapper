@@ -55,12 +55,15 @@ primitive by primitive, by p-code recovery:
      `guard_condition` slices that flag back to its symbolic condition over state.
      Commando pulse-width sweep guard = branch at `$5269`, condition `mem[$5510] == 0`
      (triangle phase), verified to predict the taken direction on every fire over 60s.
+   - **Guarded generators rendered (`recover.render_guarded_generator`).** Picks the
+     form from the condition alone (`guard.forms[int(evaluate(cond) == pol)]`) and
+     evaluates it against forward-simulated memory. The Commando pulse-width sweep
+     renders bit-exactly against the ≥60s oracle on its >1000 covered frames.
    - **Next (to retire the fitters), each verified against the ≥60s oracle:**
-     (a) render the guarded generators (evaluate the condition, pick the form) so the
-     sweep/arp/glide emit at true period; (b) emit the recovered note table → pitch
-     grid + note track → melody (retires `melody.fit`); (c) emit the instrument records
-     → instruments (retires `notes.fit`); (d) emit the continuous columns as recovered
-     generators (retires `accum.fit`/`filt.fit`). Only then delete them.
+     (a) emit the recovered note table → pitch grid + note track → melody (retires
+     `melody.fit`); (b) emit the instrument records → instruments (retires `notes.fit`);
+     (c) emit the continuous columns + guarded generators as recovered IR (retires
+     `accum.fit`/`filt.fit`). Only then delete them.
 
 ---
 

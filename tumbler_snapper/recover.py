@@ -170,6 +170,31 @@ def render_table_generator(frames: list[list[Op]], mem0: bytearray, reg: int) ->
     return values
 
 
+def render_guarded_generator(
+    frames: list[list[Op]], mem0: bytearray, guard, cond: tuple, pol: int
+) -> dict[int, int]:
+    """Render a branchy register's guarded generator: ``{frame: value}`` on covered frames.
+
+    On each frame whose ``guard.reg`` driver is one of the guard's forms, the form is
+    selected *from the condition alone* -- ``guard.forms[int(evaluate(cond) == pol)]``
+    (:func:`guards.guard_condition` supplies ``cond``/``pol``) -- and evaluated against
+    the forward-simulated memory. This is the emission the IR carries, ``if cond == pol:
+    form_1 else form_0``, not a replay of the traced per-frame form; on the covered
+    frames it reproduces the register bit-exactly, since the guard's taken value bijects
+    with the form and the condition predicts the taken value.
+    """
+    forms = set(guard.forms.values())
+    mem = bytearray(mem0)
+    values = {}
+    for f, frame in enumerate(frames):
+        drivers, updates = dataflow.slice_frame(frame)
+        if drivers.get(guard.reg) in forms:
+            values[f] = evaluate(guard.forms[int(evaluate(cond, mem) == pol)], mem) & 0xFF
+        for addr, val in {a: evaluate(e, mem) & 0xFF for a, e in updates.items()}.items():
+            mem[addr] = val
+    return values
+
+
 def recover(  # pragma: no cover
     mem: bytearray, init: int, play: int, frames: int, subtune: int = 0
 ) -> np.ndarray:
