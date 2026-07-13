@@ -54,6 +54,17 @@ def test_evaluate_covers_the_op_set():
         assert recover.evaluate(expr, mem) == want
 
 
+def test_evaluate_byte_index_wraps_before_word_base():
+    # $1326 + zext((mem[$1152] + 1) & 0xFF): with mem[$1152]=255 the byte add wraps to 0,
+    # so the address is $1326, not $1426 -- the width-boundary reassociation regression
+    mem = bytearray(0x10000)
+    mem[0x1152] = 255
+    byte_idx = ("op", "INT_ADD", (("mem", ("const", 0x1152), 1), ("const", 1)), 1)
+    addr = ("op", "INT_ADD", (("const", 0x1326), byte_idx), 2)
+    assert recover.evaluate(addr, mem) == 0x1326
+    assert recover.evaluate(recover.dataflow.simplify(addr), mem) == 0x1326  # simplify-invariant
+
+
 def _acc_and_table_frame():
     # $D402 <- mem[$10] (an accumulator, then mem[$10] += 1)
     # $D403 <- mem[$4000 + mem[$11]] (a clock-indexed table, then mem[$11] += 1)

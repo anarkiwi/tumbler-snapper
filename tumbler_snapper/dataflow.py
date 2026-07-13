@@ -79,14 +79,21 @@ def _simplify_add(args: tuple, size: int) -> tuple:
 
 
 def _reassoc_add(args: tuple, size: int) -> tuple | None:
-    """Collapse ``(y + a) + b`` (one constant addend each) into ``y + (a+b)``."""
+    """Collapse ``(y + a) + b`` (one constant addend each) into ``y + (a+b)``.
+
+    Only when the inner add has the **same width** as the outer: a narrower inner add
+    truncates (``(y + a) mod 2**inner``) before the outer add, so folding its constant
+    into the wider add would drop that wrap. E.g. a byte index ``(mem + 1) & 0xFF``
+    zero-extended into a 16-bit address base must keep the byte wrap, not become
+    ``mem + (base + 1)``.
+    """
     if args[0][0] == "const":  # exactly one const here (both-const is folded earlier)
         const, other = args[0][1], args[1]
     elif args[1][0] == "const":
         const, other = args[1][1], args[0]
     else:
         return None
-    if not (other[0] == "op" and other[1] == "INT_ADD"):
+    if not (other[0] == "op" and other[1] == "INT_ADD" and other[3] == size):
         return None
     inner = other[2]
     if inner[0][0] == "const":

@@ -59,6 +59,18 @@ def test_simplify_constant_fold_and_identity():
     assert dataflow.simplify(("op", "COPY", (("reg", 0),), 1)) == ("reg", 0)
 
 
+def test_reassoc_respects_add_width():
+    # a byte index (mem[$1152] + 1) zero-extended into a 16-bit address base: the byte add
+    # wraps (255+1 -> 0), so its +1 must NOT fold into the word base ($1326 -> $1327)
+    byte_idx = ("op", "INT_ADD", (("mem", ("const", 0x1152), 1), ("const", 1)), 1)
+    word = ("op", "INT_ADD", (("const", 0x1326), byte_idx), 2)
+    assert dataflow.format_expr(dataflow.simplify(word)) == "($1326 + (mem[$1152] + 1))"
+    # a same-width (word) inner add DOES fold, as before
+    word_idx = ("op", "INT_ADD", (("mem", ("const", 0x1152), 2), ("const", 1)), 2)
+    same = ("op", "INT_ADD", (("const", 0x1326), word_idx), 2)
+    assert dataflow.format_expr(dataflow.simplify(same)) == "(mem[$1152] + $1327)"
+
+
 def test_simplify_collapses_shift_mask_chain():
     x = ("mem", ("const", 0x54FE), 1)
 
