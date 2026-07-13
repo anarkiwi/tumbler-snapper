@@ -284,19 +284,22 @@ def voice_note_track(
 def melody(frames: list[list[Op]], mem0: bytearray):
     """Recover the FREQ voices as a :class:`~.melody.Melody`, reproducing FREQ bit-exact.
 
-    The pitch grid comes from the p-code note table (:func:`pitch_grid`); the per-voice
-    lines come from decomposing the *program-derived* frequency series --
-    ``freq_words(simulate(...))``, never the oracle -- with :func:`melody.from_freq`. Since
-    ``base + accum.render(layer)`` losslessly covers that series, ``melody.predict``
-    renders the FREQ columns exactly for every archetype, regardless of how much on-grid
-    structure the recovered grid captures. This replaces ``melody.fit``'s output-fitting:
-    the grid and notes are recovered from p-code, the layer is the recovered freq's own
-    residual.
+    The per-voice lines come from decomposing the *program-derived* frequency series --
+    ``freq_words(simulate(...))``, never the oracle -- with :func:`melody.from_freq`. The
+    grid is seeded from two program-derived sources: the exact note-table values recovered
+    from the p-code (:func:`note_values`, precise for direct-table voices incl. detune and
+    non-sustained arp notes) unioned with the sustained notes of the simulated series
+    (:func:`melody.seed_grid`, which covers cell-copy/shadow voices whose note table is not
+    a direct register read). Since ``base + accum.render(layer)`` losslessly covers the
+    series, ``melody.predict`` renders the FREQ columns exactly for every archetype
+    regardless of grid quality; a richer grid only shrinks the layer. This replaces
+    ``melody.fit``'s output-fitting -- both grid sources are recovered from p-code.
     """
     from . import melody as _melody  # noqa: PLC0415 -- module name shadows this function
 
     freq = sidreg.freq_words(simulate(frames, mem0)).astype(np.int64)
-    return _melody.from_freq(freq, pitch_grid(frames, mem0))
+    extra = [note_values(frames, mem0, v) for v in range(sidreg.NVOICES)]
+    return _melody.from_freq(freq, _melody.seed_grid(freq, extra))
 
 
 def render_guarded_generator(
