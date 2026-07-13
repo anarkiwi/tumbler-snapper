@@ -32,6 +32,8 @@ only the byte written to a register or RAM cell is masked.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from . import dataflow, pitch, residual, sidreg, trace
@@ -180,6 +182,24 @@ def _fill_hole(transform: tuple, value: int) -> tuple:
     if transform[0] == "op":
         return ("op", transform[1], tuple(_fill_hole(a, value) for a in transform[2]), transform[3])
     return transform
+
+
+def classify_form(form: tuple) -> tuple:
+    """Classify one driver form as a compact generator descriptor.
+
+    ``("const", v)`` for a constant; ``("table", base, index, transform)`` for a (possibly
+    post-transformed) indexed table read (:func:`_table_transform`); ``("expr", form)`` as
+    the fallback -- an accumulator or other complex driver kept as the recovered p-code
+    expression. Every descriptor renders the same value as ``form`` (:func:`evaluate` /
+    :func:`_fill_hole`); it is the compact structural label a branch of a guarded generator
+    carries.
+    """
+    if form[0] == "const":
+        return ("const", form[1] & 0xFF)
+    table = _table_transform(form)
+    if table is not None:
+        return ("table", *table)
+    return ("expr", form)
 
 
 def _dominant_forms(frames: list[list[Op]]) -> dict[int, tuple]:
@@ -394,6 +414,48 @@ def render_guarded_generator(
         for addr, val in {a: evaluate(e, mem) & 0xFF for a, e in updates.items()}.items():
             mem[addr] = val
     return values
+
+
+@dataclass
+class GuardedGenerator:
+    """A branchy register's recovered generator: pick a per-branch form from a condition.
+
+    ``guard`` is the recovered branch (:class:`guards.Guard`); ``cond``/``pol`` the sliced
+    branch condition, so the form fired each frame is
+    ``guard.forms[int(evaluate(cond) == pol)]``. ``generators`` classifies each branch's
+    form (:func:`classify_form`) into the compact descriptor the IR emits -- a constant, a
+    (post-transformed) table read, or a fallback expression. :func:`render_guarded_generator`
+    renders it bit-exact on the frames the guard covers.
+    """
+
+    guard: object
+    cond: tuple
+    pol: int
+    generators: dict
+
+
+def guarded_generator(
+    op_frames: list[list[Op]], branch_frames: list[list[tuple]], reg: int
+) -> GuardedGenerator | None:
+    """Recover a branchy register's guarded generator: branch condition + per-branch forms.
+
+    Finds the branch whose taken value bijects with ``reg``'s driver form
+    (:func:`guards.form_guard`) and its sliceable condition
+    (:func:`guards.guard_condition`), then classifies each form (:func:`classify_form`).
+    The emitted IR is ``if cond == pol: forms[1] else forms[0]`` with each branch a compact
+    generator. ``None`` if ``reg`` is not cleanly guarded (fewer than two forms, no
+    bijecting branch, or an unsliceable condition).
+    """
+    from . import guards  # noqa: PLC0415 -- higher-level assembly; avoid an import cycle
+
+    guard = guards.form_guard(op_frames, branch_frames, reg)
+    if guard is None:
+        return None
+    condition = guards.guard_condition(op_frames, branch_frames, guard)
+    if condition is None:
+        return None
+    cond, pol = condition
+    return GuardedGenerator(guard, cond, pol, {k: classify_form(v) for k, v in guard.forms.items()})
 
 
 def recover(  # pragma: no cover

@@ -103,3 +103,24 @@ def test_commando_pulse_width_sweep_guard():
     rendered = recover.render_guarded_generator(op_frames, mem0, g, cond, pol)
     assert len(rendered) > 1000  # covers the sweep frames
     assert all(v == oracle[f, g.reg] for f, v in rendered.items())  # bit-exact where it applies
+
+
+@requires_commando
+def test_commando_guarded_generator_assembles_and_classifies_the_sweep():
+    from tumbler_snapper import recover, trace  # noqa: PLC0415
+    from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
+
+    n = 3000  # >= 60s at 50Hz PAL
+    mem, init, play, _ = parse_psid(COMMANDO)
+    op_frames, branch_frames = trace.trace_branches(mem, init, play, n)
+    gen = recover.guarded_generator(op_frames, branch_frames, 2)  # $D402 pulse-width lo
+    assert gen is not None and gen.guard.pc == 0x5269 and gen.guard.coverage > 1000
+    assert set(gen.generators) == {0, 1}  # the two sweep directions, each classified
+    assert all(d[0] in ("const", "table", "expr") for d in gen.generators.values())
+
+    # the assembled generator's guard/cond/pol render the sweep bit-exact vs the oracle
+    mem0 = trace.state_after_init(mem, init)
+    oracle = grid_from_sid(COMMANDO, n)
+    rendered = recover.render_guarded_generator(op_frames, mem0, gen.guard, gen.cond, gen.pol)
+    assert len(rendered) > 1000
+    assert all(v == oracle[f, gen.guard.reg] for f, v in rendered.items())
