@@ -35,8 +35,8 @@ primitive by primitive, by p-code recovery:
      evaluates the recovered dataflow from the post-init memory image alone (never
      re-reading the VM); `residual_of` diffs vs the oracle. Exact 6502 widths: expr
      nodes carry varnode size and `evaluate` masks each result (byte value wraps at 8
-     bits, address at 16). **Bit-exact, zero residual on Commando over 1500 frames
-     (30s)** — the recovery-principle proof; nothing fitted. Validate on ≥30s: the
+     bits, address at 16). **Bit-exact, zero residual on Commando over 3000 frames
+     (60s)** — the recovery-principle proof; nothing fitted. Validate on ≥60s: the
      width bug was invisible for 4s, then diverged at frame 817.
    - **Next:** compact IR *emission* from the recovered generators (hold/ramp/wave +
      note track + instruments), replacing `accum.fit`/`melody.fit`/`notes.fit`/

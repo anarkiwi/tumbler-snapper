@@ -158,7 +158,7 @@ grid against the VM's captured grid via the residual: an **empty residual** mean
 recovery is complete. A nonzero residual on a periodic register is a *recovery bug to
 fix*, not a residual to hide behind — and it names the register and frames to debug.
 On Commando the recovered generators reproduce the oracle **bit-exact with zero
-residual over 1500 frames (30s)**; validation must span ≥30s of playback, since short
+residual over 3000 frames (60s)**; validation must span ≥60s of playback, since short
 windows hide late-diverging bugs (the width bug above was invisible for 4s, then
 diverged on a portamento `(hi−lo)>>1` at frame 817).
 

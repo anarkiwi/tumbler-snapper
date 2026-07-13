@@ -67,7 +67,7 @@ def test_state_after_init_does_not_mutate_caller_memory():
 def test_trace_reconstructs_the_oracle_grid():
     from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
 
-    n = 1500  # >= 30s at 50Hz PAL
+    n = 3000  # >= 60s at 50Hz PAL
     mem, init, _play, _ = parse_psid(COMMANDO)
     seed = np.frombuffer(
         bytes(trace.state_after_init(mem, init)[0xD400 : 0xD400 + sidreg.NREGS]), np.uint8
