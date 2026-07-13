@@ -187,6 +187,19 @@ def test_pitch_grid_reproduces_the_recovered_note_table():
         assert grid.freq(note, 0) == val  # every recovered note reconstructs exactly
 
 
+def test_voice_note_track_maps_indices_to_grid_notes():
+    mem0 = bytearray(0x10000)
+    notes = [pitch.note_freq(n, 0.0, pitch.PAL_CLOCK) for n in (60, 60, 64, 67)]  # C E G, C held
+    mem0[0x4000 : 0x4000 + len(notes)] = bytes(v & 0xFF for v in notes)
+    mem0[0x4100 : 0x4100 + len(notes)] = bytes((v >> 8) & 0xFF for v in notes)
+    frames = [_freq_table_frame() for _ in range(len(notes))]  # note pointer walks 0,1,2,3
+    grid = recover.pitch_grid(frames, mem0)
+    track = recover.voice_note_track(frames, mem0, 0, grid)
+    assert track == [(0, 60), (2, 64), (3, 67)]  # index 0,1 both note 60 collapse into one run
+    for _f, note in track:
+        assert grid.freq(note, 0) in recover.note_values(frames, mem0, 0)  # note reconstructs
+
+
 def _guarded_frame(next_cond):
     # $D402 <- mem[$10] (a form covered by the guard), then mem[$50] <- next_cond
     return [
@@ -231,6 +244,18 @@ def test_commando_note_table_generator(commando_recovery):
     grid = recover.pitch_grid(frames, mem0)
     assert grid.clock == pitch.PAL_CLOCK and len(grid.tables[0]) > 4  # voice-0 PAL note table
     assert all(grid.freq(note, 0) == val for note, val in grid.tables[0].items())
+
+    # the voice-0 note track (grid MIDI notes) reconstructs the base frequency bit-exactly
+    track = recover.voice_note_track(frames, mem0, 0, grid)
+    assert len(track) > 0  # a melodic line was recovered
+    note_at = _expand_track(track, n)
+    idx_at = _expand_track(recover.melody_line(frames, mem0, 0)[0], n)  # per-frame table index
+    checked = 0
+    for f in range(n):
+        if idx_at[f] >= 0 and note_at[f] > 0:  # table-driven frame carrying a note
+            assert grid.freq(int(note_at[f]), 0) == int(oracle[f, 0]) | (int(oracle[f, 1]) << 8)
+            checked += 1
+    assert checked > 1000
 
 
 def _expand_track(track, length):
