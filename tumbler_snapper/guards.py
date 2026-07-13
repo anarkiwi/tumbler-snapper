@@ -62,7 +62,7 @@ def form_guard(
     for form, decisions in zip(forms, branch_frames):
         if form is None:
             continue
-        last = {pc: (flag, taken) for pc, flag, taken in decisions}  # last decision at each pc
+        last = {pc: (flag, taken) for pc, flag, taken, *_ in decisions}  # last decision per pc
         for pc, (flag, taken) in last.items():
             flag_of[pc] = flag
             taken_form[pc][taken][form] += 1
@@ -79,3 +79,21 @@ def form_guard(
         if best is None or coverage > best.coverage:
             best = Guard(reg, pc, flag_of[pc], dict(mapping), coverage)
     return best
+
+
+def guard_condition(
+    op_frames: list[list[Op]], branch_frames: list[list[tuple]], guard: Guard
+) -> tuple | None:
+    """Slice ``guard``'s branch flag back to its symbolic condition.
+
+    Returns ``(condition_expr, pol)``: the comparison that set the flag (over state
+    cells, e.g. ``mem[$5510] == 0``) and the branch polarity, so the form fired each
+    frame is ``guard.forms[int(evaluate(condition) == pol)]``. The condition is sliced
+    from the op stream up to the branch position (:func:`dataflow.reg_expr_at`); it is
+    structurally the same code each frame, so the first covered frame suffices.
+    """
+    for frame, decisions in zip(op_frames, branch_frames):
+        for pc, flag, _taken, pol, op_pos in decisions:
+            if pc == guard.pc:
+                return dataflow.reg_expr_at(frame, op_pos, flag), pol
+    return None

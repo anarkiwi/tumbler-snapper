@@ -49,17 +49,18 @@ primitive by primitive, by p-code recovery:
      recovers the composer's table + index and replays it bit-exactly on the frames
      that form covers. Commando voice-0 frequency → the note table `$5428`/`$5429`,
      exact on all 1426 base-note frames.
-   - **Branch/guard recovery started (`trace.trace_branches`, `guards.py`).** The
-     trace now records every executed branch as `(pc, flag, taken)`; `form_guard`
-     finds the branch whose taken value bijects with a register's driver form. On
-     Commando the pulse-width sweep's guard is the branch at `$5269` (triangle
-     direction), partitioning its two sweep forms.
+   - **Branch/guard recovery done (`trace.trace_branches`, `guards.py`).** The trace
+     records every executed branch as `(pc, flag, taken, pol, op_pos)`; `form_guard`
+     finds the branch whose taken value bijects with a register's driver form, and
+     `guard_condition` slices that flag back to its symbolic condition over state.
+     Commando pulse-width sweep guard = branch at `$5269`, condition `mem[$5510] == 0`
+     (triangle phase), verified to predict the taken direction on every fire over 60s.
    - **Next (to retire the fitters), each verified against the ≥60s oracle:**
-     (a) slice each guard's flag to its symbolic condition and emit the guarded
-     generators (sweep/arp/glide at true period); (b) emit the recovered note table →
-     pitch grid + note track → melody (retires `melody.fit`); (c) emit the instrument
-     records → instruments (retires `notes.fit`); (d) emit the continuous columns as
-     recovered generators (retires `accum.fit`/`filt.fit`). Only then delete them.
+     (a) render the guarded generators (evaluate the condition, pick the form) so the
+     sweep/arp/glide emit at true period; (b) emit the recovered note table → pitch
+     grid + note track → melody (retires `melody.fit`); (c) emit the instrument records
+     → instruments (retires `notes.fit`); (d) emit the continuous columns as recovered
+     generators (retires `accum.fit`/`filt.fit`). Only then delete them.
 
 ---
 

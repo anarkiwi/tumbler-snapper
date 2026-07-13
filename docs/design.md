@@ -156,11 +156,15 @@ The `branchy` effects' guards are recovered from the program too (`guards.py`).
 program's control-flow decisions, which `run_record` exposes as the record's `br`
 terminator (a flag compared to a polarity). `guards.form_guard` finds the branch
 whose *taken* value bijects with a register's driver form: every taken value selects
-exactly one form. On Commando the pulse-width sweep's guard is the single branch at
-`$5269` (the triangle direction) partitioning its two sweep forms -- so the effect
-emits as `if $5269: sweep_up else sweep_down` rather than a list of per-frame forms.
-The remaining work is slicing each guard's flag back to its symbolic condition and
-emitting the guarded generators.
+exactly one form. `guards.guard_condition` then slices that branch's flag back to its **symbolic
+condition** over state cells (`dataflow.reg_expr_at` runs the op stream up to the
+branch position and reads the flag register's producer). On Commando the pulse-width
+sweep's guard is the branch at `$5269`, and its condition recovers as
+`mem[$5510] == 0` (the triangle phase cell) with a polarity -- verified to predict the
+taken direction on every frame the branch fires over 60s. So the effect emits as
+`if mem[$5510] == 0: sweep_up else sweep_down` rather than a list of per-frame forms.
+The remaining work is rendering the guarded generators (evaluate the condition, pick
+the form) and folding them into the IR.
 
 **Pass 4 — Synthesis.** *(Forward-simulator landed: `recover.py`; compact emission
 pending.)* :func:`recover.simulate` forward-evaluates the recovered dataflow (Pass 1
