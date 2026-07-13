@@ -115,6 +115,29 @@ def test_table_generators_recovers_indexed_table():
     assert recover.render_table_generator(frames, mem0, 2) == {}  # not a table generator
 
 
+def test_melody_line_is_a_run_length_note_track_plus_pitch_table():
+    mem0 = bytearray(0x10000)
+    mem0[0x10] = 5
+    mem0[0x4000:0x4004] = bytes([0x11, 0x22, 0x33, 0x44])
+    frames = [_acc_and_table_frame() for _ in range(3)]  # $D403 walks table index 0,1,2
+    track, table = recover.melody_line(frames, mem0, 3)
+    assert track == [(0, 0), (1, 1), (2, 2)]  # index advances each frame -> a note per frame
+    assert table == {0: 0x11, 1: 0x22, 2: 0x33}  # the pitch-table entries the line uses
+    # note track + table reconstruct the register bit-exactly on covered frames
+    rendered = recover.render_table_generator(frames, mem0, 3)
+    assert all(table[i] == rendered[f] for f, i in track)
+    assert recover.melody_line(frames, mem0, 2) == ([], {})  # $D402 is not table-driven
+
+    # an off-form frame (a non-table driver) breaks the line with index -1
+    offform = [
+        Op("LOAD", ("u", 0, 1), (("c", 0x10, 2),), addr=0x10, val=0),
+        Op("STORE", None, (("c", 0xD403, 2), ("u", 0, 1)), addr=0xD403, val=0),
+    ]
+    mixed = [_acc_and_table_frame(), _acc_and_table_frame(), offform]  # table form dominates
+    track, table = recover.melody_line(mixed, mem0, 3)
+    assert track == [(0, 0), (1, 1), (2, -1)] and table == {0: 0x11, 1: 0x22}
+
+
 def _guarded_frame(next_cond):
     # $D402 <- mem[$10] (a form covered by the guard), then mem[$50] <- next_cond
     return [
@@ -151,6 +174,22 @@ def test_commando_note_table_generator():
         rendered = recover.render_table_generator(frames, mem0, reg)
         assert len(rendered) > 1000  # the note table drives most frequency frames
         assert all(v == oracle[f, reg] for f, v in rendered.items())  # bit-exact where it applies
+
+    # the melody line (run-length note track + pitch table) reconstructs freq0 bit-exactly
+    for reg in (0, 1):
+        track, table = recover.melody_line(frames, mem0, reg)
+        assert 0 < len(table) < 256  # a small note LUT (distinct pitches), the tracker's own table
+        base = _expand_track(track, n)
+        covered = [(f, int(i)) for f, i in enumerate(base) if i >= 0]
+        assert len(covered) > 1000 and all(table[i] == oracle[f, reg] for f, i in covered)
+
+
+def _expand_track(track, length):
+    base = np.full(length, -1, np.int64)
+    bounds = [f for f, _ in track] + [length]
+    for k, (start, note) in enumerate(track):
+        base[start : bounds[k + 1]] = note
+    return base
 
 
 @requires_commando
