@@ -124,7 +124,7 @@ def test_report_labels_assignments():
 def test_commando_recurrences():
     from tumbler_snapper import trace  # noqa: PLC0415
 
-    recs = state.recurrences(trace.trace_sid(COMMANDO, 1500))
+    recs = state.recurrences(trace.trace_sid(COMMANDO, 3000))
     assert recs[0x5525].kind == "counter" and recs[0x5525].delta == 1  # up-counter, resets to 0
     dur = recs[0x5513]  # note-duration timer: counts down, reloads from $5517
     assert dur.kind == "counter" and dur.delta == -1

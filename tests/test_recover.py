@@ -94,7 +94,7 @@ def test_simulate_holds_unwritten_registers():
 def test_commando_recovery_is_complete():
     from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
 
-    n = 1500  # >= 30s at 50Hz PAL; short windows hide late-diverging recovery bugs
+    n = 3000  # >= 60s at 50Hz PAL; short windows hide late-diverging recovery bugs
     mem, init, play, _ = parse_psid(COMMANDO)
     grid = recover.simulate(trace_frames(mem, init, play, n), state0(mem, init))
     res = recover.residual_of(grid, grid_from_sid(COMMANDO, n))
