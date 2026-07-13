@@ -202,6 +202,17 @@ residual over 3000 frames (60s)**; validation must span ≥60s of playback, sinc
 windows hide late-diverging bugs (the width bug above was invisible for 4s, then
 diverged on a portamento `(hi−lo)>>1` at frame 817).
 
+Fidelity is validated on **breadth, not one fixture**: `recover.simulate` reproduces a
+diverse set of recent, non-digi, single-SID tunes (16 distinct modern composers, 3600
+frames ≈ 72s each) with zero residual, guarding against silent-grid false PASSes with a
+per-tune activity metric. Breadth is what surfaces the width bugs: a Vincenzo tune
+diverged only in its filter-cutoff register because `simplify` reassociated a **byte**
+index add `(mem + 1) & 0xFF` (zero-extended into a 16-bit address base) as if it were
+16-bit, folding the `+1` into the base and dropping the byte wrap — so `255 + 1` became
+`256` instead of `0`. `_reassoc_add` now only folds a constant across nested adds of the
+**same width**. RSID tunes with IRQ-vector play are a current *capture* coverage gap
+(unsupported), not a recovery gap.
+
 ## Predictive codec (why it stays lossless)
 
 Reconstruction is `actual = render(IR) + delta-coded error` (`residual.py`). The
