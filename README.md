@@ -23,19 +23,16 @@ grid is used **only as an oracle** to prove `render(IR)` is bit-exact. Fitting a
 model to the output instead would guess a redundant, suboptimal structure. See
 [docs/design.md](docs/design.md).
 
-> **Status:** the recovery re-architecture is in progress. The current `compile`
-> path still output-fits (legacy) and is retained as the oracle-side encoder and a
-> baseline; see the design doc's recovery passes and roadmap for the migration.
-
 ## Use
 
 ```bash
-pip install -e .[dev,oracles]
-tumbler-snapper report TUNE.sng --frames 2500
+pip install -e .[dev,sid]
+tumbler-snapper report TUNE.sid --frames 2500
 ```
 
-`report` renders a GoatTracker `.sng` (oracle backend), fits the model, and
-prints baseline-vs-model tokens/frame plus a bit-exactness check.
+Every command drives a real `.sid` through deity-informant's 6510 VM: the register
+grid is the correctness oracle while the IR is recovered from the lifted p-code.
+`report` prints baseline-vs-model tokens/frame plus a bit-exactness check.
 
 ## Status
 
@@ -64,18 +61,17 @@ the rest diverge on NTSC / multispeed cadence, not chip emulation. See
 per-tracker pitch-offset invariant.
 
 ```bash
-tumbler-snapper report     TUNE.sng            # token-efficiency + bit-exactness
-tumbler-snapper compile    TUNE.sng OUT.tsnp   # write a lossless container (.ir/.txt = text IR)
+tumbler-snapper report     TUNE.sid            # token-efficiency + bit-exactness
+tumbler-snapper compile    TUNE.sid OUT.tsnp   # write a lossless container (.ir/.txt = text IR)
 tumbler-snapper play       OUT.tsnp            # reconstruct the grid (container or text IR)
-tumbler-snapper dump       TUNE  -o OUT.txt    # annotated canonical text IR (stdout if no -o)
-tumbler-snapper render     TUNE  OUT.wav       # render the IR to audio (reSIDfp)
-tumbler-snapper transcribe TUNE.sng --voice N  # recovered melody
-tumbler-snapper structure  TUNE.sng            # tempo, patterns, orderlist
+tumbler-snapper dump       TUNE.sid -o OUT.txt # annotated canonical text IR (stdout if no -o)
+tumbler-snapper render     TUNE.sid OUT.wav    # render the IR to audio (reSIDfp)
+tumbler-snapper transcribe TUNE.sid --voice N  # recovered melody
+tumbler-snapper structure  TUNE.sid            # tempo, patterns, orderlist
 ```
 
-`dump` and `render` accept a real `.sid` tune (read through deity-informant's 6510
-VM), a GoatTracker `.sng`, or a pre-captured `.dump.parquet` write log — so the
-whole pipeline runs on arbitrary HVSC tunes, not only tracker exports:
+Every command takes a real `.sid` tune, read through deity-informant's 6510 VM, so
+the whole pipeline runs on arbitrary HVSC tunes, not only tracker exports:
 
 ```bash
 tumbler-snapper dump   Grid_Runner.sid -o Grid_Runner.ir.txt   # read the .sid -> text IR

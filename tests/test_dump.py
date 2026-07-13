@@ -1,15 +1,10 @@
-"""Write-log framing and the reviewable text dump."""
+"""The reviewable text dump of the decompiled song."""
 
 from __future__ import annotations
 
-import importlib.util
-
 import numpy as np
-import pytest
 
-from tumbler_snapper import capture, dump, ir, sidreg
-
-_HAVE_PARQUET = importlib.util.find_spec("pyarrow") is not None
+from tumbler_snapper import dump, ir, sidreg
 
 
 def _gated_grid(length=600):
@@ -29,26 +24,6 @@ def _gated_grid(length=600):
     return grid
 
 
-def test_frame_writes_reconstructs_and_forward_fills():
-    # Two frames, each a burst; reg 0 written only in frame 0 must carry forward.
-    clock = np.array([100, 110, 20000, 20010], np.int64)
-    reg = np.array([0, 1, 1, 2], np.int64)
-    val = np.array([11, 22, 33, 44], np.int64)
-    grid = capture.frame_writes(clock, reg, val, gap=9000)
-    assert grid.shape == (2, sidreg.NREGS)
-    assert grid[0, 0] == 11 and grid[0, 1] == 22
-    assert grid[1, 0] == 11 and grid[1, 1] == 33 and grid[1, 2] == 44
-
-
-def test_frame_writes_ignores_out_of_range_registers():
-    clock = np.array([0, 10], np.int64)
-    reg = np.array([0, 99], np.int64)  # 99 is not a SID register
-    val = np.array([7, 200], np.int64)
-    grid = capture.frame_writes(clock, reg, val)
-    assert grid.shape == (1, sidreg.NREGS)
-    assert grid[0, 0] == 7
-
-
 def test_render_is_annotated_canonical_ir():
     grid = _gated_grid()
     report = dump.render(grid, "unit")
@@ -65,29 +40,6 @@ def test_render_is_annotated_canonical_ir():
     for v in range(sidreg.NVOICES):
         assert f"voice {v}" in report and f"line {v}" in report
     assert np.array_equal(ir.play(report), grid)
-
-
-@pytest.mark.skipif(not _HAVE_PARQUET, reason="pyarrow unavailable")
-def test_grid_from_dump_parquet(tmp_path):
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-
-    # Two frames of chip 0 (a chip-1 write must be ignored), plus a carry-forward.
-    tbl = pa.table(
-        {
-            "clock": [0, 5, 6, 20000, 20001],
-            "reg": [0, 1, 0, 1, 4],
-            "val": [10, 20, 111, 30, 65],
-            "chipno": [0, 0, 1, 0, 0],
-        }
-    )
-    path = tmp_path / "t.dump.parquet"
-    pq.write_table(tbl, path)
-    grid = capture.grid_from_dump(str(path))
-    assert grid.shape == (2, sidreg.NREGS)
-    assert grid[0, 0] == 10 and grid[0, 1] == 20  # chip-1 write to reg 0 ignored
-    assert grid[1, 0] == 10 and grid[1, 1] == 30 and grid[1, 4] == 65
-    assert np.array_equal(capture.grid_from_dump(str(path), frames=1), grid[:1])
 
 
 def test_render_is_compact_and_roundtrips():

@@ -264,8 +264,8 @@ def build_from_trace(
     form the lossless residual (:func:`residual.diff`), the correctness oracle. Since the
     recovered generators reproduce the oracle bit-exact, the residual is as small as
     :func:`build`'s while the model/melody now carry p-code-recovered structure (the exact
-    note table, held/table/categorical column generators). Player-less inputs (register
-    dumps, ``.sng``) that have no trace keep the grid-fitting :func:`build`.
+    note table, held/table/categorical column generators). The grid-fitting :func:`build`
+    survives only as a synthetic-grid helper for the dependency-free tests.
     """
     from . import recover  # noqa: PLC0415 -- .sid recovery path; keep the import local
 

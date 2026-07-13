@@ -276,10 +276,10 @@ def compile_from_trace(op_frames: list, mem0: bytearray, oracle) -> bytes:  # pr
 
 
 def compile(frames) -> bytes:  # pylint: disable=redefined-builtin
-    """Fit a model + melody from a register grid and serialize (player-less grid inputs).
+    """Fit a model + melody from a register grid and serialize it.
 
-    Reuses :func:`ir.build`'s grid-fit for inputs with no lifted p-code (register dumps,
-    ``.sng``); ``.sid`` tunes recover from the program via :func:`compile_from_trace`.
+    A grid-fit convenience over :func:`ir.build`; ``.sid`` tunes recover from the program
+    via :func:`compile_from_trace`. Retained only for the dependency-free container tests.
     """
     from . import ir  # noqa: PLC0415 -- shared grid-fit build
 
