@@ -49,12 +49,17 @@ primitive by primitive, by p-code recovery:
      recovers the composer's table + index and replays it bit-exactly on the frames
      that form covers. Commando voice-0 frequency → the note table `$5428`/`$5429`,
      exact on all 1426 base-note frames.
+   - **Branch/guard recovery started (`trace.trace_branches`, `guards.py`).** The
+     trace now records every executed branch as `(pc, flag, taken)`; `form_guard`
+     finds the branch whose taken value bijects with a register's driver form. On
+     Commando the pulse-width sweep's guard is the branch at `$5269` (triangle
+     direction), partitioning its two sweep forms.
    - **Next (to retire the fitters), each verified against the ≥60s oracle:**
-     (a) recover each `branchy` effect's guard so the sweep/arp/glide emits at its
-     true period; (b) emit the recovered note table → pitch grid + note track →
-     melody (retires `melody.fit`); (c) emit the instrument records → instruments
-     (retires `notes.fit`); (d) emit the continuous columns as recovered generators
-     (retires `accum.fit`/`filt.fit`). Only then delete the output-fitters.
+     (a) slice each guard's flag to its symbolic condition and emit the guarded
+     generators (sweep/arp/glide at true period); (b) emit the recovered note table →
+     pitch grid + note track → melody (retires `melody.fit`); (c) emit the instrument
+     records → instruments (retires `notes.fit`); (d) emit the continuous columns as
+     recovered generators (retires `accum.fit`/`filt.fit`). Only then delete them.
 
 ---
 
