@@ -6,10 +6,11 @@ captured register grid into a container; ``play`` -- the reference player --
 decodes it and reconstructs the exact ``[T, 25]`` SID register grid
 (``predict(model)`` plus the residual), byte-for-byte the input.
 
-Layout (all integers LEB128 varints; signed values zig-zag encoded):
+Layout (all integers LEB128 varints; signed values zig-zag encoded; floats little-endian
+IEEE-754 doubles):
 
     magic "TSNP", version, T
-    7 accumulator columns (pw0..2, freq0..2, cutoff), each tiling [0, T):
+    6 accumulator columns (pw0..2, cutoff, resfilt, modevol), each tiling [0, T):
         n_segments, then per segment: length, value, period, period deltas
     instrument pool: n, then per instrument its attack / loop rows
         (each row = ctrl, ad, sr bytes)
@@ -17,24 +18,26 @@ Layout (all integers LEB128 varints; signed values zig-zag encoded):
     note events: tempo, then a shared pattern pool (n patterns, each n events of
         row-delta / instrument id / release id), then per voice: first frame and
         an orderlist of pattern ids
-    filter track: a shared change-event pool (n patterns, each n (gap, value)
-        events), then n modelled registers, each a register index and orderlist
+    melody: pitch grid (offset, clock, per-voice detune + exceptions) then per voice a
+        note track (run-length grid notes) and its sub-note accumulator layer
     residual (:func:`residual.encode`)
+
+Frequency is recovered as the melody (a per-voice note track over the pitch grid), not a
+raw accumulator column, so ``freq0..2`` are absent and the filter/volume registers
+($D417/$D418) are ordinary ``resfilt``/``modevol`` accumulator columns.
 """
 
 from __future__ import annotations
 
+import struct
+
 import numpy as np
 
-from . import accum, filt, model as modelmod, notes, residual, sidreg
+from . import accum, melody as melodymod, model as modelmod, notes, pitch, residual, sidreg
 
 _MAGIC = b"TSNP"
-_VERSION = 5  # v5: run-length coded CTRL/AD/SR rows in the instrument + release pools
-_COLUMNS = (
-    [f"pw{v}" for v in range(sidreg.NVOICES)]
-    + [f"freq{v}" for v in range(sidreg.NVOICES)]
-    + ["cutoff"]
-)
+_VERSION = 6  # v6: frequency is a melody section; no freq columns or filter track
+_COLUMNS = [f"pw{v}" for v in range(sidreg.NVOICES)] + ["cutoff", "resfilt", "modevol"]
 
 
 class _Writer:
@@ -61,6 +64,10 @@ class _Writer:
     def byte(self, v: int) -> None:
         """Write one raw byte."""
         self.buf.append(v & 0xFF)
+
+    def f64(self, v: float) -> None:
+        """Write a little-endian IEEE-754 double."""
+        self.buf.extend(struct.pack("<d", v))
 
     def raw(self, data: bytes) -> None:
         """Append a raw byte string."""
@@ -95,6 +102,12 @@ class _Reader:
         b = self.buf[self.i]
         self.i += 1
         return b
+
+    def f64(self) -> float:
+        """Read a little-endian IEEE-754 double."""
+        v = struct.unpack_from("<d", self.buf, self.i)[0]
+        self.i += 8
+        return v
 
 
 def _write_segments(w: _Writer, segs: list[accum.Segment]) -> None:
@@ -149,8 +162,8 @@ def _read_rows(r: _Reader) -> tuple:
     return tuple(rows)
 
 
-def encode(model: modelmod.Model, res: residual.Residual) -> bytes:
-    """Serialize a fitted model and its residual to a container byte string."""
+def encode(model: modelmod.Model, res: residual.Residual, melody: melodymod.Melody) -> bytes:
+    """Serialize a recovered model, its melody, and the residual to a container byte string."""
     w = _Writer()
     w.raw(_MAGIC)
     w.byte(_VERSION)
@@ -180,37 +193,46 @@ def encode(model: modelmod.Model, res: residual.Residual) -> bytes:
         w.u(len(orderlist))
         for pid in orderlist:
             w.u(pid)
-    _write_filter(w, model.filter_model)
+    _write_melody(w, melody)
     w.raw(residual.encode(res))
     return bytes(w.buf)
 
 
-def _write_filter(w: _Writer, fm: filt.FilterModel) -> None:
-    w.u(len(fm.patterns))
-    for pat in fm.patterns:
-        w.u(len(pat))
-        for gap, val in pat:
-            w.u(gap)
-            w.byte(val)
-    w.u(len(fm.orderlists))
-    for reg, orderlist in fm.orderlists.items():
-        w.byte(reg)
-        w.u(len(orderlist))
-        for pid in orderlist:
-            w.u(pid)
+def _write_melody(w: _Writer, melody: melodymod.Melody) -> None:
+    grid = melody.grid
+    w.f64(grid.offset)
+    w.f64(grid.clock)
+    for v in range(sidreg.NVOICES):
+        w.f64(grid.detune[v])
+        exc = grid.exceptions[v]
+        w.u(len(exc))
+        for note, val in sorted(exc.items()):
+            w.s(note)
+            w.u(val)
+    for voice in melody.voices:
+        w.u(len(voice.note_track))
+        for frame, note in voice.note_track:
+            w.u(frame)
+            w.s(note)
+        _write_segments(w, voice.layer)
 
 
-def _read_filter(r: _Reader, length: int) -> filt.FilterModel:
-    patterns = [tuple((r.u(), r.byte()) for _ in range(r.u())) for _ in range(r.u())]
-    orderlists = {}
-    for _ in range(r.u()):
-        reg = r.byte()
-        orderlists[reg] = [r.u() for _ in range(r.u())]
-    return filt.FilterModel(length, patterns, orderlists)
+def _read_melody(r: _Reader, length: int) -> melodymod.Melody:
+    offset, clock = r.f64(), r.f64()
+    detune, exceptions = [], []
+    for _ in range(sidreg.NVOICES):
+        detune.append(r.f64())
+        exceptions.append({r.s(): r.u() for _ in range(r.u())})
+    grid = pitch.PitchGrid.from_params(offset, clock, detune, exceptions)
+    tracks = []
+    for _ in range(sidreg.NVOICES):
+        note_track = [(r.u(), r.s()) for _ in range(r.u())]
+        tracks.append((note_track, _read_segments(r)))
+    return melodymod.from_tracks(length, grid, tracks)
 
 
-def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual]:
-    """Parse a container back into a model and residual."""
+def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual, melodymod.Melody]:
+    """Parse a container back into a model, residual, and melody."""
     r = _Reader(blob)
     if bytes(r.buf[:4]) != _MAGIC:
         raise ValueError("not a tumbler-snapper container")
@@ -233,20 +255,40 @@ def decode(blob: bytes) -> tuple[modelmod.Model, residual.Residual]:
         orderlists.append([r.u() for _ in range(r.u())])
     onsets = notes.unpack_onsets(tempo, first_frames, patterns, orderlists)
     note_model = notes.NoteModel(length, pool, releases, onsets)
-    filter_model = _read_filter(r, length)
+    melody = _read_melody(r, length)
     res = residual.decode(r.buf[r.i :])
-    return modelmod.Model(length, columns, note_model, filter_model), res
+    return modelmod.Model(length, columns, note_model, None), res, melody
+
+
+def compile_from_trace(op_frames: list, mem0: bytearray, oracle) -> bytes:  # pragma: no cover
+    """Compile a container from the lifted p-code, residualising against the oracle grid.
+
+    The model and melody are recovered from the program (:func:`recover.model` /
+    :func:`recover.melody` over the traced ``op_frames`` + post-init ``mem0``), never fitted
+    to the capture; the ``oracle`` register grid only forms the lossless residual.
+    """
+    from . import ir, recover  # noqa: PLC0415 -- p-code recovery + shared render
+
+    model = recover.model(op_frames, mem0)
+    melody = recover.melody(op_frames, mem0)
+    res = residual.diff(sidreg.as_frames(oracle), ir.render_grid(model, melody))
+    return encode(model, res, melody)
 
 
 def compile(frames) -> bytes:  # pylint: disable=redefined-builtin
-    """Fit the model, residualize, and serialize a register grid to a container."""
-    frames = sidreg.as_frames(frames)
-    model = modelmod.fit(frames)
-    res = residual.diff(frames, modelmod.predict(model))
-    return encode(model, res)
+    """Fit a model + melody from a register grid and serialize (player-less grid inputs).
+
+    Reuses :func:`ir.build`'s grid-fit for inputs with no lifted p-code (register dumps,
+    ``.sng``); ``.sid`` tunes recover from the program via :func:`compile_from_trace`.
+    """
+    from . import ir  # noqa: PLC0415 -- shared grid-fit build
+
+    return encode(*ir.build(frames))
 
 
 def play(blob: bytes) -> np.ndarray:
     """Reference player: reconstruct the exact ``[T, 25]`` register grid."""
-    model, res = decode(blob)
-    return residual.apply(modelmod.predict(model), res)
+    from . import ir  # noqa: PLC0415 -- shared model+melody render
+
+    model, res, melody = decode(blob)
+    return residual.apply(ir.render_grid(model, melody), res)

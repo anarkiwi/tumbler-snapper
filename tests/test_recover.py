@@ -474,6 +474,12 @@ def test_commando_recovery_is_complete(commando_recovery):
     assert built[1].n_changepoints == ir.build(oracle)[1].n_changepoints  # as compact as grid build
     assert built[2].grid.clock == pitch.PAL_CLOCK  # melody carries the recovered p-code note grid
 
+    # the p-code-only binary container round-trips to the oracle bit-exact
+    from tumbler_snapper import container  # noqa: PLC0415
+
+    blob = container.compile_from_trace(frames, mem0, oracle)
+    assert np.array_equal(container.play(blob), sidreg.as_frames(oracle))
+
     # held/unwritten columns recover as compact constants, bit-exact vs the oracle
     latched = sidreg.latch(oracle)
     consts = {r: recover.constant_generator(frames, mem0, r) for r in range(sidreg.NREGS)}

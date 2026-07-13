@@ -89,9 +89,8 @@ def test_arpeggio_note_track_roundtrips():
 
 def test_matches_binary_container():
     grid = _structured_grid()
-    assert np.array_equal(
-        ir.play(ir.emit(*ir.build(grid))), container.play(container.compile(grid))
-    )
+    built = ir.build(grid)  # same model/melody/residual feeds both codecs
+    assert np.array_equal(ir.play(ir.emit(*built)), container.play(container.encode(*built)))
 
 
 def test_run_length_rows():
