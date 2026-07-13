@@ -205,22 +205,35 @@ def _vibrato(freq: np.ndarray, base_freq: np.ndarray) -> tuple[int, int] | None:
     return p, depth
 
 
-def fit(frames: np.ndarray) -> Melody:
-    """Recover the pitch grid and per-voice note tracks, arpeggios, and vibrato."""
-    frames = sidreg.as_frames(frames)
-    freq = sidreg.freq_words(frames).astype(np.int64)
-    per_voice_segs = [accum.fit(freq[:, v]) for v in range(sidreg.NVOICES)]
+def seed_grid(freq: np.ndarray, extra: list[list[int]] | None = None) -> pitch.PitchGrid:
+    """Build the augmented pitch grid from a per-voice ``[T, NVOICES]`` freq array.
+
+    Seeds the tuning offset/clock/detune from the sustained on-grid notes of the freq
+    series -- plus any exact note-table values supplied per voice in ``extra`` -- then
+    augments each voice's table with every note the series visits. Shared by
+    :func:`fit` (freq from the oracle) and :func:`recover.melody` (freq from ``simulate``
+    with ``extra`` the exact p-code note table); for recovery both sources are
+    program-derived, so the seed never reads the oracle.
+    """
     sustained = [
         [
             s.value
-            for s in per_voice_segs[v]
+            for s in accum.fit(freq[:, v])
             if s.value > 0 and s.length >= _MIN_SUSTAIN and (not s.deltas or set(s.deltas) == {0})
         ]
         for v in range(sidreg.NVOICES)
     ]
+    if extra:
+        for v in range(sidreg.NVOICES):
+            sustained[v] = sustained[v] + list(extra[v])
     seed = pitch.build_grid(sustained)  # offset + clock from stable notes
-    grid = pitch.PitchGrid(seed.offset, seed.clock, _augment_tables(freq, seed))
-    return from_freq(freq, grid)
+    return pitch.PitchGrid(seed.offset, seed.clock, _augment_tables(freq, seed))
+
+
+def fit(frames: np.ndarray) -> Melody:
+    """Recover the pitch grid and per-voice note tracks, arpeggios, and vibrato."""
+    freq = sidreg.freq_words(sidreg.as_frames(frames)).astype(np.int64)
+    return from_freq(freq, seed_grid(freq))
 
 
 def from_freq(freq: np.ndarray, grid: pitch.PitchGrid) -> Melody:

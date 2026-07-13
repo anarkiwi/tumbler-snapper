@@ -13,10 +13,11 @@ play address to trace per frame), a front-end coverage gap, not a recovery gap.
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 from conftest import hvsc_tune
 
-from tumbler_snapper import recover, trace
+from tumbler_snapper import melody, recover, sidreg, trace
 from tumbler_snapper.capture import grid_from_sid, parse_psid
 
 N = 3000  # >= 60s at 50Hz PAL; short windows hide late-diverging recovery bugs
@@ -42,3 +43,14 @@ def test_recover_simulate_is_bit_exact(relpath):
     assert int((oracle[1:] != oracle[:-1]).any(axis=1).sum()) > N // 2
     res = recover.residual_of(recover.simulate(frames, mem0), oracle)
     assert res.n_changepoints == 0  # recovered generators reproduce the oracle exactly
+
+    # recover.melody re-expresses the FREQ voices from p-code (grid + note tracks + layers)
+    mel = recover.melody(frames, mem0)
+    pred = melody.predict(mel)
+    for v in range(sidreg.NVOICES):
+        for off in (sidreg.FREQ_LO, sidreg.FREQ_HI):
+            reg = sidreg.voice_reg(v, off)
+            assert np.array_equal(pred[:, reg], oracle[:, reg])  # FREQ bit-exact vs oracle
+    # a note vocabulary is recovered from p-code for every (melodic) corpus tune, incl.
+    # cell-copy/shadow voices whose note table is not a direct register read
+    assert sum(len(t) for t in mel.grid.tables) > 0
