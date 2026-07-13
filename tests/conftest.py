@@ -14,7 +14,17 @@ import os
 import pytest
 
 HAVE_VM = importlib.util.find_spec("deity_informant") is not None
-COMMANDO = "/scratch/preframr/hvsc/C64Music/MUSICIANS/H/Hubbard_Rob/Commando.sid"
+HVSC = "/scratch/preframr/hvsc/C64Music/MUSICIANS/"
+COMMANDO = HVSC + "H/Hubbard_Rob/Commando.sid"
+
+
+def hvsc_tune(relpath: str) -> str:
+    """Resolve an HVSC-relative ``.sid`` path, skipping if the VM or tune is absent."""
+    path = HVSC + relpath
+    if not (HAVE_VM and os.path.exists(path)):
+        pytest.skip(f"VM/tune unavailable: {relpath}")
+    return path
+
 
 requires_vm = pytest.mark.skipif(not HAVE_VM, reason="deity-informant VM unavailable")
 requires_commando = pytest.mark.skipif(

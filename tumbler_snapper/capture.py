@@ -143,6 +143,12 @@ def grid_from_sid(path: str, frames: int, subtune: int = 0) -> np.ndarray:  # pr
     Loads the PSID/RSID image, runs ``init`` once (accumulator = sub-tune) and
     ``play`` per frame, snapshotting ``$D400..$D418`` after each call -- the real
     front end, so the pipeline runs on any tune rather than a tracker export.
+
+    **Limitation:** requires an explicit play address to call once per frame. RSID
+    tunes that install their own IRQ vectors and leave the header play address zero
+    are unsupported (``ValueError``) -- there is no single per-frame entry point to
+    trace. This is a front-end coverage gap, not a recovery gap; PSID tunes and RSID
+    tunes with an explicit play address are handled.
     """
     from deity_informant import PcodeVM, lift, run_sub  # noqa: PLC0415 - optional VM dep
 
