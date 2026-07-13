@@ -9,7 +9,7 @@ description = "Decompile SID register streams into a universal accumulator/table
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
-dependencies = ["numpy>=1.23"]
+dependencies = ["numpy>=1.23", "lark>=1.1"]
 
 [project.optional-dependencies]
 # Reference tracker backends used as capture oracles and validation ground truth.

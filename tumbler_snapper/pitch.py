@@ -61,6 +61,11 @@ def note_name(midi: int) -> str:
     return f"{_NAMES[midi % 12]}{midi // 12 - 1}"
 
 
+def name_to_note(name: str) -> int:
+    """Inverse of :func:`note_name`: a tracker-style name -> grid MIDI note."""
+    return (int(name[2:]) + 1) * 12 + _NAMES.index(name[:2])
+
+
 def note_freq(note: int, offset: float, clock: float) -> int:
     """Global A440 / 12-TET register value for a grid note -- the shared pitch table.
 
@@ -115,6 +120,14 @@ class PitchGrid:
 
     def __post_init__(self) -> None:
         self.detune, self.exceptions = _factor(self.tables, self.offset, self.clock)
+
+    @classmethod
+    def from_params(cls, offset, clock, detune, exceptions) -> "PitchGrid":
+        """Build a grid straight from its serialized parameters (bypassing table fitting)."""
+        grid = cls(offset, clock, [{} for _ in detune])
+        grid.detune = list(detune)
+        grid.exceptions = [dict(e) for e in exceptions]
+        return grid
 
     def freq(self, note: int, voice: int) -> int:
         """Exact register value for a grid note on a voice: formula + detune, or exception."""

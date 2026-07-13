@@ -7,50 +7,178 @@ from two primitives — **bounded accumulators** and **clock-indexed table
 generators** — that replays to the exact same SID register stream. Target
 efficiency: fewer than one token per frame of music.
 
-## Input
+## The recovery principle (read the program, not its output)
 
-deity-informant is the lower layer: a cycle-exact 6510 lifter + P-Code VM whose
-output is the byte-exact SID write stream. `capture.grid_from_sid` loads a
-PSID/RSID image (`parse_psid` places the C64 data at its load address), then
-drives the tune's `init` once (the accumulator selects the sub-tune) and `play`
-per frame through the VM (`run_sub`), snapshotting the 25-register grid
-`$D400..$D418` after each call. The snapshot is `sidreg.latch`-normalised to the
-chip's actual latch widths (the pulse-width-high registers keep only 4 bits; the
-CPU's unused upper nibble is discarded, as the chip and sidplayfp both do). That
-grid is the sole input; all musical structure is recovered here.
+A SID tune *is a 6510 program*: an `init` routine and a `play` routine that runs
+once per frame, reading the composer's data tables (notes, instruments,
+wavetables, pulse-width and filter sweeps) and writing the SID registers
+`$D400..$D418`. The generators we want to recover — "pulse width is a bounded
+accumulator stepping ±224 with a triangle bounce", "frequency is note-table[n]",
+"this voice arpeggiates `[0,+12]`" — **exist explicitly in that program**: as data
+tables in memory and as the recurrences the play routine applies to its state each
+frame.
 
-**Oracle validation.** The captured grid is byte-exact to the sidplayfp reglog:
-`pysidtracker.oracle_grid` renders the same `.sid` through the deterministic
-`sidplayfp` trace (the `anarkiwi/sidtrace` container) and `grid_from_sid` matches
-it register-for-register, frame-for-frame over the whole tune (verified on Grid
-Runner, 2500 frames). `capture.grid_from_dump` frames a generic pre-captured
-`(cycle, reg, value)` write log as a secondary front end (see below).
+**Invariant.** Recovery of the IR uses *only the program* — the lifted P-Code, the
+memory image, and the provenance of the program's own computation. The register
+output grid `A[T,25]` is **never fitted to**; it is used *only as an oracle* to
+prove the recovered IR is correct (`render(IR) == A`, bit-for-bit). This is the
+whole difference between decompiling and guessing. Fitting a model to the output
+series reverse-engineers a plausible-but-wrong structure: it shatters the player's
+*one* pulse-width routine into a dozen ad-hoc `wave` segments (redundant, chopped
+at note boundaries the routine doesn't have), invents accumulator periods the
+program never uses, and can never distinguish a genuine data table from a
+coincidence. Reading the program recovers the *actual* generator, once, shared
+across every frame that uses it.
 
-For ground-truth validation we also render known GoatTracker `.sng` /  DefMON
-tunes via pygoattracker / pydefmon (both byte-exact vs sidplayfp), so recovered
-structure can be checked against a known source.
+The recovery must be **automated and general** — it keys off the program's own
+dataflow, so it works on an arbitrary play routine (Rob Hubbard's hand-written
+players, GoatTracker, SidWizard, DefMON, …) with no per-tracker heuristics. It is
+necessarily a **dynamic P-Code analysis**, not static disassembly: SID players use
+self-modifying code, computed/indirect jumps, and illegal opcodes freely, so
+static recovery of arbitrary players is intractable, while tracing the lifted
+P-Code as it executes handles any control flow the program actually takes. See
+[the recovery architecture](#recovery-from-the-p-code-program) below.
 
-A tune already captured to a `(clock, reg, val)` write log is framed by
-`capture.grid_from_dump`: a play call is a burst of writes and consecutive bursts
-are separated by a clock gap near one refresh period, so a new frame begins
-wherever the inter-write gap exceeds a threshold well above intra-burst spacing
-and well below one period; the register file carries forward. This is a generic
-secondary front end for any external capture; the in-process VM (`grid_from_sid`,
-validated byte-exact against sidplayfp above) is the primary path.
+## Input: the program and the oracle
 
-## Predictive codec (why it is lossless)
+deity-informant is the lower layer: a cycle-exact 6510 lifter + P-Code VM. It
+lifts each reached 6502 instruction to Ghidra-style P-Code micro-ops and executes
+them, so both the *program* (the P-Code and the memory image) and the *oracle* (the
+resulting register writes) come from one source. `capture.parse_psid` places the
+PSID/RSID data at its load address; the VM runs `init` once (the accumulator
+selects the sub-tune) and `play` per frame (`run_sub`).
 
-Reconstruction is `actual = model_prediction + delta-coded error`
-(`residual.py`). A model renders a predicted grid `P[T,25]`; the residual stores
-only the per-register change-points of `E = A - P`.
+* **The program** is the recovery input: the P-Code of each executed instruction,
+  the memory image (which holds the composer's tables), and — captured through the
+  VM's per-access `_rd`/`_wr` hooks — the provenance of every load and store (which
+  memory a value came from, which register it went to). This is what the recovery
+  passes read.
+* **The oracle** is the correctness input only: the 25-register grid
+  `$D400..$D418` snapshotted after each `play`, `sidreg.latch`-normalised to the
+  chip's actual latch widths (pulse-width-high keeps 4 bits; the CPU's unused upper
+  nibble is discarded, as the chip and sidplayfp do). The verify pass asserts the
+  recovered IR renders to exactly this grid; nothing in recovery may read it.
 
-* Empty model (`P = 0`): the change-points are exactly the SID write-log — the
-  honest lossless baseline.
-* Perfect model: `E == 0`, zero residual.
+**Oracle validation.** The captured grid is itself byte-exact to the sidplayfp
+reglog: `pysidtracker.oracle_grid` renders the same `.sid` through the
+deterministic `sidplayfp` trace (the `anarkiwi/sidtrace` container) and the VM
+matches it register-for-register, frame-for-frame (verified on Grid Runner, 2500
+frames). For ground-truth *structure* validation we also render known GoatTracker
+`.sng` / DefMON tunes via pygoattracker / pydefmon (both byte-exact vs sidplayfp),
+so recovered tables and generators can be checked against a known source.
+`capture.grid_from_dump` frames a generic pre-captured `(cycle, reg, value)` write
+log as a secondary *oracle* front end (a play call is a burst of writes separated
+from the next by a clock gap near one refresh period; the register file carries
+forward). It provides an oracle grid only — recovery still requires the program.
 
-Losslessness is therefore structural: any model, however weak, round-trips
-bit-exactly, and the residual size is a direct measure of model quality. Model
-work only moves cost out of the residual.
+## Recovery from the p-code program
+
+Recovery is a **multi-pass, trace-directed dataflow decompiler**. Each pass reads
+the program (P-Code, memory, provenance) and hands structure to the next; the
+register grid enters only at the final verify. The passes:
+
+**Pass 0 — Lift & trace (at the P-Code level, not 6502).** *(Landed: `trace.py`.)*
+The lifter has already
+absorbed all 6502 semantics: each instruction is a straight-line list of P-Code
+micro-ops (`INT_ADD`, `INT_AND`, `LOAD`, `STORE`, `COPY`, …) over typed
+**varnodes** — registers (`r`: A/X/Y/SP/flags), unique temporaries (`u`),
+constants (`c`), and memory via `LOAD`/`STORE`. Recovery works entirely at this
+level and **never re-decodes opcodes**; the 6502 instruction is only the *record
+boundary* grouping a step's ops. This is what makes it general — every addressing
+mode, illegal opcode, and flag effect is already normalized into the same ~30
+P-Code ops, so downstream dataflow is one uniform walk.
+
+Execute `init` then `play` per frame under the P-Code VM (concrete execution
+resolves the self-modifying / indirect control flow static disassembly can't), and
+record a **provenance-annotated trace**: the executed sequence of P-Code ops with
+each op's input/output varnodes, plus the memory `LOAD(addr)→value` /
+`STORE(addr)←value` values from the VM's `_rd`/`_wr` hooks (the register/temp
+dataflow lives *inside* the ops, so the memory hooks alone are not enough — the op
+stream is the trace). Executing is not "reading the output": the trace is *how the
+program computes*, not the `$D400` values it produces. `trace.trace_sid` reassembles
+each frame's op stream with memory-resolved `LOAD`/`STORE`; replaying only its
+`STORE $D4xx` values reconstructs the oracle grid bit-exact (Commando, 150 frames),
+confirming the trace is faithful before any slicing.
+
+**Pass 1 — Register drivers (backward slice).** *(Landed: `dataflow.py`.)*
+For each SID-register `STORE` in a
+frame, backward-slice its value varnode through that frame's P-Code op DAG to a
+*source expression* over three kinds of leaf: an immediate constant (`c`), a memory
+cell resolved via a `LOAD` (a table entry or a piece of state), or a value carried
+from a prior frame (persistent RAM, reached by `LOAD`). Recorded `LOAD` values
+resolve memory leaves; the slice itself is pure varnode dataflow. This yields, per
+register per frame, a grounded driver such as `$D402 ← mem[$54EB + p]` or
+`$D403 ← state[$5507]` — derived from the program's ops, with the output value
+never consulted. On Commando this recovers pulse-width lo as one indexed
+instrument-table read, `$D402 ← mem[$5591 + ((mem[$54FE] << 3) & 255)]` while held
+and `$D402 ← (mem[$5597 + idx] & 224) + mem[$5591 + idx]` while swept — the single
+generator that output-fitting had shattered into a dozen redundant `wave` segments.
+
+**Pass 2 — State & tables.** Classify the leaves. RAM cells that are *read and
+written every frame* are the player's **state** (accumulators, sequence pointers);
+contiguous regions indexed by an advancing pointer are **tables** (note tables,
+wavetables, PW/filter LFO tables). Recover each state cell's **recurrence** from
+the store that updates it — `new = old + Δ` with `Δ` an immediate or a table read,
+plus the bound/reset the program applies — *not* from the output series. A single
+`pw += 224`-with-triangle-bounce accumulator (Commando's PW state lives at
+`$5504/$5507/$5513…`, stepping the 12-bit value by a clean ±224) is recovered once,
+as one bounded accumulator, instead of the dozen redundant `wave` segments an
+output-fit produces by chopping the same sweep at unrelated note boundaries.
+
+**Pass 3 — Musical structure.** Trace the sequencer: the order/pattern pointers and
+the row/tempo counter give the arrangement and note-on events; a note-on writes a
+new base frequency and triggers an instrument. The **note table** the play routine
+indexes *is* the pitch grid (recovered exactly, as the composer's own frequency
+table, not fitted); the **wavetable/ADSR tables** are the instruments; the
+**effect routines** (arpeggio cycling note offsets, vibrato/portamento adding an
+LFO/glide to the base) are their own generators — each the program's real data
+structure, shared across every use.
+
+**Pass 4 — IR synthesis.** Emit the recovered generators in the [IR
+language](#canonical-text-ir-irpy): `hold`/`ramp`/`wave` for accumulator/table
+columns, a note track + shared pitch grid for frequency, instruments and note-ons,
+effect layers. Because these are the program's actual structures, the emission
+carries no per-segment redundancy: one routine, one generator, at its true period.
+
+**Pass 5 — Oracle verify.** Render the IR to a grid `P[T,25]` and assert
+`P == A` against the VM's captured grid. A mismatch is a *recovery bug to fix*, not
+a residual to hide behind. The residual (below) remains as the correctness
+mechanism and a fallback for genuinely data-driven, aperiodic writes, but it is not
+where structure is allowed to accumulate.
+
+## Predictive codec (why it stays lossless)
+
+Reconstruction is `actual = render(IR) + delta-coded error` (`residual.py`). The
+IR renders a predicted grid `P[T,25]`; the residual stores only the per-register
+change-points of `E = A - P`.
+
+* Empty IR (`P = 0`): the change-points are exactly the SID write-log — the honest
+  lossless baseline.
+* Correct recovery (`P = A`): `E == 0`, zero residual — the target for every tune.
+
+Losslessness is structural: any IR round-trips bit-exactly, so the residual is a
+safety net and, more importantly, a **verification signal** — a nonzero residual on
+a periodic register means recovery missed a generator, and points at exactly which
+register and frames to debug. Under the recovery principle the residual is not a
+place to move cost *to* (that would be re-fitting the output); it should be empty,
+and where it is not, that is a bug list.
+
+## Representation primitives vs. legacy output-fit
+
+The sections that follow (`accum`, `notes`, `melody`, `filt`, `song`, `factor`)
+define the IR's **representation primitives** — bounded accumulators, instrument
+wavetables, the pitch grid, note tracks, pattern factoring — and they remain the
+target language the recovery passes emit into. Their *current implementations,
+however, fit these primitives to the register-output grid* (`accum.fit` covers a
+series, `melody.fit` decomposes the freq columns, `filt.fit` factors a change
+stream). Under the [recovery principle](#the-recovery-principle-read-the-program-not-its-output)
+that is the **legacy path**: output-fitting is being replaced, primitive by
+primitive, by the [p-code recovery passes](#recovery-from-the-p-code-program) that
+read the same structure from the program. The fitters are retained meanwhile as
+(a) the oracle-side encoder and (b) a baseline to measure recovery against — never
+as the definition of the IR. Read the sections below as *what the primitive is and
+how to serialize it*, with the recovery passes as *where its contents now come
+from*.
 
 ## Bounded accumulators (`accum.py`)
 
@@ -248,16 +376,48 @@ frames are delta-coded. `play` (the reference player) is the exact inverse of
 bytes/frame (consultant 2.06, dojo 1.91, funktest 3.65, cabrinigreen 6.44) --
 up to 12× smaller than the raw 25-byte-per-frame grid, and losslessly playable.
 
-## Reviewable dump (`dump.py`)
+## Canonical text IR (`ir.py`)
 
-`tumbler-snapper dump` composes the model, melody and song layers into one
-human-readable text decompilation for review: a header (frames, tuning offset,
-tempo, tokens/frame, bit-exactness), the deduplicated instrument pool with each
-fragment's `ctrl:ad:sr` rows run-length collapsed, per-column accumulator-segment
-counts, and per voice the orderlist plus a merged note list (frame, A440 note
-name, instrument id, pitch layer). It reconstructs and checks bit-exactness so the
-dump is a faithful view of a lossless decompilation, and accepts either a `.sng`
-tune or a captured `.dump.parquet` write log.
+`ir.py` is the human-readable twin of the binary container: it serializes the
+*same* complete object -- model + residual -- as text, so `ir.emit`/`ir.parse`
+round-trip and `ir.play` reconstructs the `[T, 25]` grid byte-for-byte, exactly as
+`container.encode`/`decode`/`play` do. It is the canonical text form of a
+decompilation: `compile TUNE OUT.ir` writes it, and `play OUT.ir` replays it.
+
+Crucially it speaks the target tracker language rather than dumping bytes, so the
+structure the model recovered is legible:
+
+* **Every continuous register is a generator.** Pulse width, filter cutoff, and the
+  resonance/routing (`$D417`) and mode/volume (`$D418`) registers are emitted as the
+  bounded-accumulator / clock-indexed-table generators that drive them, one op per
+  segment: `hold V xN` (constant), `ramp V +D xN` (linear), or `wave V [ table ] xN`
+  (a run-length-coded periodic increment table). A resonance sweep or volume fade
+  reads as the ramp/wave it is, not a wall of per-frame writes.
+* **Oscillator frequency is the melody.** Each voice is an A440/12-TET *note track*
+  (`@frame NOTE`, first-class note names) plus a sub-note *layer* of BACC/CITG ops
+  (vibrato/portamento), over a shared `pitch` grid (global offset/clock + per-voice
+  detune and table exceptions). `melody.predict` reconstructs the exact 16-bit freq,
+  so pitch is encoded as notes -- transposition and arpeggio are expressible, and the
+  recovered `arp`/`vib` structure is shown on each line.
+* **Instruments** are control+ADSR wavetable rows (`$ctrl:$ad:$sr`, run-length
+  coded); **note-ons** are per-voice `@frame I<instrument> R<release>` gate triggers.
+* The lossless **residual** is a per-register `@frame $value` change list.
+
+The reader is generated from a **formal LALR grammar** (`ir._GRAMMAR`, parsed by
+`lark`) with a `Transformer` that rebuilds the dataclasses -- not ad-hoc string
+splitting -- so the accepted language is exactly what the grammar defines.
+Whitespace is insignificant and `#` starts a comment to end of line, so a file may
+be annotated and still parses to the identical model.
+
+## Annotated dump (`dump.py`)
+
+`tumbler-snapper dump` emits that canonical IR and decorates it with review-only
+`#` comments: a header (frames, tuning offset, tempo, tokens/frame, bit-exactness)
+and, inline on each voice's note-ons, the A440/12-TET note name and pitch layer.
+Because the comments are ignored by the grammar, a dump parses back to the
+identical model and reconstructs the grid bit-exactly -- a canonical IR that also
+reads as a decompilation report. Accepts a `.sid`/`.sng` tune or a `.dump.parquet`
+write log.
 
 ## Audio render (`audio.py`)
 
@@ -287,8 +447,27 @@ also audits the whole codec end to end.
 
 ## Next stages
 
-See [roadmap.md](roadmap.md): the note model is unified (release-as-event, pattern
-factoring folded into the codec) and the global filter switches now compress as a
-categorical track. Remaining: RSID IRQ-vector / multispeed cadence in the SID
-front end, and cycle-exact intra-frame register writes to close the render's
-sub-0.3% timing drift.
+The headline work is the [recovery re-architecture](#recovery-from-the-p-code-program):
+move structure recovery off the output grid and onto the p-code program. Order of
+build-out:
+
+1. **Provenance trace (Pass 0/1).** *Done* — `trace.py` records the memory-resolved
+   P-Code op stream per frame (oracle grid reconstructed bit-exact), and
+   `dataflow.py` back-slices each `$D400..` store to a grounded source expression
+   (Commando PW recovered as one indexed accumulator). Pure additions on top of
+   deity-informant; the oracle grid is unchanged.
+2. **State & table recovery (Pass 2).** Detect per-frame state cells and indexed
+   tables; recover each accumulator's recurrence and each table's base/stride/clock
+   from the program. Replace `accum.fit`-on-output for the continuous columns.
+3. **Note/instrument/effect recovery (Pass 3).** Recover the note table (→ exact
+   pitch grid), wavetable/ADSR tables (→ instruments), and arpeggio/vibrato/porta
+   routines from the sequencer and effect code. Replace `melody.fit` / `notes.fit`
+   on output.
+4. **Verify-only residual (Pass 5).** Drive the residual to empty on recovered
+   tunes; a nonzero residual on a periodic register is a recovery bug, tracked per
+   register/frame.
+
+Each pass is validated against the oracle grid and, where a known source exists
+(GoatTracker/DefMON), against the ground-truth tables. Independently: RSID
+IRQ-vector / multispeed cadence in the front end, and cycle-exact intra-frame
+register writes to close the render's sub-0.3% timing drift.

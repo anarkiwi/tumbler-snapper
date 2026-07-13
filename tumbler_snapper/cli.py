@@ -29,8 +29,10 @@ from pathlib import Path
 
 import numpy as np
 
-from . import audio, capture, container, dump, melody, model, residual, sidreg, song
+from . import audio, capture, container, dump, ir, melody, model, residual, sidreg, song
 from .capture import grid_from_dump, grid_from_sid, grid_from_sng
+
+_TEXT_IR_SUFFIXES = (".txt", ".ir")
 
 
 def cmd_report(args) -> int:
@@ -89,14 +91,21 @@ def cmd_structure(args) -> int:
 
 
 def cmd_compile(args) -> int:
-    """Compile a tune to a .tsnp container and verify bit-exact playback."""
+    """Compile a tune to a .tsnp container (or canonical text IR) and verify playback."""
     frames = _grid_for(args)
-    blob = container.compile(frames)
-    exact = np.array_equal(container.play(blob), frames)
+    if args.out.endswith(_TEXT_IR_SUFFIXES):  # canonical text IR
+        text = ir.emit(*ir.build(frames))
+        blob = text.encode("utf-8")
+        exact = np.array_equal(ir.play(text), frames)
+        kind = "text IR"
+    else:
+        blob = container.compile(frames)
+        exact = np.array_equal(container.play(blob), frames)
+        kind = "container"
     Path(args.out).write_bytes(blob)
     print(f"wrote          : {args.out}")
     print(f"frames         : {len(frames)}")
-    print(f"container      : {len(blob)} bytes ({len(blob) / len(frames):.2f} bytes/frame)")
+    print(f"{kind:<14} : {len(blob)} bytes ({len(blob) / len(frames):.2f} bytes/frame)")
     print(f"bit-exact      : {exact}")
     return 0 if exact else 1
 
@@ -143,8 +152,9 @@ def cmd_render(args) -> int:  # pragma: no cover - reSIDfp render, gated on opti
 
 
 def cmd_play(args) -> int:
-    """Decode a .tsnp container and print the reconstructed $D400.. grid."""
-    grid = container.play(Path(args.container).read_bytes())
+    """Decode a .tsnp container or text IR and print the reconstructed $D400.. grid."""
+    blob = Path(args.container).read_bytes()
+    grid = container.play(blob) if blob[:4] == b"TSNP" else ir.play(blob.decode("utf-8"))
     for f in range(min(args.frames, len(grid))):
         row = " ".join(f"{b:02X}" for b in grid[f])
         print(f"frame {f:4d}: {row}")
@@ -171,14 +181,14 @@ def main(argv=None) -> int:
     p.add_argument("--frames", type=int, default=2500)
     p.add_argument("--subtune", type=int, default=0)
     p.set_defaults(fn=cmd_structure)
-    p = sub.add_parser("compile", help="compile a .sng to a lossless .tsnp container")
+    p = sub.add_parser("compile", help="compile a tune to a .tsnp container or text IR")
     p.add_argument("tune")
-    p.add_argument("out", help="output .tsnp container path")
+    p.add_argument("out", help="output path; .txt/.ir writes canonical text IR, else .tsnp")
     p.add_argument("--frames", type=int, default=2500)
     p.add_argument("--subtune", type=int, default=0)
     p.set_defaults(fn=cmd_compile)
-    p = sub.add_parser("play", help="decode a .tsnp container and dump the $D400.. grid")
-    p.add_argument("container")
+    p = sub.add_parser("play", help="decode a .tsnp container or text IR and dump the $D400.. grid")
+    p.add_argument("container", help=".tsnp container or canonical text IR")
     p.add_argument("--frames", type=int, default=16)
     p.set_defaults(fn=cmd_play)
     p = sub.add_parser("dump", help="reviewable text dump of a decompiled .sid / .sng / .parquet")

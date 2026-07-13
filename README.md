@@ -8,15 +8,24 @@ frame while reconstructing the SID register grid bit-exactly.
 ## Pipeline
 
 ```
-SID tune --(deity-informant 6510 VM)--> per-frame $D400..$D418 grid
-         --(tumbler-snapper compile)--> .tsnp container (model + residual)
-         --(tumbler-snapper play)-----> bit-exact register grid
-         --(tumbler-snapper render)---> WAV (reSIDfp)
+SID tune --(deity-informant 6510 lifter + P-Code VM)--> the program (P-Code + memory + dataflow)
+                                                    \--> the oracle ($D400..$D418 grid, verify only)
+the program --(p-code recovery passes)--------------> IR (bounded accumulators, tables, notes)
+IR          --(tumbler-snapper play)----------------> register grid == oracle (bit-exact)
+IR          --(tumbler-snapper render)--------------> WAV (reSIDfp)
 ```
 
-The model is a predictive codec: a structured model predicts the register grid,
-and a delta-coded residual stores only what it mispredicts, so playback is
-lossless regardless of model quality. See [docs/design.md](docs/design.md).
+**Recovery reads the program, not its output.** A SID tune is a 6510 program; the
+generators — pulse-width accumulators, note/wavetable tables, arpeggio/vibrato
+routines — exist explicitly in its code and data. Recovery derives the IR from the
+lifted P-Code and memory (automated, general to any play routine); the register
+grid is used **only as an oracle** to prove `render(IR)` is bit-exact. Fitting a
+model to the output instead would guess a redundant, suboptimal structure. See
+[docs/design.md](docs/design.md).
+
+> **Status:** the recovery re-architecture is in progress. The current `compile`
+> path still output-fits (legacy) and is retained as the oracle-side encoder and a
+> baseline; see the design doc's recovery passes and roadmap for the migration.
 
 ## Use
 
@@ -35,11 +44,16 @@ model (pulse width, filter cutoff, oscillator frequency), instrument/wavetable
 induction (control + ADSR) with pattern-factored note events, and a categorical
 filter-mode track (`$D417`/`$D418`). Serialized to a run-length-coded bit-packed
 `.tsnp` container with a reference player that replays the exact register grid
-(0.06–6.5 bytes/frame across the corpus, mean 2.6). On
-top, semantic recovery: A440/12-TET pitch-grid melody (`transcribe`) and
-tempo/pattern/orderlist structure (`structure`), a single reviewable text
-decompilation (`dump`), and audio playback (`render`, via reSIDfp). Reads real
-`.sid` tunes directly through deity-informant's 6510 VM.
+(0.06–6.5 bytes/frame across the corpus, mean 2.6). The same decompilation also
+serializes to a **canonical text IR** (`ir.py`) with a formal LALR grammar that
+speaks the tracker language — every continuous register (pulse width, filter
+cutoff, resonance, volume) as a bounded-accumulator/clock-indexed-table generator
+(so filter sweeps read as curves), oscillator frequency as an A440/12-TET note
+track plus vibrato/portamento layer and arpeggio — round-tripping bit-exactly
+through readable text as well as the binary container. On top, semantic recovery:
+melody (`transcribe`) and tempo/pattern/orderlist structure (`structure`), an
+annotated text decompilation (`dump`), and audio playback (`render`, via reSIDfp).
+Reads real `.sid` tunes directly through deity-informant's 6510 VM.
 
 Validated on a diverse 1024-tune HVSC corpus (712 composers): the codec is
 **lossless on all 1024**, and the VM front end is byte-exact to the sidplayfp
@@ -51,9 +65,9 @@ per-tracker pitch-offset invariant.
 
 ```bash
 tumbler-snapper report     TUNE.sng            # token-efficiency + bit-exactness
-tumbler-snapper compile    TUNE.sng OUT.tsnp   # write a lossless container
-tumbler-snapper play       OUT.tsnp            # reconstruct the register grid
-tumbler-snapper dump       TUNE  -o OUT.txt    # reviewable text IR (stdout if no -o)
+tumbler-snapper compile    TUNE.sng OUT.tsnp   # write a lossless container (.ir/.txt = text IR)
+tumbler-snapper play       OUT.tsnp            # reconstruct the grid (container or text IR)
+tumbler-snapper dump       TUNE  -o OUT.txt    # annotated canonical text IR (stdout if no -o)
 tumbler-snapper render     TUNE  OUT.wav       # render the IR to audio (reSIDfp)
 tumbler-snapper transcribe TUNE.sng --voice N  # recovered melody
 tumbler-snapper structure  TUNE.sng            # tempo, patterns, orderlist
