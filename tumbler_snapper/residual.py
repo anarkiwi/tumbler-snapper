@@ -123,6 +123,24 @@ def encode(residual: Residual) -> bytes:
     return bytes(out)
 
 
+def from_points(length: int, entries: list[tuple[int, list[tuple[int, int]]]]) -> Residual:
+    """Build a residual from per-register ``(reg, [(frame_gap, value), ...])`` changes.
+
+    The shared change representation of both codecs (frames delta-coded, values raw);
+    unlisted registers default to no change-points. Inverse of the per-register
+    ``(gap, value)`` emission in :func:`encode` and :mod:`.ir`.
+    """
+    points = [np.empty((0, 2), np.int32) for _ in range(NREGS)]
+    for reg, changes in entries:
+        rows = np.empty((len(changes), 2), np.int32)
+        frame = 0
+        for j, (gap, val) in enumerate(changes):
+            frame += gap
+            rows[j] = (frame, val)
+        points[reg] = rows
+    return Residual(length, points)
+
+
 def decode(buf: bytes) -> Residual:
     """Parse a serialized residual."""
     length, i = _read_uvarint(buf, 0)

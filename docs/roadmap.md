@@ -1,6 +1,37 @@
 # Roadmap
 
-Ordered by payoff against the residual measured in [design.md](design.md).
+**Direction (supersedes the payoff ordering below).** The IR must be recovered from
+the **p-code program**, not fitted to the register output — the output is an oracle
+for correctness only. See design.md's [recovery principle](design.md#the-recovery-principle-read-the-program-not-its-output)
+and [recovery passes](design.md#recovery-from-the-p-code-program). The items below
+(the accumulator/note/pitch/filter models) describe the IR's representation
+primitives and their *legacy output-fit* implementations; they are being replaced,
+primitive by primitive, by p-code recovery:
+
+0. **Recovery re-architecture (in progress, headline work).** Multi-pass,
+   trace-directed dataflow decompiler over deity-informant's lifted P-Code:
+   (0) provenance trace, (1) backward-slice each `$D400..` store to a source
+   expression, (2) recover state accumulators + indexed tables and their
+   recurrences, (3) recover note/instrument/effect structure from the sequencer,
+   (4) synthesize the IR, (5) verify against the oracle grid (residual → empty).
+   Automated and general — keys off the program's dataflow, no per-tracker
+   heuristics; dynamic (handles self-modifying / indirect-jump players static
+   disassembly cannot). Replaces `accum.fit`/`melody.fit`/`notes.fit`/`filt.fit`
+   as the *source* of structure.
+   - **Pass 0 done (`trace.py`).** Per-frame memory-resolved P-Code op stream from
+     the VM's `_rd`/`_wr`/`run_record` hooks; replaying its `$D4xx` stores alone
+     rebuilds the oracle grid bit-exact (Commando, 150 frames).
+   - **Pass 1 done (`dataflow.py`).** Backward-slices each `$D4xx` store to a
+     grounded source expression over constant / memory-leaf / prior-frame leaves.
+     Recovers Commando's pulse width as one indexed instrument-table accumulator
+     (`$D402 ← mem[$5591 + ((mem[$54FE] << 3) & 255)]`), the generator output-fit
+     had shattered into a dozen redundant `wave` segments.
+   - **Next: Pass 2** — fold the per-frame state updates `dataflow` already emits
+     into cross-frame accumulator/table recurrences.
+
+---
+
+Legacy payoff ordering, against the residual measured in [design.md](design.md):
 
 1. **Done — lossless spine + accumulator model.** Predictive residual codec
    (`residual.py`), bounded-accumulator trajectory codec (`accum.py`), model
@@ -104,13 +135,18 @@ Ordered by payoff against the residual measured in [design.md](design.md).
    frames a generic external `(clock, reg, val)` write log as a secondary front
    end. **Pending:** RSID IRQ-vector play (multispeed cadence), PSID `speed` flag.
 
-8. **Reviewable text dump (`dump.py`).** `tumbler-snapper dump` renders one
-   human-readable decompilation -- header (frames, tuning offset, tempo, token
-   efficiency, bit-exactness), the deduplicated instrument pool (fragments
-   run-length collapsed), per-column accumulator-segment counts, and each voice's
-   orderlist plus a merged note list (frame, A440 note name, instrument, pitch
-   layer). Accepts a `.sid` tune, `.sng` tune, or `.dump.parquet` write log;
-   writes to a file with `-o`.
+8. **Canonical text IR (`ir.py`) + annotated dump (`dump.py`).** A complete,
+   round-trippable **text IR** with a formal LALR grammar (`lark`) that speaks the
+   tracker language: every continuous register (pulse width, filter cutoff,
+   resonance/routing `$D417`, mode/volume `$D418`) as a bounded-accumulator/
+   clock-indexed-table generator (`hold`/`ramp`/`wave`), so filter sweeps read as
+   curves; oscillator frequency as a per-voice A440/12-TET **melody** (note track +
+   vibrato/portamento layer + `arp`/`vib`, over a shared `pitch` grid); instruments
+   as `$ctrl:$ad:$sr` rows; note-ons as `@frame I R`; a per-register `@frame $value`
+   residual. `ir.play` reconstructs the grid bit-exactly, like the binary container
+   (`compile OUT.ir` / `play OUT.ir`). `tumbler-snapper dump` emits that IR with a
+   review header and inline A440 note names as `#` comments (ignored by the grammar).
+   Accepts a `.sid`/`.sng` tune or `.dump.parquet` write log; `-o` to file.
 
 9. **Done — audio render (`audio.py`).** `tumbler-snapper render` reconstructs the
    exact register grid from the IR (compile -> container -> play) and feeds it to

@@ -6,9 +6,10 @@ import importlib.util
 import os
 import wave
 
+import numpy as np
 import pytest
 
-from tumbler_snapper import cli, container
+from tumbler_snapper import cli, container, ir
 
 _HAVE_RESID = importlib.util.find_spec("pyresidfp") is not None
 
@@ -56,9 +57,9 @@ def test_dump(capsys):
     rc = cli.main(["dump", _TUNE, "--frames", "600"])
     out = capsys.readouterr().out
     assert rc == 0
-    assert "bit-exact     : True" in out
-    assert "instruments (" in out
-    assert "voice 0:" in out
+    assert "# bit-exact     : True" in out
+    assert "tsnp-ir frames 600" in out
+    assert "voice 0" in out and "column pw0" in out
 
 
 @pytest.mark.skipif(
@@ -69,7 +70,10 @@ def test_dump_to_file(capsys, tmp_path):
     rc = cli.main(["dump", _TUNE, "-o", str(out), "--frames", "600"])
     assert rc == 0
     assert f"wrote {out}" in capsys.readouterr().out
-    assert "tumbler-snapper dump: consultant" in out.read_text(encoding="utf-8")
+    text = out.read_text(encoding="utf-8")
+    assert "# tumbler-snapper dump: consultant" in text
+    frames = cli.grid_from_sng(_TUNE, 600, 0)
+    assert np.array_equal(ir.play(text), frames)  # the dumped IR round-trips bit-exactly
 
 
 @pytest.mark.skipif(
@@ -102,3 +106,19 @@ def test_compile_and_play(capsys, tmp_path):
     dump = capsys.readouterr().out
     assert rc == 0
     assert dump.count("frame") == 2
+
+
+@pytest.mark.skipif(
+    not (_HAVE_ORACLE and os.path.exists(_TUNE)), reason="oracle/fixture unavailable"
+)
+def test_compile_text_ir_and_play(capsys, tmp_path):
+    out = tmp_path / "consultant.ir.txt"
+    rc = cli.main(["compile", _TUNE, str(out), "--frames", "600"])
+    report = capsys.readouterr().out
+    assert rc == 0
+    assert "text IR" in report and "bit-exact      : True" in report
+    frames = cli.grid_from_sng(_TUNE, 600, 0)
+    assert np.array_equal(ir.play(out.read_text(encoding="utf-8")), frames)
+    rc = cli.main(["play", str(out), "--frames", "3"])
+    assert rc == 0
+    assert capsys.readouterr().out.count("frame") == 3

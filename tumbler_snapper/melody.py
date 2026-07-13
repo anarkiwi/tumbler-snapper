@@ -232,6 +232,27 @@ def fit(frames: np.ndarray) -> Melody:
     return Melody(length, grid, voices)
 
 
+def _expand_track(note_track: list[tuple[int, int]], length: int) -> np.ndarray:
+    """Run-length note track -> per-frame base note (inverse of :func:`_track`)."""
+    base = np.zeros(length, np.int64)
+    bounds = [t for t, _ in note_track] + [length]
+    for k, (start, note) in enumerate(note_track):
+        base[start : bounds[k + 1]] = note
+    return base
+
+
+def from_tracks(length: int, grid: pitch.PitchGrid, tracks: list[tuple[list, list]]) -> Melody:
+    """Rebuild a Melody from per-voice ``(note_track, layer)`` -- inverse of the serialized
+    form. Arpeggio/vibrato are re-derived (they are views of the note track + layer)."""
+    voices = []
+    for v, (note_track, layer) in enumerate(tracks):
+        base = _expand_track(note_track, length)
+        base_freq = np.array([grid.freq(int(n), v) if n > 0 else 0 for n in base], np.int64)
+        freq = base_freq + accum.render(layer, length)
+        voices.append(MelodyVoice(note_track, layer, _arp_factor(base), _vibrato(freq, base_freq)))
+    return Melody(length, grid, voices)
+
+
 def _layer_label(seg: accum.Segment, vibrato: tuple[int, int] | None) -> str:
     """Label a layer segment: coherent vibrato, a slow glide, or a discrete jump."""
     if not seg.deltas or set(seg.deltas) == {0}:

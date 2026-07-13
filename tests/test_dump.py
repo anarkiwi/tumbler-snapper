@@ -7,7 +7,7 @@ import importlib.util
 import numpy as np
 import pytest
 
-from tumbler_snapper import capture, dump, sidreg
+from tumbler_snapper import capture, dump, ir, sidreg
 
 _HAVE_PARQUET = importlib.util.find_spec("pyarrow") is not None
 
@@ -49,15 +49,22 @@ def test_frame_writes_ignores_out_of_range_registers():
     assert grid[0, 0] == 7
 
 
-def test_render_is_bit_exact_and_structured():
-    report = dump.render(_gated_grid(), "unit")
-    assert "tumbler-snapper dump: unit" in report
-    assert "bit-exact     : True" in report
+def test_render_is_annotated_canonical_ir():
+    grid = _gated_grid()
+    report = dump.render(grid, "unit")
+    # review-only header comment...
+    assert "# tumbler-snapper dump: unit" in report
+    assert "# bit-exact     : True" in report
     assert "cents from A440" in report
-    assert "instruments (" in report
-    assert "accumulators (" in report
+    # ...wrapping a complete, round-trippable canonical IR that speaks the tracker
+    # language: BACC/CITG generators (incl. filter regs), notes, and a 12-TET melody.
+    assert "tsnp-ir frames" in report and "instruments" in report
+    assert "column pw0" in report and ("hold " in report or "wave " in report)
+    assert "column resfilt" in report and "column modevol" in report
+    assert "pitch offset " in report and "melody" in report
     for v in range(sidreg.NVOICES):
-        assert f"voice {v}:" in report
+        assert f"voice {v}" in report and f"line {v}" in report
+    assert np.array_equal(ir.play(report), grid)
 
 
 @pytest.mark.skipif(not _HAVE_PARQUET, reason="pyarrow unavailable")
@@ -83,10 +90,13 @@ def test_grid_from_dump_parquet(tmp_path):
     assert np.array_equal(capture.grid_from_dump(str(path), frames=1), grid[:1])
 
 
-def test_render_run_length_collapses_repeats():
-    grid = np.zeros((60, sidreg.NREGS), np.uint8)
-    grid[:, sidreg.CTRL] = 0x41  # a long sustained gate -> repeated loop rows
-    grid[0, sidreg.CTRL] = 0x09
+def test_render_is_compact_and_roundtrips():
+    grid = np.zeros((400, sidreg.NREGS), np.uint8)
+    grid[1:, sidreg.CTRL] = 0x41  # gate rises then a long constant hold
+    grid[:, sidreg.AD] = 0x0A
+    grid[:, sidreg.SR] = 0xF0
     grid[:, sidreg.FREQ_HI] = 0x10
     report = dump.render(grid, "rle")
-    assert "x" in report  # a run-length marker such as ``41:00:00x..``
+    # the 399-frame hold is the instrument's period-1 loop, not 399 emitted rows
+    ir_body = report[report.index("tsnp-ir") :]
+    assert len(ir_body) < grid.size and np.array_equal(ir.play(report), grid)
