@@ -55,7 +55,7 @@ def _is_self(e: tuple, addr: int) -> bool:
 
 def _linear_delta(e: tuple, addr: int) -> int | None:
     """Net signed constant added to ``mem[addr]`` in ``e``, or ``None`` if nonlinear."""
-    if e == ("mem", ("const", addr)):
+    if e[0] == "mem" and e[1] == ("const", addr):
         return 0
     if e[0] == "op" and e[1] in ("INT_ADD", "INT_SUB"):
         a, b = e[2]

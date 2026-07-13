@@ -39,8 +39,8 @@ def test_counter_with_reload():
     recs = state.recurrences(frames)
     r = recs[0x10]
     assert r.kind == "counter" and r.delta == -1
-    assert r.step == ("op", "INT_SUB", (("mem", ("const", 0x10)), ("const", 1)))
-    assert r.resets[0][0] == ("mem", ("const", 0x20))  # reload source
+    assert r.step == ("op", "INT_SUB", (("mem", ("const", 0x10), 1), ("const", 1)), 1)
+    assert r.resets[0][0] == ("mem", ("const", 0x20), 1)  # reload source
 
 
 def test_pointer_delta_reassociates():
@@ -58,7 +58,7 @@ def test_pointer_delta_reassociates():
     frames = [inc(0x30, 2) for _ in range(5)] + [inc(0x30, 1) for _ in range(2)]
     r = state.recurrences(frames)[0x30]
     assert r.kind == "counter" and r.delta == 2  # dominant step is +2
-    assert r.resets[0][0] == ("op", "INT_ADD", (("mem", ("const", 0x30)), ("const", 1)))
+    assert r.resets[0][0] == ("op", "INT_ADD", (("mem", ("const", 0x30), 1), ("const", 1)), 1)
 
 
 def test_latch_and_copy_and_table():
@@ -134,5 +134,5 @@ def test_commando_recurrences():
     assert recs[0x5525].kind == "counter" and recs[0x5525].delta == 1  # up-counter, resets to 0
     dur = recs[0x5513]  # note-duration timer: counts down, reloads from $5517
     assert dur.kind == "counter" and dur.delta == -1
-    assert dur.resets[0][0] == ("mem", ("const", 0x5517))
+    assert dur.resets[0][0] == ("mem", ("const", 0x5517), 1)
     assert recs[0x5528].kind == "assign" and recs[0x5528].step == ("const", 255)  # latch
