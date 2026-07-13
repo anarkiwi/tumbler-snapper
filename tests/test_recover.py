@@ -90,6 +90,45 @@ def test_simulate_holds_unwritten_registers():
     assert list(grid[:, sidreg.MODE_VOL]) == [0x0F, 0x0F]  # held from the seed
 
 
+def test_single_table_matches_either_operand_order():
+    idx = ("mem", ("const", 0x11), 1)
+    base_left = ("mem", ("op", "INT_ADD", (("const", 0x4000), idx), 2), 1)
+    base_right = ("mem", ("op", "INT_ADD", (idx, ("const", 0x4000)), 2), 1)
+    assert recover._single_table(base_left) == (0x4000, idx)
+    assert recover._single_table(base_right) == (0x4000, idx)
+    assert recover._single_table(("mem", ("const", 0x50), 1)) is None  # scalar, not indexed
+    assert recover._single_table(("op", "INT_ADD", (idx, idx), 1)) is None  # not a load
+    assert recover._single_table(("mem", ("op", "INT_ADD", (idx, idx), 2), 1)) is None  # no base
+
+
+def test_table_generators_recovers_indexed_table():
+    mem0 = bytearray(0x10000)
+    mem0[0x10] = 5
+    mem0[0x4000:0x4004] = bytes([0x11, 0x22, 0x33, 0x44])
+    frames = [_acc_and_table_frame() for _ in range(3)]
+    gens = recover.table_generators(frames)
+    assert 3 in gens and gens[3][0] == 0x4000 and gens[3][2] == 3  # $D403 = table $4000, 3 frames
+    assert 2 not in gens  # $D402 = mem[$10] accumulator, not a single indexed table
+    assert recover.render_table_generator(frames, mem0, 3) == {0: 0x11, 1: 0x22, 2: 0x33}
+    assert recover.render_table_generator(frames, mem0, 2) == {}  # not a table generator
+
+
+@requires_commando
+def test_commando_note_table_generator():
+    from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
+
+    n = 3000
+    mem, init, play, _ = parse_psid(COMMANDO)
+    frames, mem0 = trace_frames(mem, init, play, n), state0(mem, init)
+    oracle = grid_from_sid(COMMANDO, n)
+    gens = recover.table_generators(frames)
+    assert gens[1][0] == 0x5429 and gens[0][0] == 0x5428  # freq0 hi/lo -> the note table
+    for reg in (0, 1):
+        rendered = recover.render_table_generator(frames, mem0, reg)
+        assert len(rendered) > 1000  # the note table drives most frequency frames
+        assert all(v == oracle[f, reg] for f, v in rendered.items())  # bit-exact where it applies
+
+
 @requires_commando
 def test_commando_recovery_is_complete():
     from tumbler_snapper.capture import grid_from_sid, parse_psid  # noqa: PLC0415
