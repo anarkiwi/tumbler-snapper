@@ -114,7 +114,7 @@ def _run_capture(path, song, frames):
     reset_regs = bool(h.play_address)
     init_regs = play_entry_reg(vm.idle_reg) if reset_regs else list(vm.reg)
     programs, index, trace = [], {}, []
-    ground = [[(r, v) for r, v in init_sid]]
+    ground = [[tuple(rv) for rv in init_sid]]
     played = 0
     for _f in range(frames):
         vm.begin_frame()
