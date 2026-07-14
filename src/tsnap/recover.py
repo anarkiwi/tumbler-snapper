@@ -245,7 +245,9 @@ class SymVM(PcodeVM):
         self.suni = {}
         self.sdefs = {}
         self.F = {}
+        self.Fsz = {}
         self.frame_writes = {}
+        self.sid_seq = []
         self.hw = {}
         self.img = (0, 0)
         self.image_writes = set()
@@ -272,7 +274,9 @@ class SymVM(PcodeVM):
         self.suni = {}
         self.sdefs = {}
         self.F = {}
+        self.Fsz = {}
         self.frame_writes = {}
+        self.sid_seq = []
 
     def _sread(self, vn):
         sp, off, sz = vn
@@ -335,8 +339,11 @@ class SymVM(PcodeVM):
                     expr = simplify(self._sread(ins[1]))
                     self.sdefs[addr] = expr
                     self.F[addr] = expr
+                    self.Fsz[addr] = sz
                 if SID <= addr <= 0xD418:
                     self.frame_writes[addr] = rv(ins[1]) & 0xFF
+                    if sym:
+                        self.sid_seq.append((addr, expr))
                 continue
             if mn == "LOAD":
                 addr, sz = rv(ins[0]), out[2]
