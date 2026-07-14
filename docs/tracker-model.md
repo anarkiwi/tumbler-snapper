@@ -125,6 +125,12 @@ generator against current state, write registers. This must equal recover's
 per-frame generator evaluation, which equals the `sidplayfp`/`sidtrace` oracle.
 Byte-exact on all three = lossless.
 
+The generator-level round-trip is implemented and proven: see
+[`docs/irvm.md`](irvm.md) (`tsnap.irvm`) — a self-contained generator-IR whose
+replay reconstructs the ordered SID write stream **byte-exact against the deity
+`PcodeVM` log on all 32 fixtures** (intra-frame multi-writes included). The
+tracker-semantics replay above is the next layer over that proven substrate.
+
 ## GT ↔ TT-IR ↔ defMON mapping (summary)
 
 | Concept | GoatTracker | TT-IR | defMON |

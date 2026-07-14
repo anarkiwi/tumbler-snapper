@@ -238,6 +238,15 @@ def handler_sid(tmp_path):
     return _write(tmp_path, "handler.sid", data)
 
 
+@pytest.fixture
+def digi_sid(tmp_path):
+    """Play routine that writes ``$D418`` eight times per frame (intra-frame repeats)."""
+    load = 0x4000
+    init_a, play_a, segs = _digi_image(load)
+    data = assemble(segs, load=load, init=init_a, play=play_a)
+    return _write(tmp_path, "digi.sid", data)
+
+
 # Cadence probes: init writes different interrupt hardware.
 
 _C_LOAD = 0x3000
