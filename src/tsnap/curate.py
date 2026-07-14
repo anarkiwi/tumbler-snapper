@@ -282,6 +282,7 @@ def _render_manifest(chosen):
         lines.append(f"        {'composer'!r}: {r['composer']!r},")
         lines.append(f"        {'songs'!r}: {r['songs']!r},")
         lines.append(f"        {'start_song'!r}: {r['start_song']!r},")
+        lines.append(f"        {'song'!r}: {r['song']!r},")
         lines.append(f"        {'score'!r}: {r['score']!r},")
         lines.append("    },")
     lines.append("]")

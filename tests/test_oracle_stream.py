@@ -42,19 +42,14 @@ def _resolve(relpath):
     return resolve_tune(relpath, cache_dir=_CACHE, local_env="HVSC")
 
 
-# deity PcodeVM and libsidplayfp agree on these ordered streams (see docs/survey.md).
-_AGREE = ("Boompah", "Degree", "Sc00ter", "Kate_and_Martin")
-_AGREE_FX = [fx for fx in FIXTURES if Path(fx["relpath"]).stem in _AGREE]
-
-
 @pytest.mark.oracle
-@pytest.mark.parametrize("fx", _AGREE_FX, ids=lambda fx: fx["relpath"])
+@pytest.mark.parametrize("fx", FIXTURES, ids=lambda fx: fx["relpath"])
 def test_oracle_change_stream_byte_exact(fx, tmp_path):
     """IR replay's register-change stream matches the docker-cp sidtrace oracle."""
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")
-    grouped = irvm.replay_frames(irvm.serialize(str(path), fx["start_song"], 200))
+    grouped = irvm.replay_frames(irvm.serialize(str(path), fx["song"], 200))
     mine = oracle.change_stream([(r, v) for fr in grouped for r, v in fr])
     try:
         csv = oracle.render_sidtrace(str(path), tmp_path / "t.csv.zst", seconds=6)

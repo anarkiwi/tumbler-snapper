@@ -164,7 +164,7 @@ def test_hvsc_roundtrip_byte_exact(fx):
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")
-    r = irvm.roundtrip(str(path), fx["start_song"], _HVSC_FRAMES)
+    r = irvm.roundtrip(str(path), fx["song"], _HVSC_FRAMES)
     assert r["match"], f"{fx['relpath']} diverged at {r['diverge'][0] if r['diverge'] else '?'}"
 
 

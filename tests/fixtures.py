@@ -15,6 +15,7 @@ FIXTURES = [
         "composer": "Birdrun",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 2.127,
     },
     {
@@ -24,6 +25,7 @@ FIXTURES = [
         "composer": "Fern_Eric",
         "songs": 6,
         "start_song": 1,
+        "song": 0,
         "score": 1.9127,
     },
     {
@@ -33,6 +35,7 @@ FIXTURES = [
         "composer": "Picrard",
         "songs": 5,
         "start_song": 1,
+        "song": 0,
         "score": 1.7945,
     },
     {
@@ -42,6 +45,7 @@ FIXTURES = [
         "composer": "Pezac",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.7714,
     },
     {
@@ -51,6 +55,7 @@ FIXTURES = [
         "composer": "Dr_Piotr",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.7359,
     },
     {
@@ -60,6 +65,7 @@ FIXTURES = [
         "composer": "Bergstrand_Peter",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.7294,
     },
     {
@@ -69,6 +75,7 @@ FIXTURES = [
         "composer": "Latifah",
         "songs": 2,
         "start_song": 1,
+        "song": 0,
         "score": 1.7099,
     },
     {
@@ -78,6 +85,7 @@ FIXTURES = [
         "composer": "Tonal_Kaos",
         "songs": 4,
         "start_song": 1,
+        "song": 0,
         "score": 1.6856,
     },
     {
@@ -87,6 +95,7 @@ FIXTURES = [
         "composer": "Digger",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.6757,
     },
     {
@@ -96,6 +105,7 @@ FIXTURES = [
         "composer": "Van_Damme",
         "songs": 4,
         "start_song": 1,
+        "song": 0,
         "score": 1.6716,
     },
     {
@@ -105,6 +115,7 @@ FIXTURES = [
         "composer": "Nitrofurano",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.669,
     },
     {
@@ -114,6 +125,7 @@ FIXTURES = [
         "composer": "Ilkke",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.6644,
     },
     {
@@ -123,6 +135,7 @@ FIXTURES = [
         "composer": "Henne",
         "songs": 7,
         "start_song": 1,
+        "song": 0,
         "score": 1.6,
     },
     {
@@ -132,6 +145,7 @@ FIXTURES = [
         "composer": "Twynn",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5936,
     },
     {
@@ -141,6 +155,7 @@ FIXTURES = [
         "composer": "Cerror",
         "songs": 12,
         "start_song": 1,
+        "song": 0,
         "score": 1.5747,
     },
     {
@@ -150,6 +165,7 @@ FIXTURES = [
         "composer": "Vedder",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5725,
     },
     {
@@ -159,6 +175,7 @@ FIXTURES = [
         "composer": "Slyspy",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5668,
     },
     {
@@ -168,6 +185,7 @@ FIXTURES = [
         "composer": "Geijer_Leif",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5538,
     },
     {
@@ -177,6 +195,7 @@ FIXTURES = [
         "composer": "YQN",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5487,
     },
     {
@@ -186,6 +205,7 @@ FIXTURES = [
         "composer": "Remorhaz",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5369,
     },
     {
@@ -195,6 +215,7 @@ FIXTURES = [
         "composer": "Insider",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5256,
     },
     {
@@ -204,6 +225,7 @@ FIXTURES = [
         "composer": "Misfit",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.525,
     },
     {
@@ -213,6 +235,7 @@ FIXTURES = [
         "composer": "Honey",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5226,
     },
     {
@@ -222,6 +245,7 @@ FIXTURES = [
         "composer": "Weinert_Stefan",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.5086,
     },
     {
@@ -231,6 +255,7 @@ FIXTURES = [
         "composer": "Rei8bit",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.4991,
     },
     {
@@ -240,6 +265,7 @@ FIXTURES = [
         "composer": "Cargo",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.4949,
     },
     {
@@ -249,6 +275,7 @@ FIXTURES = [
         "composer": "Almered_Per",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.4894,
     },
     {
@@ -258,6 +285,7 @@ FIXTURES = [
         "composer": "Laxity",
         "songs": 11,
         "start_song": 1,
+        "song": 0,
         "score": 1.4887,
     },
     {
@@ -267,6 +295,7 @@ FIXTURES = [
         "composer": "Chotaire",
         "songs": 3,
         "start_song": 1,
+        "song": 0,
         "score": 1.488,
     },
     {
@@ -276,6 +305,7 @@ FIXTURES = [
         "composer": "Dya",
         "songs": 13,
         "start_song": 1,
+        "song": 0,
         "score": 1.4858,
     },
     {
@@ -285,6 +315,7 @@ FIXTURES = [
         "composer": "5bot",
         "songs": 1,
         "start_song": 1,
+        "song": 0,
         "score": 1.4839,
     },
     {
@@ -294,6 +325,7 @@ FIXTURES = [
         "composer": "Derek",
         "songs": 2,
         "start_song": 1,
+        "song": 0,
         "score": 1.4686,
     },
 ]

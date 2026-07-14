@@ -17,7 +17,9 @@ trees serialize as nested lists):
 |-------|---------|
 | `frames` | frames actually played |
 | `init_mem` | post-init 64 KiB image as `[[addr, hex], ...]` nonzero runs |
-| `init_regs` | 16 entry CPU registers |
+| `init_regs` | 16 frame-entry CPU registers (play-entry state for play-address tunes) |
+| `reset_regs` | true when each frame re-enters from `init_regs` (play-address tunes) vs threading (handler tunes) |
+| `init_sid` | ordered `[[reg_index, value]]` SID writes the INIT routine emits, replayed as a preamble |
 | `programs` | distinct per-frame **frame programs** (deduped) |
 | `trace` | per-frame index into `programs` (the driving trace) |
 
@@ -39,13 +41,16 @@ collapse to one program, so `trace` is a short list of small integers.
 
 ## Replay VM (self-contained)
 
-`replay(ir) -> [(reg_index, value), ...]` starts from `init_mem` / `init_regs`
-and, per frame:
+`replay(ir) -> [(reg_index, value), ...]` starts from `init_mem` / `init_regs`,
+emits the `init_sid` preamble (the INIT routine's SID writes), and, per frame:
 
 1. evaluates the frame program's `sid` generators against the frame-entry memory
    snapshot and emits them in order;
 2. applies the `trans` generators (size-aware) to evolve the flat memory;
-3. evaluates the `regs` generators to evolve the CPU registers.
+3. for handler tunes, evaluates the `regs` generators to evolve the CPU
+   registers; for play-address tunes, registers reset to `init_regs` each frame —
+   sidplayfp enters `play` via IRQ and restores the pre-IRQ status via `RTI`, so
+   nothing leaks between frames (only memory persists).
 
 Because `recover`'s SSA copy-propagation expresses every generator over
 frame-entry state, no generator reads a cell written earlier in the same frame,
@@ -72,9 +77,11 @@ behavior is unchanged.
 ## Results
 
 Byte-exact over the full 32-tune fixture manifest (`tests/fixtures.py`) at 400
-frames, and confirmed at 3000 frames on SMC / shadow-copy / multi-write tunes:
+frames, and confirmed at 3000 frames on SMC / shadow-copy / multi-write tunes,
+against **both** the deity `PcodeVM` write log **and** the independent
+`sidplayfp`/`sidtrace` oracle (`tests/test_oracle_stream.py`):
 
-**32 / 32 byte-exact.**
+**32 / 32 byte-exact vs deity and vs sidtrace.**
 
 ## Intra-frame multi-write: gap confronted, then closed
 

@@ -30,7 +30,7 @@ def test_oracle_cadence_matches(fx):
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")
-    cad = R.discover_cadence(str(path), fx["start_song"])
+    cad = R.discover_cadence(str(path), fx["song"])
     try:
         oracle = R._oracle_cadence(str(path), cad["clock"])
     except Exception as exc:  # pylint: disable=broad-except

@@ -13,6 +13,7 @@ from tsnap.recover import (
     SID,
     setup,
     frame_driver,
+    play_entry_reg,
     smc_operands,
 )
 
@@ -105,12 +106,15 @@ def _run_capture(path, song, frames):
     """Drive recover's SymVM, capturing the IR and the deity ordered write log."""
     smc = smc_operands(path, song, min(frames, 512))
     vm, h, cache = setup(path, song)
+    init_sid = [[r, v & 0xFF] for r, v in vm.init_sid]
     vm.smc = smc
     vm.wlog = []
     advance = frame_driver(vm, h, cache)
     init_mem = _nonzero_runs(vm.mem)
-    init_regs = list(vm.reg)
-    programs, index, trace, ground = [], {}, [], []
+    reset_regs = bool(h.play_address)
+    init_regs = play_entry_reg(vm.idle_reg) if reset_regs else list(vm.reg)
+    programs, index, trace = [], {}, []
+    ground = [[(r, v) for r, v in init_sid]]
     played = 0
     for _f in range(frames):
         vm.begin_frame()
@@ -133,6 +137,8 @@ def _run_capture(path, song, frames):
         "frames": played,
         "init_mem": init_mem,
         "init_regs": init_regs,
+        "reset_regs": reset_regs,
+        "init_sid": init_sid,
         "programs": [
             {
                 "trans": [[a, _ser(e), s] for a, e, s in trans],
@@ -154,29 +160,42 @@ def serialize(path, song, frames):
 
 def _run_ir(ir, emit):
     mem = _load_image(ir["init_mem"])
-    regs = list(ir["init_regs"])
+    entry = ir["init_regs"]
+    reset = ir.get("reset_regs", False)
+    regs = list(entry)
     programs, trace = ir["programs"], ir["trace"]
     for pi in trace:
         pr = programs[pi]
+        if reset:
+            regs = list(entry)
         snap = bytes(mem)
         emit(pr, snap, regs)
         for addr, e, sz in pr["trans"]:
             v = _eval(e, snap, regs)
             for i in range(sz):
                 mem[(addr + i) & 0xFFFF] = (v >> (8 * i)) & 0xFF
-        regs = [_eval(e, snap, regs) for e in pr["regs"]]
+        if not reset:
+            regs = [_eval(e, snap, regs) for e in pr["regs"]]
+
+
+def _init_writes(ir):
+    return [(r, v & 0xFF) for r, v in ir.get("init_sid", [])]
 
 
 def replay(ir):
-    """Reconstruct the flat ordered ``(reg_index, value)`` write stream from the IR."""
-    writes = []
+    """Reconstruct the flat ordered ``(reg_index, value)`` write stream from the IR.
+
+    The init-time SID writes (concrete, emitted during the tune's INIT routine)
+    lead the stream, followed by the per-frame play writes.
+    """
+    writes = _init_writes(ir)
     _run_ir(ir, lambda pr, m, r: writes.extend((ri, _eval(e, m, r) & 0xFF) for ri, e in pr["sid"]))
     return writes
 
 
 def replay_frames(ir):
-    """Replay, returning writes grouped per frame (for divergence diagnostics)."""
-    out = []
+    """Replay, grouped per frame; leading group is the INIT-time SID writes."""
+    out = [_init_writes(ir)]
     _run_ir(ir, lambda pr, m, r: out.append([(ri, _eval(e, m, r) & 0xFF) for ri, e in pr["sid"]]))
     return out
 
