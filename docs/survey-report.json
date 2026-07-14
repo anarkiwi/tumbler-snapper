@@ -1,0 +1,2800 @@
+{
+ "report": {
+  "counts": {
+   "lossless": 157,
+   "faithful-not-roundtripped": 2,
+   "cadence-only": 25,
+   "unsupported": 30,
+   "excluded-digi": 0,
+   "excluded-multisid": 86
+  },
+  "lossless_rate": 0.7336,
+  "tokens_per_frame": {
+   "n": 184,
+   "min": 0.098,
+   "median": 16.456,
+   "max": 105.268,
+   "frac_lt_1": 0.0435
+  },
+  "taxonomy": {
+   "cadence-only:value-mismatch": 25,
+   "unsupported:setup:RuntimeError": 18,
+   "unsupported:timeout": 11,
+   "faithful-not-roundtripped:value-mismatch": 2,
+   "unsupported:error:RuntimeError": 1
+  },
+  "oracle_cadence_agreement": 0.9511,
+  "oracle_cadence_n": 184,
+  "sample": 300,
+  "frames": 500,
+  "jobs": 72,
+  "elapsed": 106.0
+ },
+ "records": [
+  {
+   "relpath": "MUSICIANS/0-9/20CC/Greystorm.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/0-9/4753_Softcopy/A_New_Love.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/A/A-Man/Falling_Rain.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/A/ASL/Rigor_preview.sid",
+   "tokens_per_frame": 5.564,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4d8cf29d9a",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Abject/Something_Was_Ended.sid",
+   "tokens_per_frame": 29.054,
+   "cause": null,
+   "song": 0,
+   "player": "sig:ea7e3f3343",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Acrouzet/Mixed_Up.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/A/Ahti/Rusina.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/A/Albert_Christoph/Fun_House.sid",
+   "tokens_per_frame": 15.878,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:5e98a11c43",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 0,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/A/Alien-Crackings/Digital_Mix_One.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/A/Amadeus_Attic/Tron.sid",
+   "tokens_per_frame": 8.65,
+   "cause": null,
+   "song": 0,
+   "player": "sig:bbcccba626",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Andersen_Kim/Old_Memories.sid",
+   "tokens_per_frame": 22.226,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b2a119a711",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Ant1/My_Rules.sid",
+   "tokens_per_frame": 10.888,
+   "cause": null,
+   "song": 0,
+   "player": "sig:04c254a31c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Apollyon/Snowstorm.sid",
+   "tokens_per_frame": 12.456,
+   "cause": null,
+   "song": 0,
+   "player": "sig:f4f3803ec1",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Arnold_Kenneth/Ultima_IV-Quest_of_the_Avatar.sid",
+   "tokens_per_frame": 5.332,
+   "cause": null,
+   "song": 0,
+   "player": "sig:c595036cbc",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 29601,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Arturo_Dente/Arkadenoid_BASIC.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/A/Astudillo_Cesar/Emilio_Butragueno_Futbol.sid",
+   "tokens_per_frame": 11.958,
+   "cause": null,
+   "song": 0,
+   "player": "sig:c4c601bf6a",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/A/Avalon/Never_Let_Me_Down_Again.sid",
+   "tokens_per_frame": 20.874,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:571fdb55ee",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 193,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/B/B00daW/Dance_Drowning_Kittens_Make.sid",
+   "tokens_per_frame": 7.986,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4e88c47b5b",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bad_Rat/Iron_Mix.sid",
+   "tokens_per_frame": 5.062,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4f06d6230e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 19457,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bakker_Nantco/Slurfie.sid",
+   "tokens_per_frame": 32.928,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:faa493692f",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 97,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bappalander/Last_Traktor_III_intro.sid",
+   "tokens_per_frame": 39.766,
+   "cause": null,
+   "song": 0,
+   "player": "sig:dbf575029e",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Barricade/Antistatic.sid",
+   "tokens_per_frame": 7.884,
+   "cause": null,
+   "song": 0,
+   "player": "sig:764ef8c348",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bayliss_Richard/Cruiser-X_79.sid",
+   "tokens_per_frame": 5.246,
+   "cause": null,
+   "song": 0,
+   "player": "sig:fc1de274e1",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Beggerow_Alan/Loadstar_Rag.sid",
+   "tokens_per_frame": 1.568,
+   "cause": null,
+   "song": 0,
+   "player": "sig:578df1fb6e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 9217,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Benno/Rock_Up.sid",
+   "tokens_per_frame": 15.356,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b99b7c53f8",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Biasillo_Gary/Slayer.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bitbuster/Bitbuster_Music_Collection_1.sid",
+   "tokens_per_frame": 38.896,
+   "cause": null,
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 19201,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Black/Bostich.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/B/Blackman/Amorphis.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/B/Blues_Muz/Nordboe_Kjell/Mad_Mans_Dream.sid",
+   "tokens_per_frame": 21.978,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b2801cb2c7",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bogas_Ed/PSI-5_Trading_Company.sid",
+   "tokens_per_frame": 55.226,
+   "cause": null,
+   "song": 0,
+   "player": "sig:480c8c4a5d",
+   "cadence_source": "NTSC video",
+   "cadence_cycles": 17095,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Booker/Space_Balls.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bowie/Silent_Love.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/B/Brian/Going_Around_the_Qumkuat_Tree.sid",
+   "tokens_per_frame": 7.35,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3c300fdc89",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 9828,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Brown_Andy/Starburst.sid",
+   "tokens_per_frame": 4.63,
+   "cause": null,
+   "song": 0,
+   "player": "sig:e5c2bf4797",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Bulldog/E_X_I_S.sid",
+   "tokens_per_frame": 4.346,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b057a5e56f",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/B/Butterfield_Jim/Happy_Birthday_BASIC.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/C/CLS/Stop_for_a_Minute.sid",
+   "tokens_per_frame": 19.566,
+   "cause": null,
+   "song": 1,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 20481,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Caine/Nike_Air_Max.sid",
+   "tokens_per_frame": 14.1,
+   "cause": null,
+   "song": 0,
+   "player": "sig:7e00da563b",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Cargo/Heat_Remix.sid",
+   "tokens_per_frame": 5.788,
+   "cause": null,
+   "song": 0,
+   "player": "sig:ea01ac3111",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Catch/Swap_of_Mind_tune_6.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/C/Chaos/Svejk_92_part_4.sid",
+   "tokens_per_frame": 6.382,
+   "cause": null,
+   "song": 0,
+   "player": "sig:d0a8e25f7c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Chip_Champion/RVAS.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/C/ChristopherJam/Zebit.sid",
+   "tokens_per_frame": 24.614,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:c1834dcbb2",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 3,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/C/Claff_Chester/Jelly_Roll_Blues.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/C/Cliff/Sayt.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/C/Codex/Frantic_3_tune_5.sid",
+   "tokens_per_frame": 48.544,
+   "cause": null,
+   "song": 0,
+   "player": "sig:36a4a10d16",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Colin_Michael/Hexxwyrld_part_4.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/C/Comu/Ultimo_tango_en_Paris.sid",
+   "tokens_per_frame": 62.578,
+   "cause": null,
+   "song": 0,
+   "player": "sig:ae88481a5a",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Coolrock/Just_Relax.sid",
+   "tokens_per_frame": 44.15,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:9f9a032c1b",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 375,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/C/Cranksy/Maximus.sid",
+   "tokens_per_frame": 49.588,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b6134c1632",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Crisps/Corescape.sid",
+   "tokens_per_frame": 10.464,
+   "cause": null,
+   "song": 4,
+   "player": "sig:eba86fa40d",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 9828,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/C/Crowley_Owen/Combine_Escape.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/C/Cunningham_Steve/Gloria.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/C/Cycleburner/Youthquake_part_2.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/D/DAM/Chromosphere.sid",
+   "tokens_per_frame": 30.492,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b59d785876",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/DOS/Delame_93_tune_3.sid",
+   "tokens_per_frame": 9.998,
+   "cause": null,
+   "song": 0,
+   "player": "sig:907ef26ed9",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Da_Phuture_Kemist/Acid_Rain.sid",
+   "tokens_per_frame": 16.05,
+   "cause": null,
+   "song": 0,
+   "player": "sig:41f7c312f6",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Dalton/Force.sid",
+   "tokens_per_frame": 7.296,
+   "cause": null,
+   "song": 0,
+   "player": "sig:f59c5940db",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Data/Busty_Cactus.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/D/Davis_Gary/Skaters_Waltz.sid",
+   "tokens_per_frame": 2.276,
+   "cause": null,
+   "song": 0,
+   "player": "sig:f4a8488444",
+   "cadence_source": "NTSC video",
+   "cadence_cycles": 17095,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Deadbeat/Lamazing_1.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/D/Decoy/Bubble_Mania.sid",
+   "tokens_per_frame": 37.666,
+   "cause": null,
+   "song": 0,
+   "player": "sig:1a2f0e959f",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Deizi/Super_Cars_II_C_64_remix.sid",
+   "tokens_per_frame": 5.292,
+   "cause": null,
+   "song": 0,
+   "player": "sig:54c91acfdd",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Denithor/Affections.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/D/Deutsch_Matthias/Ice_Guys.sid",
+   "tokens_per_frame": 23.546,
+   "cause": null,
+   "song": 0,
+   "player": "sig:1d198b1fc5",
+   "cadence_source": "CIA2 Timer-A",
+   "cadence_cycles": 65536,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Di_Vizio_Maurizio/Fritz_Goes_to_Hollywood.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/D/Divertigo/Roll_Right_Over_that_Fucker.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/D/Dobek_Eric/Captain_Ishtar_Concept.sid",
+   "tokens_per_frame": 8.116,
+   "cause": null,
+   "song": 0,
+   "player": "sig:9dde9c5e16",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/DommoCORE64/Indigo.sid",
+   "tokens_per_frame": 30.012,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:a8e68cefae",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 2,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/D/Doussis_Stello/Blax.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/D/Dr_Fiemost/Junk.sid",
+   "tokens_per_frame": 5.44,
+   "cause": null,
+   "song": 0,
+   "player": "sig:70c1afbc3e",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Dr_Vector/Future_Cowboy.sid",
+   "tokens_per_frame": 33.474,
+   "cause": null,
+   "song": 0,
+   "player": "sig:36a4a10d16",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/D/Drutten/Run_DMC_Intro.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/D/Dunkel_Nilsen_and_Elektrond/Illsint_Ilder.sid",
+   "tokens_per_frame": 7.348,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6adb5ef4c5",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/E/E-Grass/Deutsch_U-Bahn-Gemeinschaft.sid",
+   "tokens_per_frame": 65.296,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:c1834dcbb2",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 3,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/E/Edgar_Dale/Alien_Team.sid",
+   "tokens_per_frame": 9.058,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3f1514d334",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/E/Elk/Music_2.sid",
+   "tokens_per_frame": 18.072,
+   "cause": null,
+   "song": 0,
+   "player": "sig:571fdb55ee",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/E/Emulamer/Song_25.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/E/Eriksen_Allan_Kim/Heavis.sid",
+   "tokens_per_frame": 49.764,
+   "cause": null,
+   "song": 0,
+   "player": "sig:7ef5fb923b",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/E/Ewens_Louis/Elephant_Trot.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/F/FAME/Hendriks_Michael/X-Out.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/F/Fade/Yeni_Raki.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/F/FatFrost/Toothpicks_for_Ponies.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/F/Fern_Eric/Goldberg_Variations_parts_1-7.sid",
+   "tokens_per_frame": 0.54,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3c352ae95a",
+   "cadence_source": "NTSC video",
+   "cadence_cycles": 17095,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/F/Finn/Nieuwemaas.sid",
+   "tokens_per_frame": 28.19,
+   "cause": null,
+   "song": 0,
+   "player": "sig:c8284f243c",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 4914,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/F/Flash/Haste.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/F/Flux/Gold_Rush_2_intro.sid",
+   "tokens_per_frame": 10.436,
+   "cause": null,
+   "song": 0,
+   "player": "sig:e6c1b6403c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/F/Fong_William/Electronic_Foreheads_in_Concert_BASIC.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/F/FrederikC1/Subway_Dagger.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/F/Fritske/1st_Decent_Hardcore.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/F/Funky_Koval/Off_Beat_Collection_2.sid",
+   "tokens_per_frame": 13.342,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:4f06d6230e",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 204,
+   "class": "faithful-not-roundtripped"
+  },
+  {
+   "relpath": "MUSICIANS/F/Fuzjon/Gone_with_the_Wind_part_3.sid",
+   "tokens_per_frame": 6.304,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6e508fab26",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/G/Galaxy/R_M.sid",
+   "tokens_per_frame": 18.994,
+   "cause": null,
+   "song": 0,
+   "player": "sig:571fdb55ee",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/G/Gantar_Peter/Kdo_2SID.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/G/Gaspar_Oliver/A_Kastely.sid",
+   "tokens_per_frame": 45.692,
+   "cause": null,
+   "song": 0,
+   "player": "sig:dfe3763956",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/G/Gero/Arc_Doors.sid",
+   "tokens_per_frame": 18.264,
+   "cause": null,
+   "song": 0,
+   "player": "sig:608c6cf7a7",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/G/Gillies_Ewen/Most_Evil_Dream_tune_2.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/G/Globe/Chipsi_Lights.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/G/Goldsmith/Music_Wizard.sid",
+   "tokens_per_frame": 6.68,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:91c6084b74",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 1,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/G/Gotoandplay/Reconciliation.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/G/Gray_Matt/Last_Ninja_2.sid",
+   "tokens_per_frame": 7.466,
+   "cause": null,
+   "song": 0,
+   "player": "sig:de23f4b4b7",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/G/Greg/Spook-The_Game.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/G/Groms/Luder8580.sid",
+   "tokens_per_frame": 29.924,
+   "cause": null,
+   "song": 0,
+   "player": "sig:648b8cabfa",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/HCL/DD_Tune.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/H/Hairdog/Disco_n_Derlando.sid",
+   "tokens_per_frame": 62.352,
+   "cause": null,
+   "song": 0,
+   "player": "sig:958b93d523",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Hank/Old_School.sid",
+   "tokens_per_frame": 8.156,
+   "cause": null,
+   "song": 0,
+   "player": "sig:a15c53d7ae",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Harmony_Productions/Mon_Bass_Remix.sid",
+   "tokens_per_frame": 15.584,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3e7c73d222",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Haschpipan/Little_Grey_Cat.sid",
+   "tokens_per_frame": 32.874,
+   "cause": null,
+   "song": 0,
+   "player": "sig:209aea1ae9",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Heckmann_Urs/Howard_the_Coder.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/H/Henne/Into_Hinterland_World.sid",
+   "tokens_per_frame": 11.728,
+   "cause": null,
+   "song": 0,
+   "player": "sig:f6a4222b26",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Hevosenliha/Bazhm.sid",
+   "tokens_per_frame": 42.0,
+   "cause": null,
+   "song": 0,
+   "player": "sig:da4f11c81c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Hilty_James/Colorado_Smith_Lost_Pyramid.sid",
+   "tokens_per_frame": 1.246,
+   "cause": null,
+   "song": 0,
+   "player": "sig:44427ddf74",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 7937,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Hoernell_Karl/Clean_Up_Time.sid",
+   "tokens_per_frame": 0.596,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b8be3e29cf",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Honey/8_Bit-Maerchenland_V2.sid",
+   "tokens_per_frame": 25.224,
+   "cause": null,
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 16641,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Hudy/Cotton_Eye_Joe.sid",
+   "tokens_per_frame": 37.3,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4b21c47515",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/H/Hydrogen/Excavator_party_version.sid",
+   "tokens_per_frame": 47.402,
+   "cause": null,
+   "song": 0,
+   "player": "sig:f5e5654ea9",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/I/Iceman/Ares_on_a_Hearse.sid",
+   "tokens_per_frame": 7.974,
+   "cause": null,
+   "song": 0,
+   "player": "sig:d7b4914d78",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/I/Imaic/Blob.sid",
+   "tokens_per_frame": 32.646,
+   "cause": null,
+   "song": 0,
+   "player": "sig:16cf17f627",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/I/Insider/Smutta.sid",
+   "tokens_per_frame": 17.204,
+   "cause": null,
+   "song": 0,
+   "player": "sig:63b91044cd",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/I/Ispace/Its_a_Crime.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/J/JCH/Shift.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/J/Jab/Liftoff.sid",
+   "tokens_per_frame": 43.646,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:6a5e77e3cf",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 262,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/J/Jammic/Wasted_Years.sid",
+   "tokens_per_frame": 7.19,
+   "cause": null,
+   "song": 0,
+   "player": "sig:83b5fc8459",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/J/Jaz_and_Mo/Mindsmear_1.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/J/Jensen_Henrik/Music_for_Masses.sid",
+   "tokens_per_frame": 32.86,
+   "cause": null,
+   "song": 0,
+   "player": "sig:66afc8c19f",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/J/Jipe/Mega_Jipe.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/J/Johnny_Owl/Oberon.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/J/Joseph_Richard/Barbarian_II.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/J/Julian_Jaymz/Slanted_2SID.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/K/Karateka/Electrica_Demo.sid",
+   "tokens_per_frame": 15.202,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4702010e3a",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/K/Kaze/Postman.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/K/Ken/Fresh.sid",
+   "tokens_per_frame": 22.552,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:91c6084b74",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 343,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/K/King_Durin/War_Drums.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/K/Klabbsock/Haur_du_sitt_min_aba.sid",
+   "tokens_per_frame": 20.742,
+   "cause": null,
+   "song": 0,
+   "player": "sig:e7403792b0",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/K/Kleinert_Tim/Warriors.sid",
+   "tokens_per_frame": 15.066,
+   "cause": null,
+   "song": 0,
+   "player": "sig:45017cde5b",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/K/Koester_Boris/Digi-Zak_3.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/K/Kordiaukis/Kordiaukis_01_2SID.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/K/Kramer_Cees/Maps_64_U_S_A.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/K/Kruthers/Avoid.sid",
+   "tokens_per_frame": 60.734,
+   "cause": null,
+   "song": 0,
+   "player": "sig:608c6cf7a7",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/K/Kulor/StillPlayingMario_nsf.sid",
+   "tokens_per_frame": 16.628,
+   "cause": null,
+   "song": 0,
+   "player": "sig:331d3e7b7d",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/L/L_Oreal/Paris-Remix_Two.sid",
+   "tokens_per_frame": 17.876,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4f06d6230e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 16385,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/L/Latifah/Klemens.sid",
+   "tokens_per_frame": 23.078,
+   "cause": null,
+   "song": 0,
+   "player": "sig:56e77d5b60",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/L/Leaf/Take_it_or_Leaf_it.sid",
+   "tokens_per_frame": 58.96,
+   "cause": null,
+   "song": 0,
+   "player": "sig:29f849a3d7",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/L/Leitch_Barry/Xenophobe.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/L/Lievonen_Ere/Valkea_joulu.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/L/Linus/SYS64738_Days_Vinyl_Tribute.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/L/Lizard_Royzex/Remix_89.sid",
+   "tokens_per_frame": 10.732,
+   "cause": null,
+   "song": 0,
+   "player": "sig:5de2f25dcc",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/L/Los_Pat_Moritas/Quirquinchito.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/L/LukHash/Dreams.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/MAT64/Adventure_1.sid",
+   "tokens_per_frame": 25.302,
+   "cause": null,
+   "song": 1,
+   "player": "sig:5bfa9717ee",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/MC_Sky/Power_Age.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/M/MSK/Magascene_02_intro.sid",
+   "tokens_per_frame": 42.154,
+   "cause": null,
+   "song": 0,
+   "player": "sig:63dbb7a06e",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mac_Radical/Ladyshaker.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Maci/Beverly_Hills_Music.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mad_Mader_Stephan/Bugs_intro.sid",
+   "tokens_per_frame": 14.726,
+   "cause": null,
+   "song": 0,
+   "player": "sig:2b873bcdfa",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Magic_Man/Mamba_Tune_plus_Digi.sid",
+   "tokens_per_frame": 18.992,
+   "cause": null,
+   "song": 0,
+   "player": "sig:c029ba7b20",
+   "cadence_source": "VIC raster",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mamba/Drems.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mankeli/Humphrey_Bogart.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/M/Marquis_Dave/Four_Seasons-Summer.sid",
+   "tokens_per_frame": 1.526,
+   "cause": null,
+   "song": 0,
+   "player": "sig:578df1fb6e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 13569,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mataga_William/Curse_of_Babylon.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Max_F3H/Rockmonitor_4_Tester.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/M/McDowell_Stuart/C128_f0.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mega9man/Back_to_Pentatonics.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Merken_Vincent/Love.sid",
+   "tokens_per_frame": 14.922,
+   "cause": null,
+   "song": 0,
+   "player": "sig:624226d5fc",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Metal/End.sid",
+   "tokens_per_frame": 17.662,
+   "cause": null,
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 19457,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mice/Sexty4.sid",
+   "tokens_per_frame": 17.038,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3dc1421e94",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Minter_Jeff/Ancipital.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Miztluren/Traeskodansen.sid",
+   "tokens_per_frame": 19.546,
+   "cause": null,
+   "song": 0,
+   "player": "sig:1587e21988",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Monk/Tones_Part_II.sid",
+   "tokens_per_frame": 28.064,
+   "cause": null,
+   "song": 0,
+   "player": "sig:cd3fff4dbb",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Moon/Beat_Collection_I.sid",
+   "tokens_per_frame": 11.148,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4f06d6230e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 19457,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/M/Morton_Adam/Synthmeld.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mr_Crowley/Limits_of_Tomorrow_tune_3.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mr_Nonplusultra/Happy_Song_4.sid",
+   "tokens_per_frame": 18.644,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 18945,
+   "oracle_cadence_match": true,
+   "diverge_frame": 419,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mudra_Paul/DragonStrike.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/M/Mushroom_and_Pickle/Hymn.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/N/NM156/Frantic_Freddie_II_8580.sid",
+   "tokens_per_frame": 21.924,
+   "cause": null,
+   "song": 0,
+   "player": "sig:2c026ab3c5",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/N/Nebula/Variations.sid",
+   "tokens_per_frame": 9.576,
+   "cause": null,
+   "song": 0,
+   "player": "sig:59fc390c3a",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/N/Nice/How_Gee.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/N/Nightwork/Sleeping_Bag.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/N/Nitrofurano/202212220942.sid",
+   "tokens_per_frame": 95.172,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6eb034e0bf",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 17045,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/N/Noise_Janota_Jaroslaw/Eternity.sid",
+   "tokens_per_frame": 59.15,
+   "cause": null,
+   "song": 0,
+   "player": "sig:d78b6a4dce",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/N/Nordischsound/C_and_C_Red_Alert-Hell_March.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/N/Nutcase/Long_Road.sid",
+   "tokens_per_frame": 51.526,
+   "cause": null,
+   "song": 0,
+   "player": "sig:013c4d2939",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/O/Odo/Just_a_Song.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/O/Olsen/Symphony.sid",
+   "tokens_per_frame": 46.268,
+   "cause": null,
+   "song": 0,
+   "player": "sig:215ef6486a",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/O/Orcan/Pinz.sid",
+   "tokens_per_frame": 12.018,
+   "cause": null,
+   "song": 0,
+   "player": "sig:91a88d1a9b",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 4535,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/O/Ozzy_Oldskool/Starglide.sid",
+   "tokens_per_frame": 25.766,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:2778b61ff5",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 307,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/P/PST/Its_More_Than_Lame.sid",
+   "tokens_per_frame": 15.482,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4f06d6230e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 16385,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/P/Page/Acidhouse.sid",
+   "tokens_per_frame": 10.592,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:305d6dd911",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 0,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/P/Parviainen_Jani/Laserscape.sid",
+   "tokens_per_frame": 11.708,
+   "cause": null,
+   "song": 0,
+   "player": "sig:adb393e2b1",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/P/Peacemaker/Stardancer_II.sid",
+   "tokens_per_frame": 32.148,
+   "cause": null,
+   "song": 0,
+   "player": "sig:ae31ab0fea",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/P/Peichl_Timo/Pathal.sid",
+   "tokens_per_frame": 20.694,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 19457,
+   "oracle_cadence_match": true,
+   "diverge_frame": 199,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/P/Perplex/Magic_Melody.sid",
+   "tokens_per_frame": 23.654,
+   "cause": null,
+   "song": 0,
+   "player": "sig:de59f0581e",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/P/Phase_2/Valley_of_Dreams.sid",
+   "tokens_per_frame": 53.724,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6f9e231e1c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/P/Picrard/Fizz_Extended.sid",
+   "tokens_per_frame": 25.512,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6857df1fba",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/P/Pingo/Holy_Grail.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/P/Plastic/Basecontrol.sid",
+   "tokens_per_frame": 10.094,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6212267ff0",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/P/Poole_Chris/Star_Trek_II.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/P/Pridmore_Dave/Rick_Dangerous.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/P/Proton/Cybernoid_2_The_Revenge_2SID.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/P/Psylicium/Julemix.sid",
+   "tokens_per_frame": 47.638,
+   "cause": null,
+   "song": 0,
+   "player": "sig:36a4a10d16",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/Q/Qdor/Oceans_of_Time.sid",
+   "tokens_per_frame": 26.692,
+   "cause": null,
+   "song": 0,
+   "player": "sig:fa52b9af45",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Radiantx/Skin_of_My_Teeth.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/R/Rail_Slave/Olfactory.sid",
+   "tokens_per_frame": 105.268,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6eb034e0bf",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 20454,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Rashka/Msx_2.sid",
+   "tokens_per_frame": 25.234,
+   "cause": null,
+   "song": 0,
+   "player": "sig:5e5e2290c2",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Raze/Machine.sid",
+   "tokens_per_frame": 8.366,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:c27284de7e",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 1,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/R/Recanatese_Luigi/Arrivo_v1.sid",
+   "tokens_per_frame": 2.476,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:f5132c701a",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 28689,
+   "oracle_cadence_match": true,
+   "diverge_frame": 4,
+   "class": "faithful-not-roundtripped"
+  },
+  {
+   "relpath": "MUSICIANS/R/Rei8bit/Dancing_Donuts.sid",
+   "tokens_per_frame": 52.184,
+   "cause": null,
+   "song": 0,
+   "player": "sig:36cbe14f78",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Remorhaz/Mystifiable_Intro_2.sid",
+   "tokens_per_frame": 7.11,
+   "cause": null,
+   "song": 0,
+   "player": "sig:c7ebe81aa4",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Reynolds_Daryll/Alien.sid",
+   "tokens_per_frame": 0.934,
+   "cause": null,
+   "song": 0,
+   "player": "sig:28e9c7c191",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Riot/Enzyme.sid",
+   "tokens_per_frame": 25.816,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3403567f3c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Rodger_Andrew/Alien_3.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/R/Ronny_ROM/Demo_Maker_2_tune_5.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/R/Ross_Mark/Mutator.sid",
+   "tokens_per_frame": 6.09,
+   "cause": null,
+   "song": 0,
+   "player": "sig:10441808be",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/R/Rupert_Dissident/Vertex_Panorama_Effort.sid",
+   "tokens_per_frame": 13.116,
+   "cause": null,
+   "song": 0,
+   "player": "sig:5b3a0992f0",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/SFR/S_Y_F_Again.sid",
+   "tokens_per_frame": 16.284,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:571fdb55ee",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 37,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/S/SRB2er/Happy_Mother_Yay.sid",
+   "tokens_per_frame": 73.846,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3200444946",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 17045,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Safavy_Mehdi/Fantezy.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Sam/Funky_Sound.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Sanden_Richard/Islands_in_the_Stream.sid",
+   "tokens_per_frame": 15.358,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 24577,
+   "oracle_cadence_match": true,
+   "diverge_frame": 7,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/S/Sax/Digi_Music.sid",
+   "class": "unsupported",
+   "cause": "error:RuntimeError",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/S/Scarim_Nick/Grandmas_House.sid",
+   "tokens_per_frame": 2.132,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:ffa0c9b39d",
+   "cadence_source": "NTSC video",
+   "cadence_cycles": 17095,
+   "oracle_cadence_match": true,
+   "diverge_frame": 0,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/S/Schmidt_Miron/Mirror_Master_Is_Dead.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Schutten_Martijn/Speedy_Slug.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Scrap/Fine_Time.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Selwood_David/Eskimo_Eddie.sid",
+   "tokens_per_frame": 2.518,
+   "cause": null,
+   "song": 0,
+   "player": "sig:09cbfc77e5",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Shapie/Blocks.sid",
+   "tokens_per_frame": 47.334,
+   "cause": null,
+   "song": 0,
+   "player": "sig:040209119e",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Shiru/Technopolis.sid",
+   "tokens_per_frame": 9.022,
+   "cause": null,
+   "song": 0,
+   "player": "sig:63ca91877f",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Shy/Mark_Oh.sid",
+   "tokens_per_frame": 16.22,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4954173fab",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 4914,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Siebold_Markus/Technolo-G_digitune.sid",
+   "tokens_per_frame": 13.918,
+   "cause": null,
+   "song": 0,
+   "player": "sig:a129f03dd6",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Silc/According.sid",
+   "tokens_per_frame": 20.436,
+   "cause": null,
+   "song": 0,
+   "player": "sig:9382aec8e5",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Sinc-X/Cool_Battle.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Skull/Mendip_2_magazine.sid",
+   "tokens_per_frame": 24.446,
+   "cause": null,
+   "song": 0,
+   "player": "sig:0dacb18cca",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Slayer/Crash.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Slimex/gAmish.sid",
+   "tokens_per_frame": 7.638,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b26ad08a5c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Sniper/Visitors.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Sonic/Jupiter_Fracture_2SID.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/SounDemoN/Church_of_64.sid",
+   "tokens_per_frame": 1.412,
+   "cause": null,
+   "song": 0,
+   "player": "sig:c9f69e566a",
+   "cadence_source": "CIA2 Timer-A",
+   "cadence_cycles": 1040,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Spang_Jesper/Blues.sid",
+   "tokens_per_frame": 2.478,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:29168f79b4",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 0,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/S/Spicer_David/Time_Soldier.sid",
+   "tokens_per_frame": 15.156,
+   "cause": null,
+   "song": 0,
+   "player": "sig:e81f20af5c",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Spinosa/Spiny.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Stabile_Altbauten/From_Dusk_Til_Schweiger.sid",
+   "tokens_per_frame": 36.966,
+   "cause": null,
+   "song": 0,
+   "player": "sig:1506e648e9",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Steek/Sad_Ends.sid",
+   "tokens_per_frame": 10.366,
+   "cause": null,
+   "song": 0,
+   "player": "sig:76fb36db25",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Steppe/Erste_Schritte.sid",
+   "tokens_per_frame": 22.444,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 20481,
+   "oracle_cadence_match": true,
+   "diverge_frame": 199,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/S/Stoff/My_Insanity.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/String/Kling.sid",
+   "tokens_per_frame": 18.38,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4def930681",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Surfcroc/Sad_Dragon.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/S/Svetlana_Tovarisch/Gesticulating_Squidette.sid",
+   "tokens_per_frame": 29.214,
+   "cause": null,
+   "song": 0,
+   "player": "sig:17f64aed19",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/S/Syntech/Anthem.sid",
+   "tokens_per_frame": 10.518,
+   "cause": null,
+   "song": 0,
+   "player": "sig:f07652a4e0",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/TGM/Amigia_Rock.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/T/TN/Music_Collection_1.sid",
+   "tokens_per_frame": 16.682,
+   "cause": null,
+   "song": 0,
+   "player": "sig:cbfd0ec471",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/Tango/Macho_Programming.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/T/Taylor_Andy/Double_Dragon_3.sid",
+   "tokens_per_frame": 7.088,
+   "cause": null,
+   "song": 0,
+   "player": "sig:e841a62a3f",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/Tel_Jeroen/Turbo_Outrun.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/T/Terric/Unbelievable_Inzane.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/T/The_Bellows/Alien_Symphony_1.sid",
+   "tokens_per_frame": 15.724,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:70422dfea1",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 2,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/T/The_Flying_Dutchman/Kick_Back.sid",
+   "tokens_per_frame": 0.098,
+   "cause": null,
+   "song": 0,
+   "player": "sig:67703cbc5b",
+   "cadence_source": "VIC raster",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/The_IRQ/Memory.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/T/The_Magic_Man/World_of_Wonders_tune_2.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/T/The_Rotary_Iron/Dig_These_Drums_II_tune_3.sid",
+   "tokens_per_frame": 17.576,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4f06d6230e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 19457,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/The_Whistle/Jylland_Rules_part_4.sid",
+   "tokens_per_frame": 23.63,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:571fdb55ee",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 193,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/T/Thomas_Dave/Entombed.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/T/Tidstrand_Ulf/Tema_Ur_Chess_BASIC.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/T/Tjagvad/Vive_II.sid",
+   "tokens_per_frame": 11.906,
+   "cause": null,
+   "song": 0,
+   "player": "sig:006189523f",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/Tognon_Stefano/Evil.sid",
+   "tokens_per_frame": 11.194,
+   "cause": null,
+   "song": 0,
+   "player": "sig:eec2443741",
+   "cadence_source": "VIC raster",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/Tonal_Kaos/Superkid_in_Space.sid",
+   "tokens_per_frame": 6.094,
+   "cause": null,
+   "song": 0,
+   "player": "sig:d5fb8655f4",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/Topshelf/8-Bit_House_Party.sid",
+   "tokens_per_frame": 25.654,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:c1834dcbb2",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 21895,
+   "oracle_cadence_match": true,
+   "diverge_frame": 3,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/T/Tracker/Digi-Organizer.sid",
+   "tokens_per_frame": 38.542,
+   "cause": null,
+   "song": 0,
+   "player": "sig:438141a48f",
+   "cadence_source": "VIC raster",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/Trident/Banshee_digi.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/T/Trugoy/Lullaby.sid",
+   "tokens_per_frame": 41.98,
+   "cause": null,
+   "song": 0,
+   "player": "sig:2c4c50ecc7",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/T/Twin-Man/Trampchess_Music.sid",
+   "tokens_per_frame": 57.404,
+   "cause": null,
+   "song": 0,
+   "player": "sig:8bdd219be9",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/U/Ultrasyd/Heartical_Chip_Riddim.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/V/Vaca_Ramiro/Garrison.sid",
+   "tokens_per_frame": 7.906,
+   "cause": null,
+   "song": 0,
+   "player": "sig:4f06d6230e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 18433,
+   "oracle_cadence_match": false,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/V/Vandahlia/Tek.sid",
+   "tokens_per_frame": 93.228,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3200444946",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 20454,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/V/Vegeta/Zitra.sid",
+   "tokens_per_frame": null,
+   "cause": "setup:RuntimeError",
+   "song": 0,
+   "class": "unsupported"
+  },
+  {
+   "relpath": "MUSICIANS/V/Vessby_Johan/Clean_Up_Service.sid",
+   "tokens_per_frame": 0.976,
+   "cause": null,
+   "song": 0,
+   "player": "sig:43f76a0535",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/V/Vinzz/Song_No_3.sid",
+   "tokens_per_frame": 3.78,
+   "cause": null,
+   "song": 0,
+   "player": "sig:6e508fab26",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/V/Voois_Vincent/Tibos_Tale.sid",
+   "tokens_per_frame": 54.5,
+   "cause": null,
+   "song": 0,
+   "player": "sig:3d5ba3eae4",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/WG/Black_Box.sid",
+   "tokens_per_frame": 0.286,
+   "cause": null,
+   "song": 0,
+   "player": "sig:b24eac6e32",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Walker_Terry/March.sid",
+   "tokens_per_frame": 2.944,
+   "cause": null,
+   "song": 0,
+   "player": "sig:578df1fb6e",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 15105,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Warner_Silas/Space_Taxi.sid",
+   "tokens_per_frame": 0.224,
+   "cause": null,
+   "song": 7,
+   "player": "sig:9e2445f8cb",
+   "cadence_source": "NTSC video",
+   "cadence_cycles": 17095,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Waz/Digital_Acid_Zaw_Remix.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/W/Weinert_Stefan/Let_it_out.sid",
+   "tokens_per_frame": 11.874,
+   "cause": null,
+   "song": 0,
+   "player": "sig:af53546bfb",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Westgate_Robert/Legend_of_Sinbad.sid",
+   "tokens_per_frame": 0.448,
+   "cause": null,
+   "song": 10,
+   "player": "sig:bdb5c4dedd",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Wide/Tune.sid",
+   "tokens_per_frame": 26.054,
+   "cause": null,
+   "song": 0,
+   "player": "sig:38d3e27945",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Willi/Presence_2.sid",
+   "tokens_per_frame": 24.352,
+   "cause": null,
+   "song": 0,
+   "player": "sig:c0d3eaf179",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Wilson_Mark/Money.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/W/Wizard_Oxygen/Vin_Tim.sid",
+   "tokens_per_frame": 10.054,
+   "cause": null,
+   "song": 0,
+   "player": "sig:983577fd90",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/W/Wood_Steve/Music_BASIC.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/X/X-Byte/No_13_Baby_intro.sid",
+   "tokens_per_frame": 20.198,
+   "cause": null,
+   "song": 0,
+   "player": "sig:ddd97834b3",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/X/Xeno_Micro_Soft/Flight_of_Icarus_tune_4.sid",
+   "tokens_per_frame": 12.912,
+   "cause": null,
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/Y/Yankee/Ceremony_intro.sid",
+   "tokens_per_frame": null,
+   "cause": null,
+   "class": "excluded-multisid"
+  },
+  {
+   "relpath": "MUSICIANS/Y/Yoda_TPF/Coolnezz.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/Y/Yuro/Eyes.sid",
+   "tokens_per_frame": 23.416,
+   "cause": null,
+   "song": 0,
+   "player": "sig:7585fbfd8d",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 9828,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/Z/Zardax/Missed_Call_final.sid",
+   "tokens_per_frame": 30.848,
+   "cause": null,
+   "song": 0,
+   "player": "sig:7f53bebcd4",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  },
+  {
+   "relpath": "MUSICIANS/Z/Zeus_Anzac/A_Day_Off.sid",
+   "tokens_per_frame": 11.436,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:3a798df140",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 0,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/Z/Zipper/Zax_for_Free.sid",
+   "class": "unsupported",
+   "cause": "timeout",
+   "tokens_per_frame": null
+  },
+  {
+   "relpath": "MUSICIANS/Z/Zoci-Joe/Shooting_Stars_part_1.sid",
+   "tokens_per_frame": 14.208,
+   "cause": "value-mismatch",
+   "song": 0,
+   "player": "sig:571fdb55ee",
+   "cadence_source": "PAL video",
+   "cadence_cycles": 19656,
+   "oracle_cadence_match": true,
+   "diverge_frame": 2,
+   "class": "cadence-only"
+  },
+  {
+   "relpath": "MUSICIANS/Z/Zoolex/Mata_Max_tune_01.sid",
+   "tokens_per_frame": 17.654,
+   "cause": null,
+   "song": 0,
+   "player": "sig:8c892b91b3",
+   "cadence_source": "CIA1 Timer-A",
+   "cadence_cycles": 19457,
+   "oracle_cadence_match": true,
+   "class": "lossless"
+  }
+ ]
+}

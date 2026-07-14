@@ -94,17 +94,17 @@ regression-guards this.
 - **Cadence** (non-Docker `pysidtracker` oracle, `recover._oracle_cadence`):
   matches on every fixture (already asserted by `tests/test_oracle.py`); replay
   uses the same `cycles_per_call`.
-- **Register grid** (`sidplayfp`/`sidtrace` Docker oracle, `oracle_grid`):
-  `test_oracle_grid_consistent` forward-fills the replayed writes into an absolute
-  per-frame register grid and diffs it against the oracle grid (frames aligned at
-  the recovered cadence). Marked `oracle`; skips when the sidtrace container is
-  unavailable. **Follow-up:** the sidtrace render is currently unavailable in the
-  local sandbox (the container cannot open the mounted `.sid`); this cross-check
-  is expected to run under CI where the oracle image works.
+- **Register-change stream** (`docker cp` sidtrace oracle, `tsnap.oracle`): the
+  Phase-1 bind-mount blocker (container "could not open file") is fixed by
+  rendering via `docker cp`; `tests/test_oracle_stream.py` compares the IR
+  replay's ordered register-change stream to sidtrace byte-exact. See
+  [`docs/survey.md`](survey.md) for the root cause, the fix, and the residual
+  deity-`PcodeVM`-vs-libsidplayfp differences on the tunes where they disagree.
 
 ## Tests
 
 `tests/test_irvm.py`: pure-function units (`_apply`/`_eval`/`_ser`/image runs/
 `forward_grid`), hermetic byte-exact round-trips (direct, indexed, handler, digi
 multi-write), JSON self-containment, and an `hvsc`-marked byte-exact round-trip
-over the manifest plus the `oracle`-marked grid cross-check.
+over the manifest. The `oracle`-marked sidtrace cross-check lives in
+`tests/test_oracle_stream.py`.
