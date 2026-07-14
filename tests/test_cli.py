@@ -32,6 +32,11 @@ def test_cli_tracker(indexed_sid):
     assert "song {" in out
 
 
+def test_cli_irvm(indexed_sid):
+    out = _run(["irvm", indexed_sid, "0", "80"])
+    assert "BYTE-EXACT" in out
+
+
 def test_cli_curate(hvsc_tree, tmp_path):
     root, _meta = hvsc_tree
     out = tmp_path / "cli_manifest.py"
