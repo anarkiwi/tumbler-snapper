@@ -168,40 +168,4 @@ def test_hvsc_roundtrip_byte_exact(fx):
     assert r["match"], f"{fx['relpath']} diverged at {r['diverge'][0] if r['diverge'] else '?'}"
 
 
-@pytest.mark.oracle
-@pytest.mark.parametrize("fx", FIXTURES[:4], ids=lambda fx: fx["relpath"])
-def test_oracle_grid_consistent(fx, tmp_path):
-    """Replay's forward-filled grid matches the sidtrace register-grid oracle."""
-    import pysidtracker as psid  # pylint: disable=import-outside-toplevel
-
-    from tsnap import recover as R  # pylint: disable=import-outside-toplevel
-
-    path = _resolve(fx["relpath"])
-    if path is None:
-        pytest.skip(f"offline: {fx['relpath']} unavailable")
-    cad = R.discover_cadence(str(path), fx["start_song"])
-    frames = 200
-    grouped = irvm.replay_frames(irvm.serialize(str(path), fx["start_song"], frames))
-    mine = irvm.forward_grid(grouped)
-    try:
-        grid = psid.oracle_grid(
-            str(path),
-            oracle_cache=tmp_path,
-            frames=len(mine),
-            cycles_per_frame=cad["cycles_per_call"],
-        )
-    except Exception as exc:  # pylint: disable=broad-except
-        pytest.skip(f"oracle unavailable: {exc}")
-    written = {r for fr in grouped for r, _ in fr}
-    first = {}
-    for i, fr in enumerate(grouped):
-        for r, _v in fr:
-            first.setdefault(r, i)
-    n = min(len(grid), len(mine))
-    bad = [
-        (i, r, grid[i][r], mine[i][r])
-        for i in range(n)
-        for r in written
-        if i >= first[r] and grid[i][r] != mine[i][r]
-    ]
-    assert not bad, f"{fx['relpath']} grid mismatch: {bad[:5]}"
+# Independent sidtrace cross-check lives in tests/test_oracle_stream.py (see docs/survey.md).

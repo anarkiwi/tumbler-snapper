@@ -42,8 +42,13 @@ def _resolve(relpath):
     return resolve_tune(relpath, cache_dir=_CACHE, local_env="HVSC")
 
 
+# deity PcodeVM and libsidplayfp agree on these ordered streams (see docs/survey.md).
+_AGREE = ("Boompah", "Degree", "Sc00ter", "Kate_and_Martin")
+_AGREE_FX = [fx for fx in FIXTURES if Path(fx["relpath"]).stem in _AGREE]
+
+
 @pytest.mark.oracle
-@pytest.mark.parametrize("fx", FIXTURES[:1], ids=lambda fx: fx["relpath"])
+@pytest.mark.parametrize("fx", _AGREE_FX, ids=lambda fx: fx["relpath"])
 def test_oracle_change_stream_byte_exact(fx, tmp_path):
     """IR replay's register-change stream matches the docker-cp sidtrace oracle."""
     path = _resolve(fx["relpath"])
