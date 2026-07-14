@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# tumbler-snapper project artifacts
+*-ir.txt
+.oracle-cache/
+src/*.egg-info/

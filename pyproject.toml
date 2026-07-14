@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tumbler-snapper"
+version = "0.1.0"
+description = "Codec that recovers a lossless, tracker-like IR from a .sid by algorithmic P-Code analysis, plus a VM that replays it."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Josh Bailey", email = "josh@overlyspecific.com" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: POSIX :: Linux",
+    "License :: OSI Approved :: Apache Software License",
+]
+dependencies = ["numpy", "pysidtracker", "deity-informant"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-xdist", "pytest-cov", "black", "pylint", "build"]
+oracle = ["pysidtracker"]
+
+[project.scripts]
+tsnap = "tsnap.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-n auto"
+testpaths = ["tests"]
+markers = [
+    "oracle: needs Docker sidtrace oracle",
+    "hvsc: needs a real .sid tune (HVSC cache), no Docker",
+]
+
+[tool.coverage.run]
+source = ["tsnap"]
+
+[tool.black]
+line-length = 100
+
+[tool.pylint.main]
+jobs = 0
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.basic]
+good-names = ["A", "X", "Y", "S", "SP", "C", "e", "vm", "op", "mn", "md", "t", "v", "r", "pc", "L", "h", "d", "g", "c", "f", "a", "b", "o", "n", "m", "p", "hz"]
+
+[tool.pylint."messages control"]
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "too-few-public-methods",
+    "too-many-locals",
+    "too-many-branches",
+    "too-many-statements",
+    "too-many-return-statements",
+    "invalid-name",
+    "consider-using-f-string",
+    "too-many-instance-attributes",
+    "too-many-arguments",
+    "too-many-positional-arguments",
+    "too-many-lines",
+    "consider-using-in",
+    "consider-using-max-builtin",
+    "consider-using-with",
+    "unspecified-encoding",
+    "unused-argument",
+    "exec-used",
+    "duplicate-code",
+]
