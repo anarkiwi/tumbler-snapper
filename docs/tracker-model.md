@@ -28,6 +28,25 @@ only; pitch/tuning standardization is deferred.
 3. **Generic, not format-specific.** No fixed table count, no fixed column
    layout, no fixed voice count. GT's typed tables and defMON's column-tagged
    sidTAB are both specializations of one *program* engine (§5).
+4. **Universal (total).** Every tune gets the tracker view; the builder never
+   opts out. Sequence recovery is a ladder, every rung gated by the byte-exact
+   acceptance check:
+   1. **structural** — orderlist/patterns/instruments dereferenced from
+      `init_mem` via the recovered accessor chain (dataflow sequencers);
+   2. **transcription** — when no sequencer data structures exist (generative
+      players, e.g. `A_Mind_Is_Born`'s LFSR melody), rows are transcribed by
+      unrolling the proven generator-IR: exact note/effect events on the
+      recovered row grid (the guard on the melody-advance path), as a tracker
+      musician would enter the melody. Trackers cannot express an LFSR
+      *generator* and do not need to — the transcription is lossless and still
+      amortizes below 1 token/frame (rows span many frames, patterns dedupe;
+      `A_Mind_Is_Born` is 0.836 tok/frm at 3200 frames before guards).
+      Transcription consumes IR replay state (self-contained, proven), never
+      the original program's sampled output;
+   3. **raw guarded generators** — last-resort provenance fallback for
+      register *behaviors* that do not factor into the note/effect vocabulary,
+      attached as instrument programs — never a reason to skip the sequence
+      rungs above.
 
 ## Layers
 

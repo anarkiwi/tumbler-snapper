@@ -59,6 +59,13 @@ the post-init image via recovered accessors (`docs/tokens.md` Phase-4 changes,
 output is display-only diagnostics; nothing load-bearing may be inferred from
 sampled register state — that is fitting to output.
 
+The tracker view is **total**: every tune gets orderlist/patterns/rows. When a
+tune has no sequencer data structures (generative players, e.g. an LFSR
+melody), the sequence is transcribed losslessly from generator-IR replay onto
+the recovered row grid — trackers cannot express the generator and do not need
+to — and must still meet `< 1` token/frame. The raw-generator fallback covers
+unfactorable register *behaviors*, never the sequence.
+
 ## HARD CONSTRAINTS (non-negotiable)
 
 1. **P-Code-derived, algorithmic, automatic.** The IR is produced only by
