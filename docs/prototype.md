@@ -1,5 +1,8 @@
 # Prototype: symbolic per-frame summary (`prototypes/recover.py`)
 
+> Packaged as `tsnap.recover` (`src/tsnap/recover.py`); `prototypes/recover.py` is the
+> frozen reference. Run via `tsnap recover <file.sid>`.
+
 Recovers, from P-Code alone, the closed-form generator that produces each of the
 25 SID registers (`$D400..$D418`) per frame, plus the play-routine cadence. No
 fitting to register output — the generators come from the lifted P-Code; register

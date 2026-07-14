@@ -1,5 +1,8 @@
 # Tracker model (proposal)
 
+> Packaged as `tsnap.tracker` (`src/tsnap/tracker.py`); `prototypes/tracker.py` is the
+> frozen reference. Run via `tsnap tracker <file.sid>`. Fixture curation: `tsnap curate`.
+
 Target intermediate representation for the second-stage script, which consumes
 `recover.py`'s per-register generators + cadence and emits a tracker-like model.
 A **superset** of GoatTracker (`pygoattracker`) and defMON (`pydefmon`), designed
