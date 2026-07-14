@@ -114,7 +114,7 @@ def _run_capture(path, song, frames):
     reset_regs = bool(h.play_address)
     init_regs = play_entry_reg(vm.idle_reg) if reset_regs else list(vm.reg)
     programs, index, trace = [], {}, []
-    guards_ser, guard_index = [], {}
+    guards_ser, guard_index, paths = [], {}, []
     ground = [[tuple(rv) for rv in init_sid]]
     played = 0
     for _f in range(frames):
@@ -132,10 +132,15 @@ def _run_capture(path, song, frames):
             index[key] = pi
             programs.append(key)
         trace.append(pi)
-        for pred, _taken in vm.guards:
-            if pred not in guard_index:
-                guard_index[pred] = len(guards_ser)
+        fpath = []
+        for pred, taken in vm.guards:
+            gi = guard_index.get(pred)
+            if gi is None:
+                gi = len(guards_ser)
+                guard_index[pred] = gi
                 guards_ser.append(_ser(pred))
+            fpath.append([gi, taken])
+        paths.append(fpath)
         ground.append([(r, v) for _c, r, v in vm.wlog[wstart:]])
         played += 1
     ir = {
@@ -154,6 +159,7 @@ def _run_capture(path, song, frames):
         ],
         "trace": trace,
         "guards": guards_ser,
+        "paths": paths,
     }
     return ir, ground
 
@@ -195,94 +201,97 @@ def _run_ir(ir, emit):
     _drive_ir(ir, len(trace), lambda f, _s, _r: trace[f], emit)
 
 
-def _intern_guard(e, pool, index):
-    """Intern a serialized guard predicate into a shared DAG pool; return node id."""
-    tag = e[0]
-    if tag == "op":
-        node = ("op", e[1], tuple(_intern_guard(k, pool, index) for k in e[2]), e[3])
-    elif tag == "mem":
-        node = ("mem", _intern_guard(e[1], pool, index), e[2])
-    else:
-        node = tuple(e)
-    nid = index.get(node)
-    if nid is None:
-        nid = len(pool)
-        index[node] = nid
-        pool.append(node)
-    return nid
+AMB = -1
 
 
-def build_guard_pool(guards):
-    """Intern the guard vocabulary; children precede parents (id-order evaluable)."""
-    pool, index, roots = [], {}, []
-    for g in guards:
-        roots.append(_intern_guard(g, pool, index))
-    return pool, roots
+def _path_trie(paths, trace):
+    """Trie over per-frame (guard-id, taken) paths; each leaf collects programs."""
+    root = {"kids": {}, "ends": set()}
+    for fpath, pi in zip(paths, trace):
+        node = root
+        for gid, taken in fpath:
+            node = node["kids"].setdefault((gid, taken), {"kids": {}, "ends": set()})
+        node["ends"].add(pi)
+    return root
 
 
-def _vector(pool, roots, mem, regs):
-    """Evaluate the whole guard vocabulary against one frame-entry state -> bitmask."""
-    vals = [0] * len(pool)
-    for nid, node in enumerate(pool):
-        t = node[0]
-        if t == "const":
-            vals[nid] = node[1]
-        elif t == "reg":
-            vals[nid] = regs[node[1]]
-        elif t == "uni":
-            vals[nid] = 0
-        elif t == "mem":
-            addr = vals[node[1]] & 0xFFFF
-            r = 0
-            for i in range(node[2]):
-                r |= mem[(addr + i) & 0xFFFF] << (8 * i)
-            vals[nid] = r
+def _lower_trie(root):
+    """Lower the path trie to decision nodes; annotate each trie node's ``ref``.
+
+    Refs: ``>= 0`` decision-node index, ``AMB`` ambiguous (next-guard/end/program
+    conflict -> residual), ``<= -2`` program leaf ``pi = -ref - 2``. Any node whose
+    recorded continuations all reach one ref collapses to it (skipping evaluation);
+    identical decision subtrees are hash-consed.
+    """
+    nodes, nindex = [], {}
+    stack = [(root, False)]
+    while stack:
+        node, done = stack.pop()
+        if not done:
+            stack.append((node, True))
+            stack.extend((k, False) for k in node["kids"].values())
+            continue
+        kids, ends = node["kids"], node["ends"]
+        gids = {g for g, _t in kids}
+        refs = {c["ref"] for c in kids.values()} | {-(pi + 2) for pi in ends}
+        if len(refs) == 1:
+            node["ref"] = next(iter(refs))
+        elif ends or len(gids) != 1 or len(kids) != 2:
+            node["ref"] = AMB
         else:
-            ch = node[2]
-            a = vals[ch[0]]
-            b = vals[ch[1]] if len(ch) > 1 else 0
-            vals[nid] = _apply(node[1], a, b, node[3])
-    v = 0
-    for k, rid in enumerate(roots):
-        if vals[rid]:
-            v |= 1 << k
-    return v
+            (gid,) = gids
+            key = (gid, kids[(gid, 0)]["ref"], kids[(gid, 1)]["ref"])
+            nid = nindex.get(key)
+            if nid is None:
+                nid = len(nodes)
+                nindex[key] = nid
+                nodes.append(list(key))
+            node["ref"] = nid
+    return nodes
 
 
 def build_dispatch(ir):
-    """Derive program selection from guard evaluation over the self-evolved memory.
+    """Derive program selection as a decision DAG over the recorded guard paths.
 
-    Returns the guard pool/roots, a ``guard-vector -> program`` table for uniquely
-    mapping vectors, and a frame-ordered residual of program indices for ambiguous
-    vectors (data-indexed-store residue). Reproduces the recorded trace exactly.
+    Guard predicates are frame-entry-pure, so identical memory evolution retraces
+    each frame's recorded path exactly; frames reaching an ambiguous trie node
+    fall to a frame-ordered residual.
     """
-    pool, roots = build_guard_pool(ir.get("guards", []))
-    vectors = []
-    _run_ir(ir, lambda pr, snap, regs: vectors.append(_vector(pool, roots, snap, regs)))
-    trace = ir["trace"]
-    seen, conflict = {}, set()
-    for v, pi in zip(vectors, trace):
-        if v in seen:
-            if seen[v] != pi:
-                conflict.add(v)
-        else:
-            seen[v] = pi
-    table = {v: pi for v, pi in seen.items() if v not in conflict}
-    residual = [pi for v, pi in zip(vectors, trace) if v in conflict]
-    return {"pool": pool, "roots": roots, "table": table, "residual": residual}
+    paths, trace = ir["paths"], ir["trace"]
+    root = _path_trie(paths, trace)
+    nodes = _lower_trie(root)
+    residual = []
+    for fpath, pi in zip(paths, trace):
+        node, k = root, 0
+        while node["ref"] >= 0:
+            node = node["kids"][tuple(fpath[k])]
+            k += 1
+        if node["ref"] == AMB:
+            residual.append(pi)
+    return {
+        "exprs": ir.get("guards", []),
+        "nodes": nodes,
+        "root": root["ref"],
+        "residual": residual,
+    }
 
 
 def _run_guarded(ir, dispatch, emit):
-    """Replay selecting each program by guard evaluation; returns the derived trace."""
-    pool, roots = dispatch["pool"], dispatch["roots"]
-    table, residual = dispatch["table"], dispatch["residual"]
+    """Replay selecting each program by walking the guard decision DAG."""
+    exprs, nodes = dispatch["exprs"], dispatch["nodes"]
+    residual, root = dispatch["residual"], dispatch["root"]
     trace, cursor = [], [0]
 
     def select(_f, snap, regs):
-        pi = table.get(_vector(pool, roots, snap, regs))
-        if pi is None:
+        ref = root
+        while ref >= 0:
+            gid, lo, hi = nodes[ref]
+            ref = hi if _eval(exprs[gid], snap, regs) else lo
+        if ref == AMB:
             pi = residual[cursor[0]]
             cursor[0] += 1
+        else:
+            pi = -ref - 2
         trace.append(pi)
         return pi
 
@@ -381,9 +390,9 @@ def roundtrip(path, song, frames):
 def roundtrip_guarded(path, song, frames):
     """Prove guard-derived program selection byte-exact against the deity write log.
 
-    Selection is re-derived per frame from the recorded branch guards evaluated
-    over the self-evolved memory; ambiguous vectors fall to a residual trace.
-    Returns match plus how much of the trace is guard-derived vs residual.
+    Selection is re-derived per frame by walking the guard decision DAG over the
+    self-evolved memory; ambiguous frames fall to a residual trace. Returns match
+    plus how much of the trace is guard-derived vs residual.
     """
     ir, ground = _run_capture(path, song, frames)
     dispatch = build_dispatch(ir)
@@ -397,8 +406,8 @@ def roundtrip_guarded(path, song, frames):
     return {
         "match": diverge is None and len(got) == len(ground),
         "frames": ir["frames"],
-        "guards": len(ir.get("guards", [])),
-        "table": len(dispatch["table"]),
+        "guards": len({n[0] for n in dispatch["nodes"]}),
+        "table": len(dispatch["nodes"]),
         "residual": residual,
         "fully_derived": residual == 0,
         "diverge": diverge,
@@ -423,7 +432,7 @@ def main(argv=None):
     g = roundtrip_guarded(path, song, frames)
     gverdict = "BYTE-EXACT" if g["match"] else "DIVERGED"
     scope = "fully guard-derived" if g["fully_derived"] else f"{g['residual']} residual frames"
-    print(f"guarded {gverdict}: {g['guards']} guards, {g['table']} table entries, {scope}")
+    print(f"guarded {gverdict}: {g['guards']} guards, {g['table']} decision nodes, {scope}")
     if not g["match"] and g["diverge"] is not None:
         f, got, want = g["diverge"]
         print(f"  guarded divergence @ frame {f}: got {got[:4]} want {want[:4]}")

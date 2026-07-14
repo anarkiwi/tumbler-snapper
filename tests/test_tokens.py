@@ -36,7 +36,8 @@ def test_count_tokens_breakdown():
         "programs": [{"trans": [[0, 0, 1]], "regs": [1], "sid": [[0, 0], [1, 1]]}],
         "init_mem": [[0x1000, "ff"], [0x2000, "aa"]],
         "guard_pool": [["reg", 0], ["const", 1], ["op", "INT_EQUAL", [0, 1], 1]],
-        "guard_table": [[0, 0], [1, 1]],
+        "dnodes": [[0, -2, -3], [0, 0, -1]],
+        "droot": 1,
         "residual_rle": [[0, 3]],
     }
     c = tokens.count_tokens(comp)
