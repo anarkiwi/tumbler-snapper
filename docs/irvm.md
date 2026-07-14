@@ -98,9 +98,13 @@ regression-guards this.
   `test_oracle_grid_consistent` forward-fills the replayed writes into an absolute
   per-frame register grid and diffs it against the oracle grid (frames aligned at
   the recovered cadence). Marked `oracle`; skips when the sidtrace container is
-  unavailable. **Follow-up:** the sidtrace render is currently unavailable in the
-  local sandbox (the container cannot open the mounted `.sid`); this cross-check
-  is expected to run under CI where the oracle image works.
+  unavailable.
+- **Register-change stream** (`docker cp` sidtrace oracle, `tsnap.oracle`): the
+  Phase-1 bind-mount blocker (container "could not open file") is fixed by
+  rendering via `docker cp`; `tests/test_oracle_stream.py` compares the IR
+  replay's ordered register-change stream to sidtrace byte-exact. See
+  [`docs/survey.md`](survey.md) for the root cause, the fix, and the residual
+  deity-`PcodeVM`-vs-libsidplayfp differences on the tunes where they disagree.
 
 ## Tests
 

@@ -17,6 +17,7 @@ tsnap recover <file.sid>    # recover per-frame register generators
 tsnap tracker <file.sid>    # build the tracker IR
 tsnap irvm    <file.sid>    # prove the IR replay byte-exact
 tsnap tokens  <file.sid>    # measure IR tokens/frame
+tsnap survey  --hvsc <root> # stratified HVSC coverage matrix
 ```
 
 ## Testing
@@ -31,4 +32,5 @@ pytest -n auto
 - [docs/tracker-model.md](docs/tracker-model.md) — tracker-IR model.
 - [docs/irvm.md](docs/irvm.md) — serializable generator-IR + lossless replay.
 - [docs/tokens.md](docs/tokens.md) — tokens/frame metric + lossless compression.
+- [docs/survey.md](docs/survey.md) — stratified HVSC coverage matrix + oracle outcome.
 - [CLAUDE.md](CLAUDE.md) — design constraints and correctness workflow.
