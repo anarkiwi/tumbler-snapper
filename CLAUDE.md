@@ -50,6 +50,15 @@ These give the sub-1-token/frame budget for free: a row spans many frames, and
 patterns repeat via the orderlist, so amortized structural entropy per frame is
 tiny. Discover these structures from the P-Code; do not assume any one layout.
 
+## Layering rule
+
+The tracker layer is a **static analysis of the generator-IR**: guards
+(recorded branch conditions), per-cell transitions, and data dereferenced from
+the post-init image via recovered accessors (`docs/tokens.md` Phase-4 changes,
+`docs/tracker-model.md` builder interface). Concrete trace capture of SID
+output is display-only diagnostics; nothing load-bearing may be inferred from
+sampled register state — that is fitting to output.
+
 ## HARD CONSTRAINTS (non-negotiable)
 
 1. **P-Code-derived, algorithmic, automatic.** The IR is produced only by

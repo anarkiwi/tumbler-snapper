@@ -92,28 +92,54 @@ recovery is already good. The cost is the **number of distinct whole-frame
 programs** (`nprog`): slots ≈ `nprog × per-frame-width`.
 
 The driving `trace` barely run-length-compresses: `frames / trace-runs ≈ 1.0`
-for most tunes, i.e. the program index changes essentially **every frame**. Cause:
-a frame program is a monolithic bundle of all three voices' full per-frame state
-transition + SID emission, keyed on the *entire* frame-entry state. A cell that
-advances every frame (a sequencer position, an envelope/table index, the frame
-counter itself) forks a fresh whole-frame program each tick even when the
-underlying structure is identical. So `nprog ≈ frames` and `tokens/frame ≈`
-the per-frame slot width — a near-constant, not a decreasing amortization.
+for most tunes, i.e. the program index changes essentially **every frame**, so
+`nprog` grows with frames and `tokens/frame ≈` the per-frame slot width — a
+near-constant, not a decreasing amortization.
 
-Three un-recovered structures would close the gap:
+### Fork mechanism (measured)
 
-- **Instrument / table unfold.** Per-frame envelope/wave/arp/pulse advances are
-  re-emitted as a distinct program each frame; the tables they index already sit
-  (dead) in `init_mem`. Recovering that a pointer increments and indexes a static
-  table collapses O(frames) programs into one instrument + a trigger + a counter.
-- **Pattern / orderlist (row clock).** Note/instrument selection changes only
-  every K frames, but the frame counter lives *inside* the program, so the trace
-  forks every frame. Separating a slow row clock from the fast in-row table
-  unfold gives the trace real RLE runs (rows span many frames) and dedups
-  programs to a small pattern alphabet.
-- **Per-voice separation.** The monolithic bundle conflates three independent
-  voices: a note change on one voice forks the whole program. Independent
-  per-voice program streams would multiply reuse.
+Probed by diffing consecutive frame-program keys (`Old_Times`,
+`Randy_the_Great`, 150 frames): **per-cell generator streams are stable; the
+monolithic key is not.**
+
+- Each cell holds one of its few recovered variants for many consecutive frames
+  (Randy: `$D400 = M[$1398]` in long runs, briefly the note-chase/vibrato
+  variant). The frame program keys the *product* of ~70 cells' variant choices;
+  the three voices' vibrato/pulse/carry phases alternate independently, so the
+  product changes nearly every frame even though every factor stream would RLE
+  well.
+- Adjacent-frame variants differ by folded **path terms** (a 16-bit carry
+  `(0xff <= M[..])` appearing/disappearing): the branch outcome is baked into
+  the expr, the branch condition discarded.
+- Indexed/conditional stores enter `trans` keyed by **concrete address**
+  (Old_Times: `$173B..$173D` appear/disappear on ~2/3 of transitions), forking
+  otherwise identical programs.
+- Trigger-frame exprs blow up as unfolded shift-add carry chains, and
+  commutative operands are not canonically ordered, so alpha-equivalent
+  variants can fail to dedupe.
+
+### Phase-4 changes (dependency order)
+
+1. **Record path conditions (guards).** At every conditional branch the
+   concolic run already has the symbolic flag expr (`sreg[flag]`) and the
+   concrete outcome; keep the deduped per-frame `(flag_expr, taken)` set.
+   Program selection is then *derived* by evaluating guards against the
+   self-evolved memory: `trace` leaves the IR, and the row clock is the guard
+   on the note-fetch path.
+2. **Per-cell / per-voice decomposition.** Replace the monolithic frame bundle
+   with per-cell generator streams (small variant alphabet, guard-conditioned
+   choice); voice separation falls out of which cells feed which SID registers.
+3. **Symbolic store addresses.** Carry `(addr_expr, val_expr)` in program
+   order, evaluated at replay: removes concrete-indexed-store forking and fixes
+   overlapping different-width store order (see `docs/survey.md`).
+4. **Hash-cons exprs at construction** with canonical commutative operand
+   order: equality becomes pointer compare, the id-keyed simplify memo becomes
+   trivially correct, and `tokens` interning stops re-doing the work.
+
+These recover the three structures previously named here (instrument/table
+unfold, pattern/orderlist row clock, per-voice separation) as consequences, not
+as separate heuristics. Re-measure the metric after 1–4 (expect `trace` to
+vanish and `nprog` to collapse) **before** any tracker-layer work.
 
 The two `< 1.0` tunes confirm the mechanism working when structure *is* present:
 Goldberg (1 program, 400 frames/run — perfectly periodic, fully folded) and
