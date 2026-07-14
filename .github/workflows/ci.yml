@@ -37,7 +37,7 @@ jobs:
       - name: Install
         run: pip install -e ".[dev,oracle]"
       - name: Cache HVSC tunes
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .oracle-cache
           key: oracle-${{ hashFiles('tests/fixtures.py') }}
