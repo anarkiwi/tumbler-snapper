@@ -132,12 +132,78 @@ def test_roundtrip_intraframe_multiwrite(digi_sid):
     assert r["writes"] == 40 * 8
 
 
-def test_vector_bitmask():
-    pool, roots = irvm.build_guard_pool([["reg", 0], ["mem", ["const", 0x10], 1]])
-    mem = bytearray(0x10000)
-    mem[0x10] = 1
-    assert irvm._vector(pool, roots, mem, [0, 0]) == 0b10
-    assert irvm._vector(pool, roots, mem, [1, 0]) == 0b11
+def _dispatch_ir(guards, paths, trace):
+    return {"guards": guards, "paths": paths, "trace": trace, "frames": len(trace)}
+
+
+def test_dispatch_single_program_is_leaf():
+    d = irvm.build_dispatch(_dispatch_ir([], [[], []], [0, 0]))
+    assert not d["nodes"] and d["root"] == -2 and not d["residual"]
+
+
+def test_dispatch_decides_on_path_guard():
+    g = [["mem", ["const", 0x10], 1]]
+    paths = [[[0, 1]], [[0, 0]], [[0, 1]]]
+    d = irvm.build_dispatch(_dispatch_ir(g, paths, [0, 1, 0]))
+    assert d["nodes"] == [[0, -3, -2]] and d["root"] == 0 and not d["residual"]
+
+
+def test_dispatch_skips_single_outcome_chain():
+    """A guard recorded with one outcome only carries no selection; no node."""
+    g = [["reg", 0], ["mem", ["const", 0x10], 1]]
+    paths = [[[0, 1], [1, 1]], [[0, 1], [1, 0]]]
+    d = irvm.build_dispatch(_dispatch_ir(g, paths, [0, 1]))
+    assert d["nodes"] == [[1, -3, -2]] and d["root"] == 0
+
+
+def test_dispatch_leaf_conflict_is_residual():
+    """Identical complete paths selecting different programs fall to residual."""
+    d = irvm.build_dispatch(_dispatch_ir([], [[], [], []], [0, 1, 0]))
+    assert d["root"] == irvm.AMB and d["residual"] == [0, 1, 0]
+
+
+def test_dispatch_end_vs_continue_is_residual():
+    """A path that is a proper prefix of another cannot be resolved by guards."""
+    g = [["reg", 0]]
+    d = irvm.build_dispatch(_dispatch_ir(g, [[[0, 1]], []], [0, 1]))
+    assert d["root"] == irvm.AMB and d["residual"] == [0, 1]
+
+
+def test_dispatch_collapses_converging_conflict():
+    """Conflicting continuations that all reach one program need no resolution."""
+    g = [["reg", 0], ["reg", 1]]
+    paths = [[[0, 1]], [[1, 0]], []]
+    d = irvm.build_dispatch(_dispatch_ir(g, paths, [0, 0, 0]))
+    assert not d["nodes"] and d["root"] == -2 and not d["residual"]
+
+
+def test_dispatch_collapses_equal_subtrees():
+    """A guard whose both outcomes reach the same program decides nothing."""
+    g = [["reg", 0]]
+    d = irvm.build_dispatch(_dispatch_ir(g, [[[0, 1]], [[0, 0]]], [0, 0]))
+    assert not d["nodes"] and d["root"] == -2
+
+
+def test_guarded_trace_walks_evolving_memory():
+    """The DAG re-derives selection from memory the programs themselves evolve."""
+    flip = {"trans": [[0x10, ["op", "INT_XOR", [["mem", ["const", 0x10], 1], ["const", 1]], 1], 1]]}
+    programs = [
+        {**flip, "regs": [], "sid": [[0, ["const", 1]]]},
+        {**flip, "regs": [], "sid": [[0, ["const", 2]]]},
+    ]
+    ir = {
+        "frames": 4,
+        "init_mem": [[0x10, "01"]],
+        "init_regs": [0] * 16,
+        "reset_regs": True,
+        "programs": programs,
+        "guards": [["mem", ["const", 0x10], 1]],
+        "paths": [[[0, 1]], [[0, 0]], [[0, 1]], [[0, 0]]],
+        "trace": [0, 1, 0, 1],
+    }
+    dispatch = irvm.build_dispatch(ir)
+    assert dispatch["nodes"] == [[0, -3, -2]] and not dispatch["residual"]
+    assert irvm.guarded_trace(ir, dispatch) == ir["trace"]
 
 
 def _assert_guarded_exact(path, song, frames):
