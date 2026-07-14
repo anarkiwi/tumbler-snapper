@@ -197,6 +197,15 @@ whose transitions are recovered — 86 variants total, all 24 regs exact/3000:
   discovery locates (`irq_vec`/`nmi_vec`), invoked at the discovered cadence —
   wiring `run` to that handler is gated on the parked cadence/driver layer, so
   those tunes currently emit cadence only, no register generators.
+- **Main-loop-driven RSID** (e.g. lft's `A_Mind_Is_Born`) is a further step out:
+  `init` copies code into zero page and `JMP`s into a *continuous* main loop (it
+  never returns) that is a cycle-exact software synth; the installed IRQ is a
+  minimal raster frame-counter, and the main loop spins on that counter, emitting
+  a 25-register shadow-buffer burst once released. Cadence still resolves
+  (oracle-matched), but recovery needs a continuous-execution driver with
+  faithful cycle-exact raster/interrupt timing (deity `run_irq_driven`), not the
+  call/return `play` model — and there is no tracker structure to recover, only
+  algorithmic synthesis. Emits cadence only.
 - Cadence is parked after initial validation; multispeed / raster-split and
   dynamic-tempo schedules are only partially characterised. On multispeed tunes
   the oracle's own cadence detector may disagree with the discovered per-call
