@@ -27,7 +27,7 @@ def _one(fx):
     path = resolve_tune(fx["relpath"], cache_dir=CACHE, local_env="HVSC")
     if path is None:
         return (fx["relpath"], None)
-    return (Path(fx["relpath"]).stem, tokens.metric(str(path), fx["start_song"], FRAMES))
+    return (Path(fx["relpath"]).stem, tokens.metric(str(path), fx["song"], FRAMES))
 
 
 def main():

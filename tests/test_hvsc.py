@@ -23,7 +23,7 @@ def test_hvsc_fully_faithful(fx):
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")
-    _vm, _variants, faithful, _shadow = R.run(str(path), fx["start_song"], _FRAMES)
+    _vm, _variants, faithful, _shadow = R.run(str(path), fx["song"], _FRAMES)
     unfaithful = {
         f"${addr:04X}": (ok, tot) for addr, (ok, tot) in faithful.items() if tot and ok != tot
     }

@@ -132,16 +132,24 @@ harness-level fix; the underlying bind-mount limitation lives in
 **Cross-check outcome.** With rendering working, the IR replay's ordered
 register-change stream (SID cold-start zeros + the PSID driver's `$D418=$0F`
 pre-seed, dropping the driver's leading write) is compared to sidtrace's stream.
-It is **byte-exact on 4 / 10 sampled fixtures** (Boompah, Degree, Sc00ter,
-Kate_and_Martin) over their full played streams (600–2300 register changes each).
-The remaining fixtures reveal genuine **deity-`PcodeVM` vs libsidplayfp** emulator
-differences — intra-frame write **order** (independent registers written in a
-different order within one frame; audibly identical) and, under a non-standard
-cadence, an occasional register **value** — not codec or Docker defects. The
-deity `PcodeVM` write log is itself byte-exact against the IR (32/32, see
-`docs/irvm.md`), so it remains the survey's byte-exact ground truth, with the
-`docker cp` sidtrace stream as the independent order-sensitive confirmation where
-the two emulators agree. `tests/test_oracle_stream.py` guards this (`oracle`-marked).
+It is **byte-exact on all 32 fixtures** over their full played streams.
+
+Reaching parity required three environment-fidelity fixes derived from reading
+libsidplayfp, not codec changes (all algorithmic, no per-tune tuning):
+
+- **INIT-time SID writes** are captured and replayed as a preamble before the
+  play frames (sidtrace includes them; the play-only IR previously did not).
+- **C64 power-on RAM** is the striped `SystemRAMBank::reset` fill (16 KiB blocks
+  alternating `0x00`/`0xFF` with 4-byte stripes) instead of zeros, so tunes that
+  read RAM they never wrote match the oracle.
+- **psiddrv play entry** — sidplayfp calls `play` each frame via IRQ with `A=0`
+  and returns via `RTI`, so processor flags/registers never leak between calls;
+  the driver resets to the fixed post-init idle state before each play call and
+  the IR-VM resets registers per frame (threading only memory).
+
+The deity `PcodeVM` write log is byte-exact against the IR (32/32, see
+`docs/irvm.md`) and against sidtrace, so both oracles agree.
+`tests/test_oracle_stream.py` guards this (`oracle`-marked).
 
 ## CLI + tests
 

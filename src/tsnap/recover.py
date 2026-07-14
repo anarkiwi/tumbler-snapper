@@ -248,6 +248,9 @@ class SymVM(PcodeVM):
         self.Fsz = {}
         self.frame_writes = {}
         self.sid_seq = []
+        self.init_sid = []
+        self.idle_reg = []
+        self.frame_entry_reg = []
         self.hw = {}
         self.img = (0, 0)
         self.image_writes = set()
@@ -427,8 +430,11 @@ def _handler_info(vm):
     for pair, kernal in ((IRQ_VEC, True), (HW_IRQ_VEC, False), (NMI_VEC, False)):
         if pair[0] in vm.hw or pair[1] in vm.hw:
             return (vm.mem[pair[0]] | (vm.mem[pair[1]] << 8), kernal)
-    civ = vm.mem[IRQ_VEC[0]] | (vm.mem[IRQ_VEC[1]] << 8)
-    return (civ, True) if civ else (None, False)
+    lo, hi = vm.img
+    if lo <= IRQ_VEC[0] < hi and lo <= IRQ_VEC[1] < hi:
+        civ = vm.mem[IRQ_VEC[0]] | (vm.mem[IRQ_VEC[1]] << 8)
+        return (civ, True) if civ else (None, False)
+    return (None, False)
 
 
 def _drive_handler(vm, cache, handler, kernal):
@@ -439,6 +445,7 @@ def _drive_handler(vm, cache, handler, kernal):
     $EA31 stub for KERNAL returns).
     """
     reg = vm.reg
+    vm.frame_entry_reg = list(reg)
     start = reg[3]
     vm.vicirq |= 0x81
     vm.ciaicr |= 0x81
@@ -461,10 +468,27 @@ def _drive_handler(vm, cache, handler, kernal):
             raise RuntimeError(f"runaway handler at ${pc:04X}")
 
 
+def play_entry_reg(idle):
+    """Fixed register/flag state at each psiddrv `play` call: the post-init idle
+    state with A=0 (`lda #0`), Z/N from that load, and I set inside the IRQ.
+    sidplayfp restores this via RTI every frame, so nothing leaks between calls."""
+    reg = list(idle)
+    reg[0] = 0
+    reg[9], reg[14] = 1, 0
+    reg[10] = 1
+    return reg
+
+
+def _drive_play(vm, play, cache):
+    vm.reg[:] = play_entry_reg(vm.idle_reg)
+    vm.frame_entry_reg = list(vm.reg)
+    _drive(vm, play, cache)
+
+
 def frame_driver(vm, h, cache):
     """Per-frame advance closure: call `play`, or drive the installed IRQ handler."""
     if h.play_address:
-        return lambda: _drive(vm, h.play_address, cache)
+        return lambda: _drive_play(vm, h.play_address, cache)
     handler, kernal = _handler_info(vm)
     if handler is None:
         return None
@@ -565,10 +589,31 @@ def _value_cells_of(e):
     return out
 
 
+def _poweron_ram():
+    """C64 power-on RAM fill (libsidplayfp ``SystemRAMBank::reset``).
+
+    Each 16 KiB block alternates 0x00/0xFF, with 4-byte stripes of the opposite
+    value every 8 bytes from offset 2. Tunes that read RAM they never wrote see
+    these values on real hardware; a zero fill diverges from the sidplayfp oracle.
+    """
+    ram = bytearray(0x10000)
+    byte = 0x00
+    for j in range(0, 0x10000, 0x4000):
+        ram[j : j + 0x4000] = bytes((byte,)) * 0x4000
+        byte ^= 0xFF
+        stripe = bytes((byte,)) * 4
+        for i in range(0x02, 0x4000, 0x08):
+            ram[j + i : j + i + 4] = stripe
+    return bytes(ram)
+
+
+_POWERON_RAM = _poweron_ram()
+
+
 def setup(path, song):
     data = open(path, "rb").read()
     h = p.parse_sid_header(data)
-    mem = bytearray(0x10000)
+    mem = bytearray(_POWERON_RAM)
     body = data[h.data_start :]
     mem[h.real_load_address : h.real_load_address + len(body)] = body
     vm = SymVM(mem)
@@ -577,8 +622,11 @@ def setup(path, song):
     vm.reg[0] = song
     cache = {}
     vm.concrete_only = True
+    vm.wlog = []
     _drive(vm, h.init_address, cache)
+    vm.init_sid = [(r, v) for _c, r, v in vm.wlog]
     vm.concrete_only = False
+    vm.idle_reg = list(vm.reg)
     return vm, h, cache
 
 
@@ -729,11 +777,11 @@ def run(path, song, frames):
     for _f in range(frames):
         vm.begin_frame()
         snap = bytes(vm.mem)
-        entry_regs = list(vm.reg)
         try:
             advance()
         except RuntimeError:
             break
+        entry_regs = vm.frame_entry_reg
         for a in list(tset):
             c = _cell_target(vm.F.get(a))
             if c is not None and c not in SID_REGS and c not in tset:
