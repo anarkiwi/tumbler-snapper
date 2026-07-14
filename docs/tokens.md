@@ -141,12 +141,10 @@ unfold, pattern/orderlist row clock, per-voice separation) as consequences, not
 as separate heuristics. Re-measure the metric after 1–4 (expect `trace` to
 vanish and `nprog` to collapse) **before** any tracker-layer work.
 
-Re-measure at **full-tune (or multi-minute) horizons**: HARD CONSTRAINT #4 is
-defined over full playback, and 400-frame horizons understate amortization —
+Re-measure at full-tune horizons (CLAUDE.md measurement doctrine):
 `A_Mind_Is_Born` measures 2.06 tok/frm at 400 frames but 0.836 at 3200
-(programs 1869, trace 800, init 7), already `< 1.0` with the trace term still
-present. Transcription-rung tunes (`docs/tracker-model.md` principle 4) meet
-the same `< 1.0` budget; generative structure is no exemption.
+(programs 1869, trace 800, init 7) — already `< 1.0` with the trace term
+still present.
 
 The two `< 1.0` tunes confirm the mechanism working when structure *is* present:
 Goldberg (1 program, 400 frames/run — perfectly periodic, fully folded) and

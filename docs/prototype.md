@@ -211,20 +211,18 @@ whose transitions are recovered — 86 variants total, all 24 regs exact/3000:
   resolution, symbolic `F`, faithfulness) is identical to the `play` path.
   Validated exact/frame on `Double_Dragon_2` (21) and `P_A_S_S_Demo_3` (3).
 - **Generative RSID re-measured: lft's `A_Mind_Is_Born` is fully supported**
-  (an earlier limit note predating the handler driver claimed otherwise —
-  documented limits expire as the driver model improves; re-verify them).
-  Its `init` returns after installing a CINV handler in zero page;
-  `_drive_handler` drives it (25 SID writes/frame), recover is N/N faithful,
-  `irvm.roundtrip` is byte-exact with 7 distinct frame programs at 300 frames,
-  and the IR replay matches the independent sidtrace stream byte-exact over
-  3200 frames (4867 register changes, ~64 s). Pin it in the fixture manifest
-  (roundtrip + oracle-stream regression) before Phase-4 IR refactors. The
-  residual limit class is **volatile-value-read** (`docs/survey.md`): a
-  volatile read feeding a register value where deity's volatile model and
-  libsidplayfp disagree — membership is established by measurement (roundtrip
-  + oracle stream), never inferred from the player's structure. A
-  non-returning `init` (or a handler that never balances its `RTI`) still
-  trips the `_drive` / `_drive_handler` guards and degrades to cadence-only.
+  (an earlier limit note predating the handler driver claimed otherwise; see
+  the CLAUDE.md measurement doctrine). Its `init` returns after installing a
+  CINV handler in zero page; `_drive_handler` drives it (25 SID writes/frame),
+  recover is N/N faithful, `irvm.roundtrip` is byte-exact with 7 distinct
+  frame programs at 300 frames, and the IR replay matches the independent
+  sidtrace stream byte-exact over 3200 frames (4867 register changes, ~64 s).
+  Pin it in the fixture manifest (roundtrip + oracle-stream regression) before
+  Phase-4 IR refactors. The residual limit class is **volatile-value-read**
+  (`docs/survey.md`): a volatile read feeding a register value where deity's
+  volatile model and libsidplayfp disagree. A non-returning `init` (or a
+  handler that never balances its `RTI`) still trips the `_drive` /
+  `_drive_handler` guards and degrades to cadence-only.
 - Cadence detection (source + initial `cycles_per_call`) is byte-exact against the
   oracle over the 32-tune fixture set, including CIA timers latched during play and
   loaded-but-disarmed timers. Still future work: a full per-call schedule for
