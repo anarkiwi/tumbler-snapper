@@ -110,12 +110,17 @@ only; pitch/tuning standardization is deferred.
 - **From recover today:** `registers[].variants[].{kind,expr,…}` → programs /
   instruments (§4–5); `cadence` → timing (§1); shadow cells + base-table
   addresses → tables.
-- **Additionally required — a per-frame trace of the driving cells** (recover
-  extension or builder re-run): per voice per frame, the values of the note cell,
-  instrument-index cell, orderlist-position cell, and each program's position
-  cell. The builder factors this trace into patterns (repeating row runs) and an
-  orderlist (pattern sequence + loop) by period/repetition detection. This is the
-  sequence half (§2–3); the generators are the timbre half (§4–5).
+- **Additionally required — guards + per-cell transitions (Phase 4, see
+  `docs/tokens.md`).** The sequence half (§2–3) is a **static analysis of the
+  generator-IR**, not trace mining: the row clock is the guard on the
+  note-fetch path; patterns and orderlists are dereferenced from `init_mem`
+  through the recovered accessor chain (exactly as `read_freqtable` reads the
+  pitch table); counter-vs-selector is a cell's transition shape plus its
+  dominating guard; the frame/row/pattern/song hierarchy is which guard gates
+  each cell's update; the loop point is where the orderlist-position cell's
+  transition wraps. A per-frame concrete trace (`capture_trace`) is
+  display-only diagnostics — nothing load-bearing may be inferred from sampled
+  SID output (HARD CONSTRAINTS #1/#2).
 
 ## Replay / losslessness
 
@@ -130,6 +135,12 @@ The generator-level round-trip is implemented and proven: see
 replay reconstructs the ordered SID write stream **byte-exact against the deity
 `PcodeVM` log on all 32 fixtures** (intra-frame multi-writes included). The
 tracker-semantics replay above is the next layer over that proven substrate.
+
+**Acceptance gate:** the tracker layer is complete only when its
+tracker-semantics replay diffs byte-exact against the generator-IR replay
+(itself proven against deity + oracle). Anything the builder cannot factor
+losslessly falls back to raw guarded generators — never lossy, never silently
+dropped.
 
 ## GT ↔ TT-IR ↔ defMON mapping (summary)
 
@@ -155,6 +166,15 @@ tracker-semantics replay above is the next layer over that proven substrate.
    IR. This is what lets the tracker view be a *view*, with raw-generator fallback.
 
 ## Prototype status (`prototypes/tracker.py`)
+
+> **Phase-4 note:** steps 3–5 below (and the wave/mod parts of step 4) infer
+> structure from concrete `capture_trace` output with tuned thresholds
+> (`row_frames`, `_best_plen`, `classify_mod`, `classify_index_cells`, the
+> `(ad,sr)` instrument fallback, fixed `decode_instr` offsets). They are
+> **display-only and must not be built upon** — the load-bearing replacements
+> are the guard / per-cell static analyses in the builder-interface section.
+> Instrument field semantics must come from the `fields` register mapping
+> (which SID registers read which offsets), not fixed record offsets.
 
 Consumes `recover.py`'s generators + memory image and emits the text IR. Pipeline:
 
@@ -206,5 +226,11 @@ bound). `Grid_Runner` (GoatTracker) recovers chromatic tuning + structure.
   candidates + period detection; not yet a general orderlist/loop/transpose recovery.
 - **Replay/losslessness not yet closed.** The IR-VM that re-emits the register stream
   from this IR (and diffs vs recover + oracle) is not implemented; provenance is
-  carried but the round-trip proof is pending.
+  carried but the round-trip proof is pending (see the acceptance gate above).
+- **Pipeline re-runs.** `tracker.main` re-runs recover ~4x (`recover_tuning`,
+  `smc_operands` setups, `capture_trace`, `discover_cadence` twice); the
+  Phase-4 rebuild consolidates into one analysis context.
+- **`_peel_scale` handles `INT_MULT` but `recover.apply_op` does not** — either
+  the lifter never emits it (dead branch) or a multiply-using tune raises
+  mid-survey; reconcile.
 - Inherits recover's limits (main-loop cycle-exact synths stay cadence-only).

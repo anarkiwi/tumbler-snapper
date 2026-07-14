@@ -91,6 +91,19 @@ and close the recover-vs-IR value divergence on the harder players (the
 (paths + classifications + metadata, no `.sid` bytes) is committed at
 [`survey-report.json`](survey-report.json).
 
+Root-cause hypotheses (Phase-4 checks):
+
+- `faithful-not-roundtripped:value-mismatch` (Off_Beat_Collection_2, Arrivo_v1):
+  `irvm` applies `trans` last-write-per-starting-address in **address** order,
+  so two overlapping stores of different widths in one frame replay in address
+  order, not program order. Ordered symbolic stores (`docs/tokens.md` Phase-4
+  change 3) fix this structurally — verify against these two tunes first.
+- **volatile-value-read** (add as a named cause): a volatile IO read in value
+  position (e.g. `$D41B` noise into a parameter) is frozen at replay to the
+  static-image value and surfaces as roundtrip divergence. Guards do not fix
+  it; losslessness needs the volatile cell modeled as an IR input. Likely
+  hiding inside `cadence-only:value-mismatch`; split it out when diagnosing.
+
 ## Independent sidtrace/sidplayfp oracle (CLAUDE.md #3)
 
 Phase 1 left the Docker sidtrace grid oracle skipped: every render failed with
