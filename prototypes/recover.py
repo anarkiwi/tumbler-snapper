@@ -6,7 +6,9 @@ constant folding, yielding mem' = F(mem); generators are read off F.
 """
 
 from __future__ import annotations
+import hashlib
 import json
+import os
 import sys
 from collections import Counter
 import pysidtracker as p
@@ -245,13 +247,24 @@ class SymVM(PcodeVM):
         self.F = {}
         self.frame_writes = {}
         self.hw = {}
+        self.img = (0, 0)
+        self.image_writes = set()
+        self.smc = set()
+        self._op_addr = None
+        self._op_val = 0
+        self._op_sz = 0
+        self._op_pending = False
+        self.concrete_only = False
 
     def _wr(self, addr, val, sz):
         super()._wr(addr, val, sz)
+        lo, hi = self.img
         for i in range(sz):
             a = (addr + i) & 0xFFFF
             if a in WATCH:
                 self.hw[a] = (val >> (8 * i)) & 0xFF
+            if lo <= a < hi:
+                self.image_writes.add(a)
 
     def begin_frame(self):
         _SIMP_MEMO.clear()
@@ -262,12 +275,34 @@ class SymVM(PcodeVM):
         self.frame_writes = {}
 
     def _sread(self, vn):
-        sp, off, _ = vn
+        sp, off, sz = vn
         if sp == "c":
+            if self._op_pending and off == self._op_val and sz == self._op_sz:
+                self._op_pending = False
+                a = self._op_addr
+                if sz == 1 and a in self.sdefs:
+                    return self.sdefs[a]
+                return ("mem", ("const", a), sz)
             return ("const", off)
         if sp == "r":
             return self.sreg[off]
         return self.suni.get(off, ("uni", off))
+
+    def _set_operand(self, rec, pc):
+        """A self-modified instruction operand is state: symbolize it as M[addr]."""
+        ln = rec["len"]
+        self._op_addr = None
+        self._op_pending = False
+        if ln < 2:
+            return
+        a0 = pc + 1
+        if not any((a0 + i) & 0xFFFF in self.smc for i in range(ln - 1)):
+            return
+        val = 0
+        for i in range(ln - 1):
+            val |= self.mem[(a0 + i) & 0xFFFF] << (8 * i)
+        self._op_addr, self._op_val, self._op_sz = a0, val, ln - 1
+        self._op_pending = True
 
     def _swrite(self, vn, expr):
         if vn[0] == "r":
@@ -275,8 +310,11 @@ class SymVM(PcodeVM):
         else:
             self.suni[vn[1]] = expr
 
-    def _interp(self, rec):
+    def _interp(self, rec, pc):
         reg, uniq = self.reg, self.uniq
+        sym = not self.concrete_only
+        if sym:
+            self._set_operand(rec, pc)
 
         def rv(vn):
             sp, off, _ = vn
@@ -293,36 +331,39 @@ class SymVM(PcodeVM):
             if mn == "STORE":
                 addr, sz = rv(ins[0]), ins[1][2]
                 self._wr(addr, rv(ins[1]), sz)
-                expr = simplify(self._sread(ins[1]))
-                self.sdefs[addr] = expr
-                self.F[addr] = expr
+                if sym:
+                    expr = simplify(self._sread(ins[1]))
+                    self.sdefs[addr] = expr
+                    self.F[addr] = expr
                 if SID <= addr <= 0xD418:
                     self.frame_writes[addr] = rv(ins[1]) & 0xFF
                 continue
             if mn == "LOAD":
                 addr, sz = rv(ins[0]), out[2]
                 wv(out, self._rd(addr, sz))
-                if addr in self.sdefs:
-                    self._swrite(out, self.sdefs[addr])
-                else:
-                    self._swrite(out, ("mem", simplify(self._sread(ins[0])), sz))
+                if sym:
+                    if addr in self.sdefs:
+                        self._swrite(out, self.sdefs[addr])
+                    else:
+                        self._swrite(out, ("mem", simplify(self._sread(ins[0])), sz))
                 continue
-            s0 = self._sread(ins[0])
             if mn in ("COPY", "INT_ZEXT"):
                 wv(out, rv(ins[0]))
-                self._swrite(out, s0)
+                if sym:
+                    self._swrite(out, self._sread(ins[0]))
                 continue
-            s1 = self._sread(ins[1])
             a, b = rv(ins[0]), rv(ins[1])
             if mn == "INT_CARRY":
                 v = 1 if (a + b) > ((1 << (8 * ins[0][2])) - 1) else 0
             else:
                 v = apply_op(mn, a, b, out[2])
             wv(out, v)
-            self._swrite(out, simplify(("op", mn, (s0, s1), out[2])))
+            if sym:
+                s = (self._sread(ins[0]), self._sread(ins[1]))
+                self._swrite(out, simplify(("op", mn, s, out[2])))
 
     def run_record(self, rec, pc):
-        self._interp(rec)
+        self._interp(rec, pc)
         cyc, ctrl, nxt = rec["cyc"], rec["ctrl"], None
         if ctrl[0] == "br":
             _k, flag, pol, tgt, ft = ctrl
@@ -464,11 +505,24 @@ def _setup(path, song):
     body = data[h.data_start :]
     mem[h.real_load_address : h.real_load_address + len(body)] = body
     vm = SymVM(mem)
+    vm.img = (h.real_load_address, h.real_load_address + len(body))
     vm.mem[0xD418] = 0x0F
     vm.reg[0] = song
     cache = {}
     _drive(vm, h.init_address, cache)
     return vm, h, cache
+
+
+def _smc_operands(path, song, calls):
+    """Addresses in the module image the play routine writes (self-modified state)."""
+    vm, h, cache = _setup(path, song)
+    if not h.play_address:
+        return set()
+    vm.concrete_only = True
+    vm.image_writes = set()
+    for _ in range(calls):
+        _drive(vm, h.play_address, cache)
+    return vm.image_writes
 
 
 def _word(hw, pair):
@@ -523,37 +577,114 @@ def discover_cadence(path, song, play_calls=8):
     }
 
 
+def _cell_target(g):
+    """RAM cell address if g is a pure constant-address load, else None."""
+    if g is not None and g[0] == "mem" and g[1][0] == "const":
+        return g[1][1]
+    return None
+
+
+def _hold_gen(addr):
+    """Generator for a cell unchanged this frame: its own frame-entry value."""
+    return ("mem", ("const", addr), 1)
+
+
+def _resolve_shadows(variants):
+    """Follow CELL indirection: map each SID reg to the RAM cell it mirrors.
+
+    A register whose dominant generator is a pure copy of a RAM cell is a shadow
+    register; the real dynamics live in that cell. Chains are followed to the leaf.
+    """
+    shadow = {}
+    for reg in SID_REGS:
+        cur, seen = reg, set()
+        while variants.get(cur):
+            vmap = variants[cur]
+            top = max(vmap.items(), key=lambda kv: kv[1][0])[0]
+            c = _cell_target(top)
+            if c is None or c in SID_REGS or c in seen:
+                break
+            seen.add(c)
+            cur = c
+        if cur != reg:
+            shadow[reg] = cur
+    return shadow
+
+
 def run(path, song, frames):
+    smc = _smc_operands(path, song, min(frames, 512))
     vm, h, cache = _setup(path, song)
-    variants = {a: {} for a in SID_REGS}
-    faithful = {a: [0, 0] for a in SID_REGS}
+    vm.smc = smc
+    targets = list(SID_REGS)
+    tset = set(targets)
+    variants = {a: {} for a in targets}
+    faithful = {a: [0, 0] for a in targets}
     for _f in range(frames):
         vm.begin_frame()
         snap = bytes(vm.mem)
         entry_regs = list(vm.reg)
         _drive(vm, h.play_address, cache)
-        for a in SID_REGS:
-            if a not in vm.F or a not in vm.frame_writes:
-                continue
+        for a in list(tset):
+            c = _cell_target(vm.F.get(a))
+            if c is not None and c not in SID_REGS and c not in tset:
+                tset.add(c)
+                targets.append(c)
+                variants[c] = {}
+                faithful[c] = [0, 0]
+        for a in targets:
+            g = vm.F.get(a)
+            if a in SID_REGS:
+                if a not in vm.frame_writes or g is None:
+                    continue
+                gen, expected = g, vm.frame_writes[a]
+            else:
+                gen, expected = (g if g is not None else _hold_gen(a)), vm.mem[a]
             fa = faithful[a]
             fa[1] += 1
-            if eval_expr(vm.F[a], snap, entry_regs) & 0xFF == vm.frame_writes[a]:
+            if eval_expr(gen, snap, entry_regs) & 0xFF == expected:
                 fa[0] += 1
-            slot = variants[a].get(vm.F[a])
+            slot = variants[a].get(gen)
             if slot is None:
-                variants[a][vm.F[a]] = [1, dict(vm.F)]
+                variants[a][gen] = [1, dict(vm.F)]
             else:
                 slot[0] += 1
-    return vm, variants, faithful
+    return vm, variants, faithful, _resolve_shadows(variants)
+
+
+_CACHE_DIR = os.path.join(
+    os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
+    "tumbler-snapper",
+    "oracle",
+)
+
+
+def _oracle_cadence(path, clock):
+    """Oracle cadence, memoized on disk by file digest + clock (oracle run is slow)."""
+    data = open(path, "rb").read()
+    key = hashlib.sha1(data + clock.encode()).hexdigest()
+    cf = os.path.join(_CACHE_DIR, f"{key}.json")
+    try:
+        with open(cf, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        pass
+    o = p.playroutine_cadence(data, clock=clock)
+    res = {"source": o.source.value, "cycles": o.cycles_per_call, "latch": o.latch}
+    os.makedirs(_CACHE_DIR, exist_ok=True)
+    tmp = f"{cf}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(res, f)
+    os.replace(tmp, cf)
+    return res
 
 
 def _validate_cadence(path, cad):
     try:
-        o = p.playroutine_cadence(open(path, "rb").read(), clock=cad["clock"])
+        o = _oracle_cadence(path, cad["clock"])
     except (OSError, ValueError) as exc:
         return f"oracle unavailable ({exc})"
-    match = "MATCH" if o.cycles_per_call == cad["cycles_per_call"] else "DIFFER"
-    return f"oracle {o.source.value} {o.cycles_per_call}cyc latch={o.latch} -> {match}"
+    match = "MATCH" if o["cycles"] == cad["cycles_per_call"] else "DIFFER"
+    return f"oracle {o['source']} {o['cycles']}cyc latch={o['latch']} -> {match}"
 
 
 def print_cadence(path, c):
@@ -577,23 +708,41 @@ def print_cadence(path, c):
     print("  " + _validate_cadence(path, c))
 
 
-def _variant(reg, count, fmap):
-    c = classify(fmap, reg)
-    roots = {"val": fmap[reg]}
+def _classify_gen(addr, gen, fmap):
+    """Classify one variant's generator expr (HOLD when the cell is unchanged)."""
+    if gen == _hold_gen(addr):
+        return ("HOLD", None, None)
+    fm = dict(fmap)
+    fm[addr] = gen
+    return classify(fm, addr)
+
+
+def _variant(addr, gen, fmap):
+    c = _classify_gen(addr, gen, fmap)
+    if c[0] == "HOLD":
+        return c, {}, [], "HOLD"
+    fm = dict(fmap)
+    fm[addr] = gen
+    roots = {"val": gen}
     if c[0] == "ACCUM":
         roots["step"] = c[2]
-    binds, rr = cse(roots, fmap)
+    binds, rr = cse(roots, fm)
     tag = f"ACCUM ${c[1]:04X}" if c[0] == "ACCUM" and c[1] is not None else c[0]
     return c, rr, binds, tag
 
 
-def print_register(reg, name, vmap, faithful, top=3):
-    ok, tot = faithful[reg]
-    ordered = sorted(vmap.values(), key=lambda cv: -cv[0])
-    print(f"  {name:10} (${reg:04X})  [{ok}/{tot} faithful, {len(vmap)} variant(s)]")
-    for count, fmap in ordered[:top]:
-        c, rr, binds, tag = _variant(reg, count, fmap)
-        print(f"      x{count:<5} {tag:14} = {rr['val']}")
+def print_register(name, reg, addr, vmap, faithful, top=3):
+    ok, tot = faithful[addr]
+    ordered = sorted(vmap.items(), key=lambda kv: -kv[1][0])
+    shadow = f" <- shadow ${addr:04X}" if addr != reg else ""
+    print(
+        f"  {name:10} (${reg:04X}){shadow}  "
+        f"[{ok}/{tot} faithful, {len(vmap)} variant(s)]"
+    )
+    for gen, (count, fmap) in ordered[:top]:
+        c, rr, binds, tag = _variant(addr, gen, fmap)
+        val = "" if c[0] == "HOLD" else f" = {rr['val']}"
+        print(f"      x{count:<5} {tag:14}{val}")
         if c[0] == "ACCUM":
             print(f"             step = {rr['step']}")
         for tname, body in binds:
@@ -602,12 +751,12 @@ def print_register(reg, name, vmap, faithful, top=3):
         print(f"      ... {len(vmap) - top} more variant(s)")
 
 
-def register_json(reg, name, vmap, faithful):
-    ok, tot = faithful[reg]
+def register_json(name, reg, addr, vmap, faithful):
+    ok, tot = faithful[addr]
     out = []
-    for count, fmap in sorted(vmap.values(), key=lambda cv: -cv[0]):
-        c = classify(fmap, reg)
-        d = {"kind": c[0], "count": count, "expr": fmap[reg]}
+    for gen, (count, fmap) in sorted(vmap.items(), key=lambda kv: -kv[1][0]):
+        c = _classify_gen(addr, gen, fmap)
+        d = {"kind": c[0], "count": count, "expr": gen}
         if c[0] == "ACCUM":
             d["state"], d["step"] = c[1], c[2]
         elif c[0] == "CELL":
@@ -615,7 +764,10 @@ def register_json(reg, name, vmap, faithful):
         elif c[0] == "CONST":
             d["value"] = c[1]
         out.append(d)
-    return {"addr": reg, "name": name, "faithful": [ok, tot], "variants": out}
+    e = {"addr": reg, "name": name, "faithful": [ok, tot], "variants": out}
+    if addr != reg:
+        e["shadow"] = addr
+    return e
 
 
 def main():
@@ -625,19 +777,22 @@ def main():
     song = int(args[1]) if len(args) > 1 else 0
     frames = int(args[2]) if len(args) > 2 else 3000
     cad = discover_cadence(path, song)
-    vm, variants, faithful = run(path, song, frames)
+    vm, variants, faithful, shadow = run(path, song, frames)
     if "--json" in flags:
         regs = [
-            register_json(r, SID_REGS[r], variants[r], faithful)
+            register_json(
+                SID_REGS[r], r, shadow.get(r, r), variants[shadow.get(r, r)], faithful
+            )
             for r in sorted(SID_REGS)
-            if variants[r]
+            if variants[shadow.get(r, r)]
         ]
         print(json.dumps({"cadence": cad, "registers": regs}, default=list))
         return vm
     print_cadence(path, cad)
     for reg in sorted(SID_REGS):
-        if variants[reg]:
-            print_register(reg, SID_REGS[reg], variants[reg], faithful)
+        addr = shadow.get(reg, reg)
+        if variants[addr]:
+            print_register(SID_REGS[reg], reg, addr, variants[addr], faithful)
     return vm
 
 

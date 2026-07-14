@@ -66,6 +66,31 @@ compound `addr_expr`.
   identity guard against freed-then-reused tuple ids.
 - **`eval_expr`** — evaluates an expression against a memory snapshot (indexed
   loads resolve their address first); id-memoized within a call.
+- **Self-modified operands as state** (`_set_operand` / `_smc_operands`) — some
+  players (e.g. Goto80's `Automatas`, a heavily self-modifying driver) keep their
+  streaming state in *instruction operand bytes*: they poke computed values into
+  `LDA #imm` immediates and read-cursors into `LDA abs,Y` operands, then execute.
+  A lifter bakes the current operand into a literal, so every register would read
+  as an opaque `CONST` (one per frame — pure state dumping). A concrete pre-pass
+  (`_smc_operands`) records which image bytes the play routine writes; during the
+  symbolic run, an operand at such an address is treated as memory — `M[operand]`
+  (or its this-frame `sdefs` definition) instead of a literal. This is always
+  value-equal to the baked constant (lossless, proven by the faithful count) and
+  flows the operand cell into `F`, where shadow-resolution then recovers *its*
+  transition (the note fetch / cursor advance). `concrete_only` skips symbolic
+  work in the pre-pass.
+- **Shadow-register resolution** (`_resolve_shadows` / `_cell_target`) — many
+  players compute into a **shadow SID-register buffer** in RAM and end the frame
+  with a block-copy to `$D400..$D418` (e.g. GoatTracker mirrors `$13BA..$13D2`).
+  There `F[sid_reg]` is the vacuous `CELL M[$shadow]`; the song lives one
+  indirection deeper. `run` therefore treats any RAM cell a register is a pure
+  copy of as a recovery target and recovers *its* per-frame transition, following
+  chains to the leaf. Backing cells are validated against their own **post-frame
+  memory** (a lossless pass/fail check, never fitting). A cell not written this
+  frame gets a `HOLD` generator (its frame-entry value, 0 tokens); written frames
+  carry the real `INDEXED`/`COMPUTED`/`ACCUM` generator. Reports show
+  `name ($D4xx) <- shadow $addr` with the cell's variants; direct-write players
+  (e.g. Commando) resolve to no shadow and print unchanged.
 - **`classify(F, reg)`** — labels the generator purely from `F`'s shape:
   `ACCUM` only when the register **mirrors a constant-address cell that updates
   from its own prior value** (value position, not an address index); else the
@@ -100,18 +125,21 @@ that frame's entry-memory snapshot and compared to the actual SID write. `N/N
 faithful` means the symbolic summary reproduces the concrete write on every
 frame — a lossless, no-fitting check. On `Commando.sid`: all 21 written registers
 exact over 3000 frames (60 s), ~25 s CPU. Registers a tune never writes during
-play (e.g. Commando's filter/volume) are correctly absent.
+play (e.g. Commando's filter/volume) are correctly absent. Shadow-backing cells
+are validated the same way against post-frame memory; on `Grid_Runner.sid`
+(GoatTracker) all 25 shadow cells are exact over 3000 frames (~25 s CPU).
 
 ## Output (JSON)
 
 ```json
 {"cadence": {...}, "registers": [
-  {"addr": 54272, "name": "v0_freq_lo", "faithful": [2782, 2782],
-   "variants": [{"kind": "INDEXED", "count": 1426, "expr": [...]}, ...]}]}
+  {"addr": 54272, "name": "v0_freq_lo", "shadow": 5050, "faithful": [3000, 3000],
+   "variants": [{"kind": "HOLD", "count": 1890, "expr": [...]}, ...]}]}
 ```
-Per-variant `kind` ∈ {`CONST`,`CELL`,`INDEXED`,`COMPUTED`,`ACCUM`}; `expr` is the
-serialized `F[reg]` tree (tuples as arrays, node format as above). `ACCUM` adds
-`state`/`step`; `CELL` adds `cell`; `CONST` adds `value`.
+Per-variant `kind` ∈ {`CONST`,`CELL`,`INDEXED`,`COMPUTED`,`ACCUM`,`HOLD`}; `expr`
+is the serialized generator tree (tuples as arrays, node format as above). `ACCUM`
+adds `state`/`step`; `CELL` adds `cell`; `CONST` adds `value`. `shadow` (when
+present) is the RAM cell the register mirrors; the variants describe that cell.
 
 ## What it recovers on Commando (illustrative)
 
@@ -123,12 +151,46 @@ serialized `F[reg]` tree (tuples as arrays, node format as above). `ACCUM` adds
   cell keeps it `COMPUTED` (its accumulator-ness depends on instrument stability).
 - ctrl: `M[$54F8] & 0xFE` (gate-off), `0x80` (gate/test), instrument-table read.
 
+## What it recovers on Grid Runner (illustrative, shadow-resolved)
+
+A GoatTracker tune: every SID register is a copy of a shadow cell (`$13BA..$13D2`);
+after resolution, per shadow cell:
+
+- freq lo/hi: `INDEXED` into a 96-entry note→freq table split lo/hi
+  (`M[note[$137E] + $13D3]` / `+ $1433`), with a vibrato variant
+  `((note + M[$1394]) & 0x7F)` — else `HOLD`.
+- pw_lo: `ACCUM $13BC += M[pulsetable]` (pulse-width sweep); pw_hi its 16-bit
+  carry `ACCUM`.
+- ctrl: `COMPUTED` waveform-and-gate `M[$137F] & M[$1396]` (plus gate paths).
+- ad/sr: instrument ADSR-table reads on note-trigger, `HOLD` otherwise.
+- cutoff/res/vol: filter-program `CONST`s.
+
+`HOLD` dominates every cell (a cell changes only on note/effect boundaries),
+giving the sub-1-token/frame structure the shadow copy had hidden.
+
+## What it recovers on Automatas (illustrative, self-modifying driver)
+
+A Goto80 tune whose state lives in code operands. Without operand-symbolization
+every register is an opaque `CONST` (v0_freq_lo alone: 205 variants). With it,
+the SID regs resolve to immediate-operand shadow cells (e.g. `$D400 <- $102D`)
+whose transitions are recovered — 86 variants total, all 24 regs exact/3000:
+
+- freq: `COMPUTED = M[notetable[seq $135E] + $1578] + detune M[$101F]`, with
+  portamento variants (signed slide step) and the 16-bit carry into freq-hi.
+- pw / ad / sr: mostly `HOLD`, else instrument-table reads through a 16-bit
+  self-modified *absolute* operand `M[$1165].2` (the pattern/instrument cursor).
+- ctrl: `COMPUTED` waveform-xor-gate `M[$103B] ^ M[$103D]`.
+
 ## Scope and limits
 
 - `classify` is deliberately conservative: an instrument-indexed sweep reads as
   `COMPUTED`, not `ACCUM`, because its state cell has a symbolic address; folding
   such addresses to constants when the index is stable across a variant's frames
   (revealing the accumulator) is a possible extension.
+- Shadow resolution follows only *constant-address* copies (`STA $shadow`); a
+  register written through a computed/indexed shadow pointer (double-buffered or
+  table-addressed mirror) would not be followed and would read as `INDEXED` at the
+  hardware register — surfaced, not hidden.
 - Register recovery drives `h.play_address` each frame; this covers PSID tunes
   with an explicit play address. **RSID / handler-driven tunes** (`play == 0`,
   e.g. `After_8`) run the music in the installed IRQ/NMI handler that cadence
@@ -136,7 +198,13 @@ serialized `F[reg]` tree (tuples as arrays, node format as above). `ACCUM` adds
   wiring `run` to that handler is gated on the parked cadence/driver layer, so
   those tunes currently emit cadence only, no register generators.
 - Cadence is parked after initial validation; multispeed / raster-split and
-  dynamic-tempo schedules are only partially characterised.
+  dynamic-tempo schedules are only partially characterised. On multispeed tunes
+  the oracle's own cadence detector may disagree with the discovered per-call
+  cadence (reported `DIFFER`).
+- The oracle cross-check (`sidplayfp` replay, tens of seconds) is memoized on
+  disk under `$XDG_CACHE_HOME/tumbler-snapper/oracle`, keyed by file digest +
+  clock (`_oracle_cadence`), so it runs once per tune; the analysis itself is
+  ~14 s at 3000 frames.
 - An address computed from volatile IO (e.g. a raster read) would evaluate
   against the frame-entry snapshot and could reduce that register's faithful
   count — surfaced by the count, not hidden.
