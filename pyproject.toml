@@ -22,7 +22,7 @@ dependencies = ["numpy", "pysidtracker", "deity-informant"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-xdist", "pytest-cov", "black", "pylint", "build"]
-oracle = ["pysidtracker"]
+oracle = ["pysidtracker", "zstandard"]
 
 [project.scripts]
 tsnap = "tsnap.cli:main"
