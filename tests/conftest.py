@@ -238,6 +238,39 @@ def handler_sid(tmp_path):
     return _write(tmp_path, "handler.sid", data)
 
 
+# Data-dependent branch: gate value chosen by a memory-derived path condition.
+
+_G_LOAD = 0x5000
+_G_INIT = 0x5000
+_G_PLAY = 0x5010
+_G_COUNTER = 0x5100
+
+
+def _branch_image():
+    clo, chi = _lohi(_G_COUNTER)
+    init_code = _asm([0xA9, 0x00], [0x8D, clo, chi], [0x60])  # counter = 0
+    play_code = _asm(
+        [0xAD, clo, chi],  # LDA counter
+        [0x29, 0x08],  # AND #$08
+        [0xF0, 0x08],  # BEQ else  (branch on memory-derived Z flag)
+        [0xA9, 0x41],  # LDA #$41
+        [0x8D, 0x04, 0xD4],  # STA $D404
+        [0x4C, 0x24, 0x50],  # JMP done
+        [0xA9, 0x40],  # else: LDA #$40
+        [0x8D, 0x04, 0xD4],  # STA $D404
+        [0xEE, clo, chi],  # done: INC counter
+        [0x60],
+    )
+    return {_G_INIT: init_code, _G_PLAY: play_code}
+
+
+@pytest.fixture
+def branch_sid(tmp_path):
+    """Play routine whose gate write is selected by a branch on a RAM counter bit."""
+    data = assemble(_branch_image(), load=_G_LOAD, init=_G_INIT, play=_G_PLAY)
+    return _write(tmp_path, "branch.sid", data)
+
+
 @pytest.fixture
 def digi_sid(tmp_path):
     """Play routine that writes ``$D418`` eight times per frame (intra-frame repeats)."""
