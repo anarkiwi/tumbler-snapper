@@ -22,6 +22,8 @@ SID_REGS.update({0xD415: "cutoff_lo", 0xD416: "cutoff_hi", 0xD417: "res_route", 
 
 CIA1_TA = (0xDC04, 0xDC05)
 CIA2_TA = (0xDD04, 0xDD05)
+CIA1_ARM = (0xDC0E, 0xDC0D)
+CIA2_ARM = (0xDD0E, 0xDD0D)
 IRQ_VEC = (0x0314, 0x0315)
 NMI_VEC = (0x0318, 0x0319)
 HW_IRQ_VEC = (0xFFFE, 0xFFFF)
@@ -593,18 +595,52 @@ def _word(hw, pair):
     return None
 
 
+def _track_latch(seen, now, dyn):
+    """Fold a timer latch into (first-plausible latch, dynamic).
+
+    Values below MIN_CIA_LATCH are lo-byte-only artefacts, not play periods; the
+    first plausible value is the cadence, a later different one is a tempo rewrite.
+    """
+    if now is None or now < MIN_CIA_LATCH:
+        return seen, dyn
+    if seen is None:
+        return now, dyn
+    return seen, dyn or now != seen
+
+
+def _cia_armed(hw, arm):
+    """Whether a CIA Timer-A drives the play IRQ (a written latch is otherwise idle).
+
+    KERNAL boot leaves Timer-A running/continuous with its underflow IRQ enabled;
+    a CRA write that stops it or selects one-shot, or an ICR write clearing the
+    Timer-A mask, takes it out of the play-trigger role.
+    """
+    cra, icr = hw.get(arm[0]), hw.get(arm[1])
+    running = True if cra is None else bool(cra & 0x01) and not cra & 0x08
+    disabled = icr is not None and not icr & 0x80 and bool(icr & 0x01)
+    return running and not disabled
+
+
 def discover_cadence(path, song, play_calls=8):
-    """Discover the play-routine trigger source and cadence from init's hardware writes."""
+    """Discover the play-routine trigger/cadence from what init and early play calls program.
+
+    Some tunes latch the CIA/NMI period on the first play call (or in the IRQ
+    handler), not in init, so it is observed across init plus `play_calls`
+    advances: first plausible value is the cadence, a later rewrite is dynamic.
+    """
     vm, h, cache = setup(path, song)
-    cia1, cia2 = _word(vm.hw, CIA1_TA), _word(vm.hw, CIA2_TA)
-    dynamic = False
-    if h.play_address:
+    cia1, dyn1 = _track_latch(None, _word(vm.hw, CIA1_TA), False)
+    cia2, dyn2 = _track_latch(None, _word(vm.hw, CIA2_TA), False)
+    advance = frame_driver(vm, h, cache)
+    if advance is not None:
         for _ in range(play_calls):
-            _drive(vm, h.play_address, cache)
-            for base, lat in ((CIA1_TA, cia1), (CIA2_TA, cia2)):
-                now = _word(vm.hw, base)
-                if lat is not None and now is not None and now != lat:
-                    dynamic = True
+            try:
+                advance()
+            except RuntimeError:
+                break
+            cia1, dyn1 = _track_latch(cia1, _word(vm.hw, CIA1_TA), dyn1)
+            cia2, dyn2 = _track_latch(cia2, _word(vm.hw, CIA2_TA), dyn2)
+    dynamic = dyn1 or dyn2
     ntsc = ((h.flags >> 2) & 0b11) == 0b10
     clock_hz = p.NTSC_CLOCK_HZ if ntsc else p.PAL_CLOCK_HZ
     frame = p.NTSC_CYCLES_PER_FRAME if ntsc else p.PAL_CYCLES_PER_FRAME
@@ -612,9 +648,9 @@ def discover_cadence(path, song, play_calls=8):
     if raster is not None and 0xD011 in vm.hw:
         raster |= ((vm.hw[0xD011] >> 7) & 1) << 8
     latch, source, via = None, None, None
-    if cia1 is not None and cia1 >= MIN_CIA_LATCH:
+    if cia1 is not None and _cia_armed(vm.hw, CIA1_ARM):
         latch, source, via = cia1, "CIA1 Timer-A", "IRQ"
-    elif cia2 is not None and cia2 >= MIN_CIA_LATCH:
+    elif cia2 is not None and _cia_armed(vm.hw, CIA2_ARM):
         latch, source, via = cia2, "CIA2 Timer-A", "NMI"
     if latch is not None:
         cycles = latch + 1

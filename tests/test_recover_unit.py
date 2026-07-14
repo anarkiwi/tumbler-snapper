@@ -200,3 +200,34 @@ def test_cadence_raster_irq(raster_sid):
 def test_cadence_dynamic(dynamic_sid):
     c = R.discover_cadence(dynamic_sid, 0)
     assert c["dynamic"] is True
+
+
+def _code(*ops):
+    return bytes(b for op in ops for b in op)
+
+
+_STA_LATCH = ((0xA9, 0x25), (0x8D, 0x04, 0xDC), (0xA9, 0x40), (0x8D, 0x05, 0xDC))
+
+
+def test_cadence_cia_latch_in_play(cadence_builder):
+    """Latch programmed on the play call, not init, is still CIA-driven."""
+    path = cadence_builder("play_latch.sid", [0x60], play_code=_code(*_STA_LATCH, (0x60,)))
+    c = R.discover_cadence(path, 0)
+    assert c["source"] == "CIA1 Timer-A"
+    assert c["latch"] == 0x4025
+
+
+def test_cadence_cia_disarmed_is_video(cadence_builder):
+    """A written latch whose timer is stopped (CRA start clear) is not the trigger."""
+    init = _code(*_STA_LATCH, (0xA9, 0x10), (0x8D, 0x0E, 0xDC), (0x60,))
+    c = R.discover_cadence(cadence_builder("disarmed.sid", init), 0)
+    assert c["source"] == "PAL video"
+    assert c["latch"] is None
+
+
+def test_cadence_cia_irq_masked_is_video(cadence_builder):
+    """A running timer whose Timer-A IRQ is masked off (ICR $01) is not the trigger."""
+    init = _code(*_STA_LATCH, (0xA9, 0x01), (0x8D, 0x0D, 0xDC), (0x60,))
+    c = R.discover_cadence(cadence_builder("irqoff.sid", init), 0)
+    assert c["source"] == "PAL video"
+    assert c["latch"] is None

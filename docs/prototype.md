@@ -104,11 +104,18 @@ compound `addr_expr`.
   hoist any subexpression used >= 2 times to a named binding, named after a
   memory cell when its structure equals that cell's this-frame definition
   (exposing cross-generator dependencies) else `t0, t1, …`.
-- **`discover_cadence`** — decodes the interrupt hardware `init` programs (CIA1/2
-  Timer-A latches, VIC raster + IRQ enable, IRQ/NMI/`$FFFE` vectors) into a
-  trigger source and `cycles_per_call`; a plausible CIA latch (`>= 256`) →
-  `latch+1` cycles, else the PAL/NTSC video frame; `dynamic` if the latch is
-  rewritten during play. Validated against `pysidtracker.playroutine_cadence`.
+- **`discover_cadence`** — decodes the interrupt hardware `init` **and the first
+  play calls** program (CIA1/2 Timer-A latches, VIC raster + IRQ enable,
+  IRQ/NMI/`$FFFE` vectors) into a trigger source and `cycles_per_call`. The latch
+  is observed across init plus `play_calls` advances (via `frame_driver`, so
+  handler-driven RSIDs are covered) because some tunes program the period on the
+  first play call, not in init. A plausible CIA latch (`>= 256`) is the cadence
+  (`latch+1` cycles) **only when the timer is armed** (`_cia_armed`:
+  KERNAL-default running/continuous with its Timer-A IRQ enabled, unless a CRA
+  write stops it / selects one-shot or an ICR write masks Timer-A) — a loaded but
+  stopped timer falls back to the PAL/NTSC video frame; `dynamic` when a later
+  play call rewrites the latch. Byte-exact against `pysidtracker.playroutine_cadence`
+  over the 32-tune fixture set.
 - **`pretty` / `_fmt` / `_leaf` / `_mem`** — rendering.
 
 ## Variants (multi-path)
@@ -211,10 +218,11 @@ whose transitions are recovered — 86 variants total, all 24 regs exact/3000:
   execution needs cycle-exact full-system emulation, not the call/return model.
   A non-returning `init` (or a handler that never balances its `RTI`) trips the
   `_drive` / `_drive_handler` guards and degrades to cadence-only.
-- Cadence is parked after initial validation; multispeed / raster-split and
-  dynamic-tempo schedules are only partially characterised. On multispeed tunes
-  the oracle's own cadence detector may disagree with the discovered per-call
-  cadence (reported `DIFFER`).
+- Cadence detection (source + initial `cycles_per_call`) is byte-exact against the
+  oracle over the 32-tune fixture set, including CIA timers latched during play and
+  loaded-but-disarmed timers. Still future work: a full per-call schedule for
+  variable-tempo players (`dynamic` flags a mid-play latch rewrite but reports only
+  the initial period) and multispeed / raster-split ticks-per-frame.
 - The oracle cross-check (`sidplayfp` replay, tens of seconds) is memoized on
   disk under `$XDG_CACHE_HOME/tumbler-snapper/oracle`, keyed by file digest +
   clock (`_oracle_cadence`), so it runs once per tune; the analysis itself is
