@@ -45,3 +45,10 @@ jobs:
         run: docker pull anarkiwi/sidtrace:latest
       - name: Oracle test
         run: pytest -m "oracle or hvsc" -n auto
+      - name: Token metric report (informational)
+        run: python tools/token_report.py token-metric.txt
+      - name: Upload token metric
+        uses: actions/upload-artifact@v4
+        with:
+          name: token-metric
+          path: token-metric.txt

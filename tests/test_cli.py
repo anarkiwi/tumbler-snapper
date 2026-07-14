@@ -37,6 +37,11 @@ def test_cli_irvm(indexed_sid):
     assert "BYTE-EXACT" in out
 
 
+def test_cli_tokens(indexed_sid):
+    out = _run(["tokens", indexed_sid, "0", "120"])
+    assert "tok/frame" in out
+
+
 def test_cli_curate(hvsc_tree, tmp_path):
     root, _meta = hvsc_tree
     out = tmp_path / "cli_manifest.py"
