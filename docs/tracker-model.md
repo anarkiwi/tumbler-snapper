@@ -28,6 +28,13 @@ only; pitch/tuning standardization is deferred.
 3. **Generic, not format-specific.** No fixed table count, no fixed column
    layout, no fixed voice count. GT's typed tables and defMON's column-tagged
    sidTAB are both specializations of one *program* engine (§5).
+4. **Universal (total).** Sequence-ladder doctrine lives in `CLAUDE.md`
+   ("Design doctrine" #2): structural deref → transcription from IR replay →
+   behavior-only fallback, every rung byte-exact-gated. Transcription rung
+   detail: the row grid is the guard on the melody-advance path; events are
+   exact values from IR replay state (self-contained, proven), never the
+   original program's sampled output. `A_Mind_Is_Born`'s LFSR melody is the
+   exemplar: 0.836 tok/frm at 3200 frames before guards.
 
 ## Layers
 
@@ -119,8 +126,7 @@ only; pitch/tuning standardization is deferred.
   dominating guard; the frame/row/pattern/song hierarchy is which guard gates
   each cell's update; the loop point is where the orderlist-position cell's
   transition wraps. A per-frame concrete trace (`capture_trace`) is
-  display-only diagnostics — nothing load-bearing may be inferred from sampled
-  SID output (HARD CONSTRAINTS #1/#2).
+  display-only diagnostics (CLAUDE.md doctrine #1).
 
 ## Replay / losslessness
 

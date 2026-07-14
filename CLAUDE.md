@@ -50,14 +50,30 @@ These give the sub-1-token/frame budget for free: a row spans many frames, and
 patterns repeat via the orderlist, so amortized structural entropy per frame is
 tiny. Discover these structures from the P-Code; do not assume any one layout.
 
-## Layering rule
+## Design doctrine (single source — do not restate elsewhere; docs/ holds detail)
 
-The tracker layer is a **static analysis of the generator-IR**: guards
-(recorded branch conditions), per-cell transitions, and data dereferenced from
-the post-init image via recovered accessors (`docs/tokens.md` Phase-4 changes,
-`docs/tracker-model.md` builder interface). Concrete trace capture of SID
-output is display-only diagnostics; nothing load-bearing may be inferred from
-sampled register state — that is fitting to output.
+1. **Tracker layer = static analysis of the generator-IR**: guards (recorded
+   branch conditions), per-cell transitions, data dereferenced from the
+   post-init image via recovered accessors. Sampled SID output is display-only
+   diagnostics; inferring structure from it is fitting to output.
+2. **Trackerize is total.** Every tune gets orderlist/patterns/rows. Sequence
+   ladder, every rung gated byte-exact (tracker replay == generator-IR replay
+   == deity == oracle):
+   1. **structural** — sequencer data dereferenced from `init_mem` via the
+      recovered accessor chain;
+   2. **transcription** — no sequencer data (generative players): transcribe
+      exact note/effect events from generator-IR replay onto the recovered row
+      grid. Trackers cannot express e.g. an LFSR generator and do not need to;
+   3. **raw guarded generators** — fallback for unfactorable register
+      *behaviors* only, never the sequence.
+3. **Phase-4 IR order** (`docs/tokens.md`): record branch guards → per-cell /
+   per-voice decomposition → symbolic store addresses → hash-consed exprs;
+   re-measure tokens/frame before any tracker-layer work.
+4. **Measurement doctrine.** tokens/frame is judged at full-tune horizons
+   (constraint #4 is over full playback; short horizons understate
+   amortization); every rung, including transcription, meets `< 1.0`. Limit
+   claims need measured evidence (roundtrip + oracle stream), expire as the
+   driver model improves, and are never inferred from player structure.
 
 ## HARD CONSTRAINTS (non-negotiable)
 

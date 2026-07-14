@@ -103,6 +103,10 @@ Root-cause hypotheses (Phase-4 checks):
   static-image value and surfaces as roundtrip divergence. Guards do not fix
   it; losslessness needs the volatile cell modeled as an IR input. Likely
   hiding inside `cadence-only:value-mismatch`; split it out when diagnosing.
+- **stale-limit re-survey**: `A_Mind_Is_Born`, long documented as out of
+  reach, is lossless vs both deity and the sidtrace stream
+  (`docs/prototype.md`). Re-run the `unsupported` / `cadence-only` buckets
+  after each driver-model change (CLAUDE.md measurement doctrine).
 
 ## Independent sidtrace/sidplayfp oracle (CLAUDE.md #3)
 
