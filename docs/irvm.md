@@ -5,6 +5,9 @@ Phase 1 deliverable: a self-contained, JSON-able generator-IR built from a
 `$D400..$D418` SID write stream **byte-exact** against the deity `PcodeVM`
 ordered write log. This is about **losslessness**, not compression.
 
+Compression and the `tokens / frames` metric (HARD CONSTRAINT #4) live in
+[`docs/tokens.md`](tokens.md) (`tsnap.tokens`).
+
 ## IR schema
 
 `serialize(path, song, frames) -> ir` returns a plain dict (JSON-able; expr
