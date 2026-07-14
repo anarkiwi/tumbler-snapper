@@ -35,12 +35,18 @@ def test_count_tokens_breakdown():
         "pool": [["const", 1], ["reg", 0]],
         "programs": [{"trans": [[0, 0, 1]], "regs": [1], "sid": [[0, 0], [1, 1]]}],
         "init_mem": [[0x1000, "ff"], [0x2000, "aa"]],
-        "trace_rle": [[0, 5]],
+        "guard_pool": [["reg", 0], ["const", 1], ["op", "INT_EQUAL", [0, 1], 1]],
+        "guard_table": [[0, 0], [1, 1]],
+        "residual_rle": [[0, 3]],
     }
     c = tokens.count_tokens(comp)
     assert c["programs"] == 2 + (1 + 1 + 2)
-    assert c["init_mem"] == 2 and c["trace"] == 1
-    assert c["tokens"] == c["programs"] + c["init_mem"] + c["trace"]
+    assert c["init_mem"] == 2 and c["guards"] == 3
+    assert c["guard_table"] == 2 and c["residual"] == 1
+    assert (
+        c["tokens"]
+        == c["programs"] + c["init_mem"] + c["guards"] + c["guard_table"] + c["residual"]
+    )
 
 
 # --- interning + lossless compression -----------------------------------------
@@ -82,9 +88,18 @@ def test_dead_init_elimination_drops_code(direct_sid):
 def test_metric_fields(indexed_sid):
     m = tokens.metric(indexed_sid, 0, 200)
     assert m["frames"] == 200
-    assert m["tokens"] == m["programs"] + m["trace"] + m["init_mem"]
+    assert m["tokens"] == (
+        m["programs"] + m["guards"] + m["guard_table"] + m["residual"] + m["init_mem"]
+    )
     assert m["tokens_per_frame"] == pytest.approx(m["tokens"] / m["frames"])
-    assert m["dominant"] in ("programs", "trace", "init_mem")
+    assert m["dominant"] in ("programs", "guards", "guard_table", "residual", "init_mem")
+
+
+def test_guard_dispatch_reproduces_trace(indexed_sid):
+    """Guarded selection re-derives the recorded trace, so decompress replays it."""
+    ir = irvm.serialize(indexed_sid, 0, 200)
+    dispatch = irvm.build_dispatch(ir)
+    assert irvm.guarded_trace(ir, dispatch) == ir["trace"]
 
 
 def test_token_count_deterministic(indexed_sid):

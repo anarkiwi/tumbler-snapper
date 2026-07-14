@@ -238,6 +238,18 @@ def _value_cells(e, out):
             _value_cells(k, out)
 
 
+def _has_uni(e):
+    """Whether an expr references an unresolved unique (``uni``) temporary."""
+    t = e[0]
+    if t == "uni":
+        return True
+    if t == "mem":
+        return _has_uni(e[1])
+    if t == "op":
+        return any(_has_uni(k) for k in e[2])
+    return False
+
+
 class SymVM(PcodeVM):
     def __init__(self, mem):
         super().__init__(mem)
@@ -248,6 +260,8 @@ class SymVM(PcodeVM):
         self.Fsz = {}
         self.frame_writes = {}
         self.sid_seq = []
+        self.guards = []
+        self._guard_seen = set()
         self.init_sid = []
         self.idle_reg = []
         self.frame_entry_reg = []
@@ -280,6 +294,8 @@ class SymVM(PcodeVM):
         self.Fsz = {}
         self.frame_writes = {}
         self.sid_seq = []
+        self.guards = []
+        self._guard_seen = set()
 
     def _sread(self, vn):
         sp, off, sz = vn
@@ -372,12 +388,32 @@ class SymVM(PcodeVM):
                 s = (self._sread(ins[0]), self._sread(ins[1]))
                 self._swrite(out, simplify(("op", mn, s, out[2])))
 
+    def _record_guard(self, flag_expr, pol, taken):
+        """Keep the branch's path condition as a memory/register-pure predicate.
+
+        The predicate ``flag == pol`` evaluates to the concrete ``taken`` at the
+        frame-entry state, so program selection can be re-derived at replay by
+        evaluating it against the self-evolved memory. Const/uniq-dependent flags
+        carry no recoverable state and are dropped.
+        """
+        fe = simplify(flag_expr)
+        if fe[0] == "const" or _has_uni(fe):
+            return
+        pred = simplify(("op", "INT_EQUAL", (fe, ("const", pol & 0xFF)), 1))
+        if pred[0] == "const" or pred in self._guard_seen:
+            return
+        self._guard_seen.add(pred)
+        self.guards.append((pred, int(taken)))
+
     def run_record(self, rec, pc):
         self._interp(rec, pc)
         cyc, ctrl, nxt = rec["cyc"], rec["ctrl"], None
         if ctrl[0] == "br":
             _k, flag, pol, tgt, ft = ctrl
-            if self.reg[flag[1]] == pol:
+            taken = self.reg[flag[1]] == pol
+            if not self.concrete_only:
+                self._record_guard(self.sreg[flag[1]], pol, taken)
+            if taken:
                 cyc += 1 + (1 if (ft & 0xFF00) != (tgt & 0xFF00) else 0)
                 nxt = tgt
             else:

@@ -132,6 +132,43 @@ def test_roundtrip_intraframe_multiwrite(digi_sid):
     assert r["writes"] == 40 * 8
 
 
+def test_vector_bitmask():
+    pool, roots = irvm.build_guard_pool([["reg", 0], ["mem", ["const", 0x10], 1]])
+    mem = bytearray(0x10000)
+    mem[0x10] = 1
+    assert irvm._vector(pool, roots, mem, [0, 0]) == 0b10
+    assert irvm._vector(pool, roots, mem, [1, 0]) == 0b11
+
+
+def _assert_guarded_exact(path, song, frames):
+    r = irvm.roundtrip_guarded(path, song, frames)
+    assert r["match"], f"guarded diverged: {r['diverge']}"
+    return r
+
+
+def test_guarded_roundtrip_direct(direct_sid):
+    _assert_guarded_exact(direct_sid, 0, 120)
+
+
+def test_guarded_roundtrip_indexed(indexed_sid):
+    _assert_guarded_exact(indexed_sid, 0, 120)
+
+
+def test_guarded_roundtrip_handler(handler_sid):
+    _assert_guarded_exact(handler_sid, 0, 120)
+
+
+def test_guarded_derives_from_memory_branch(branch_sid):
+    """A memory-dependent branch yields a guard that fully derives selection."""
+    r = _assert_guarded_exact(branch_sid, 0, 120)
+    assert r["guards"] > 0 and r["fully_derived"]
+
+
+def test_guarded_matches_trace_replay(indexed_sid):
+    ir = irvm.serialize(indexed_sid, 0, 120)
+    assert irvm.replay_guarded(ir) == irvm.replay(ir)
+
+
 def test_serialize_is_json_selfcontained(indexed_sid):
     ir = irvm.serialize(indexed_sid, 0, 60)
     reloaded = json.loads(json.dumps(ir))
@@ -166,6 +203,19 @@ def test_hvsc_roundtrip_byte_exact(fx):
         pytest.skip(f"offline: {fx['relpath']} unavailable")
     r = irvm.roundtrip(str(path), fx["song"], _HVSC_FRAMES)
     assert r["match"], f"{fx['relpath']} diverged at {r['diverge'][0] if r['diverge'] else '?'}"
+
+
+@pytest.mark.hvsc
+@pytest.mark.parametrize("fx", FIXTURES, ids=lambda fx: fx["relpath"])
+def test_hvsc_guarded_byte_exact(fx):
+    """Guard-derived program selection is byte-exact vs the deity write log."""
+    path = _resolve(fx["relpath"])
+    if path is None:
+        pytest.skip(f"offline: {fx['relpath']} unavailable")
+    r = irvm.roundtrip_guarded(str(path), fx["song"], _HVSC_FRAMES)
+    assert r[
+        "match"
+    ], f"{fx['relpath']} guarded diverged at {r['diverge'][0] if r['diverge'] else '?'}"
 
 
 # Independent sidtrace cross-check lives in tests/test_oracle_stream.py (see docs/survey.md).
