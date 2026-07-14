@@ -397,8 +397,70 @@ def _drive(vm, entry, cache):
     vm.mem[0x100 + reg[3]] = 1
     reg[3] = (reg[3] - 1) & 0xFF
     pc = entry
+    guard = 0
     while reg[3] < start:
         pc = vm.step(pc, cache, lift)
+        guard += 1
+        if guard > 500000:
+            raise RuntimeError(f"runaway routine at ${pc:04X}")
+
+
+# KERNAL IRQ-return stub for CINV handlers (no ROM): $EA31->$EA81 pulls Y/X/A, RTI.
+_EA31 = (0xEA31, bytes((0x4C, 0x81, 0xEA)))
+_EA81 = (0xEA81, bytes((0x68, 0xA8, 0x68, 0xAA, 0x68, 0x40)))
+
+
+def _install_kernal_stubs(vm):
+    for addr, code in (_EA31, _EA81):
+        vm.mem[addr : addr + len(code)] = code
+
+
+def _handler_info(vm):
+    """Installed interrupt handler and whether it uses the KERNAL (CINV) ABI."""
+    for pair, kernal in ((IRQ_VEC, True), (HW_IRQ_VEC, False), (NMI_VEC, False)):
+        if pair[0] in vm.hw or pair[1] in vm.hw:
+            return (vm.mem[pair[0]] | (vm.mem[pair[1]] << 8), kernal)
+    civ = vm.mem[IRQ_VEC[0]] | (vm.mem[IRQ_VEC[1]] << 8)
+    return (civ, True) if civ else (None, False)
+
+
+def _drive_handler(vm, cache, handler, kernal):
+    """Enter the installed handler like a hardware IRQ; run to its balancing RTI.
+
+    Raises the VIC/CIA source flags and pushes the interrupt frame (plus the
+    KERNAL's A/X/Y save for CINV handlers), unwinding via the RTI (through the
+    $EA31 stub for KERNAL returns).
+    """
+    reg = vm.reg
+    start = reg[3]
+    vm.vicirq |= 0x81
+    vm.ciaicr |= 0x81
+    for byte in (0x00, 0x00, vm._status()):
+        vm.mem[0x100 + reg[3]] = byte
+        reg[3] = (reg[3] - 1) & 0xFF
+    if kernal:
+        for r in (reg[0], reg[1], reg[2]):
+            vm.mem[0x100 + reg[3]] = r & 0xFF
+            reg[3] = (reg[3] - 1) & 0xFF
+    reg[10] = 1
+    pc = handler
+    guard = 0
+    while reg[3] < start:
+        pc = vm.step(pc, cache, lift)
+        guard += 1
+        if guard > 200000:
+            raise RuntimeError(f"runaway handler at ${pc:04X}")
+
+
+def _frame_driver(vm, h, cache):
+    """Per-frame advance closure: call `play`, or drive the installed IRQ handler."""
+    if h.play_address:
+        return lambda: _drive(vm, h.play_address, cache)
+    handler, kernal = _handler_info(vm)
+    if handler is None:
+        return None
+    _install_kernal_stubs(vm)
+    return lambda: _drive_handler(vm, cache, handler, kernal)
 
 
 def cse(display_roots, cell_defs):
@@ -509,19 +571,22 @@ def _setup(path, song):
     vm.mem[0xD418] = 0x0F
     vm.reg[0] = song
     cache = {}
+    vm.concrete_only = True
     _drive(vm, h.init_address, cache)
+    vm.concrete_only = False
     return vm, h, cache
 
 
 def _smc_operands(path, song, calls):
     """Addresses in the module image the play routine writes (self-modified state)."""
     vm, h, cache = _setup(path, song)
-    if not h.play_address:
-        return set()
     vm.concrete_only = True
+    advance = _frame_driver(vm, h, cache)
+    if advance is None:
+        return set()
     vm.image_writes = set()
     for _ in range(calls):
-        _drive(vm, h.play_address, cache)
+        advance()
     return vm.image_writes
 
 
@@ -615,15 +680,21 @@ def run(path, song, frames):
     smc = _smc_operands(path, song, min(frames, 512))
     vm, h, cache = _setup(path, song)
     vm.smc = smc
+    advance = _frame_driver(vm, h, cache)
     targets = list(SID_REGS)
     tset = set(targets)
     variants = {a: {} for a in targets}
     faithful = {a: [0, 0] for a in targets}
+    if advance is None:
+        return vm, variants, faithful, {}
     for _f in range(frames):
         vm.begin_frame()
         snap = bytes(vm.mem)
         entry_regs = list(vm.reg)
-        _drive(vm, h.play_address, cache)
+        try:
+            advance()
+        except RuntimeError:
+            break
         for a in list(tset):
             c = _cell_target(vm.F.get(a))
             if c is not None and c not in SID_REGS and c not in tset:
@@ -776,8 +847,17 @@ def main():
     path = args[0]
     song = int(args[1]) if len(args) > 1 else 0
     frames = int(args[2]) if len(args) > 2 else 3000
-    cad = discover_cadence(path, song)
-    vm, variants, faithful, shadow = run(path, song, frames)
+    try:
+        cad = discover_cadence(path, song)
+    except RuntimeError as exc:
+        print(f"unsupported: {exc}")
+        return None
+    try:
+        vm, variants, faithful, shadow = run(path, song, frames)
+    except RuntimeError as exc:
+        print_cadence(path, cad)
+        print(f"  register recovery unavailable: {exc}")
+        return None
     if "--json" in flags:
         regs = [
             register_json(
