@@ -193,10 +193,11 @@ def compress(ir):
         (1 + gi, seq) for gi, seq in enumerate(gseqs)
     ]
     paths = irvm._frame_paths(ir)
+    guards = ir.get("guards", [])
     nodes, nindex = [], {}
     roots, amb = {}, {}
     for sid_, seq in derive:
-        roots[sid_], ambf = irvm.build_path_tree(paths, seq, nodes, nindex)
+        roots[sid_], ambf = irvm.build_path_tree(paths, seq, nodes, nindex, guards)
         if ambf:
             amb[sid_] = set(ambf)
     nodes, pruned = irvm.prune_dnodes(nodes, [roots[s] for s, _ in derive])
@@ -214,7 +215,6 @@ def compress(ir):
         combo_seq.append(ci)
     used = sorted({gid for gid, _lo, _hi in nodes})
     remap = {gid: i for i, gid in enumerate(used)}
-    guards = ir.get("guards", [])
     reads = _collect_reads(ir, [guards[gid] for gid in used])
     gpool, gindex = [], {}
     guard_roots = [_intern(guards[gid], gpool, gindex) for gid in used]

@@ -271,6 +271,47 @@ def branch_sid(tmp_path):
     return _write(tmp_path, "branch.sid", data)
 
 
+# Self-modifying code: toggled ALU opcode (ADC#/SBC#) + incremented operand.
+
+_S_LOAD = 0x6000
+_S_INIT = 0x6000
+_S_PLAY = 0x6010
+_S_ALU = 0x601E
+_S_COUNTER = 0x6100
+
+
+def _smc_image():
+    clo, chi = _lohi(_S_COUNTER)
+    olo, ohi = _lohi(_S_ALU)
+    plo, phi = _lohi(_S_ALU + 1)
+    init_code = _asm([0xA9, 0x00], [0x8D, clo, chi], [0x60])
+    play_code = _asm(
+        [0xAD, olo, ohi],  # LDA alu-opcode
+        [0x49, 0x80],  # EOR #$80  (ADC# $69 <-> SBC# $E9)
+        [0x8D, olo, ohi],  # STA alu-opcode
+        [0xEE, plo, phi],  # INC alu-operand
+        [0xAD, clo, chi],  # LDA counter
+        [0x69, 0x05],  # alu: ADC #5 (opcode+operand self-modified)
+        [0x8D, 0x00, 0xD4],  # STA $D400
+        [0xB0, 0x08],  # BCS gate1
+        [0xA9, 0x40],  # LDA #$40
+        [0x8D, 0x04, 0xD4],  # STA $D404
+        [0x4C, 0x32, 0x60],  # JMP done
+        [0xA9, 0x41],  # gate1: LDA #$41
+        [0x8D, 0x04, 0xD4],  # STA $D404
+        [0xEE, clo, chi],  # done: INC counter
+        [0x60],
+    )
+    return {_S_INIT: init_code, _S_PLAY: play_code}
+
+
+@pytest.fixture
+def smc_sid(tmp_path):
+    """Play routine that rewrites an ALU opcode and operand, then branches on it."""
+    data = assemble(_smc_image(), load=_S_LOAD, init=_S_INIT, play=_S_PLAY)
+    return _write(tmp_path, "smc.sid", data)
+
+
 @pytest.fixture
 def digi_sid(tmp_path):
     """Play routine that writes ``$D418`` eight times per frame (intra-frame repeats)."""
