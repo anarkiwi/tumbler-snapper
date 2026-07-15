@@ -103,7 +103,7 @@ def _ser(e):
 
 def _run_capture(path, song, frames):
     """Drive recover's SymVM, capturing the IR and the deity ordered write log."""
-    smc = smc_operands(path, song, min(frames, 512))
+    smc = smc_operands(path, song, frames)
     vm, h, cache = setup(path, song)
     init_sid = [[r, v & 0xFF] for r, v in vm.init_sid]
     vm.smc = smc
