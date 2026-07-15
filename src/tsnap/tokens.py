@@ -1,16 +1,18 @@
 """IR tokenization + lossless compression, and the tokens/frame metric.
 
-Three lossless passes over the Phase-1 IR (interned generator DAG, dead-init
-elimination, guard-decision-DAG dispatch) and a deterministic token count over
-the result measure ``tokens / frames`` (HARD CONSTRAINT #4). Token categories:
-``docs/tokens.md``.
+Lossless passes over the Phase-1 IR (interned generator DAG, dead-init
+elimination, per-cell slot factoring with guard-derived stream dispatch)
+measuring ``tokens / frames`` (HARD CONSTRAINT #4); see ``docs/tokens.md``.
 """
 
 from __future__ import annotations
 
+import json
 import sys
 
 from tsnap import irvm
+
+# pylint: disable=protected-access
 
 
 def _eval_rd(e, mem, regs, reads):
@@ -33,7 +35,7 @@ def _eval_rd(e, mem, regs, reads):
     kids = e[2]
     a = _eval_rd(kids[0], mem, regs, reads)
     b = _eval_rd(kids[1], mem, regs, reads) if len(kids) > 1 else 0
-    return irvm._apply(e[1], a, b, e[3])  # pylint: disable=protected-access
+    return irvm._apply(e[1], a, b, e[3])
 
 
 def _collect_reads(ir, guards):
@@ -43,7 +45,7 @@ def _collect_reads(ir, guards):
     every frame — a superset of the decision-DAG walks), so any address absent
     from the set is never consulted across playback.
     """
-    mem = irvm._load_image(ir["init_mem"])  # pylint: disable=protected-access
+    mem = irvm._load_image(ir["init_mem"])
     entry = list(ir["init_regs"])
     reset = ir.get("reset_regs", False)
     regs = list(entry)
@@ -106,19 +108,115 @@ def _rle(trace):
     return runs
 
 
+def _decompose(programs, trace):
+    """Factor frame programs into cells with slot alphabets, raw value streams
+    (``-1`` = cell absent that frame) and SID-write-order structs."""
+    nfr = len(trace)
+    cells, cindex, alphabets, aindex, streams = [], {}, [], [], []
+    structs, sindex, struct_seq = [], {}, []
+
+    def put(key, gref, f):
+        ci = cindex.get(key)
+        if ci is None:
+            ci = len(cells)
+            cindex[key] = ci
+            cells.append(list(key))
+            alphabets.append([])
+            aindex.append({})
+            streams.append([-1] * nfr)
+        raw = aindex[ci].get(gref)
+        if raw is None:
+            raw = len(alphabets[ci])
+            aindex[ci][gref] = raw
+            alphabets[ci].append(gref)
+        streams[ci][f] = raw
+        return ci
+
+    for f, pi in enumerate(trace):
+        pr = programs[pi]
+        for a, gref, sz in pr["trans"]:
+            put(("M", a, sz), gref, f)
+        for i, gref in enumerate(pr["regs"]):
+            put(("R", i), gref, f)
+        occ, order = {}, []
+        for r, gref in pr["sid"]:
+            k = occ.get(r, 0)
+            occ[r] = k + 1
+            order.append(put(("S", r, k), gref, f))
+        st = tuple(order)
+        si = sindex.get(st)
+        if si is None:
+            si = len(structs)
+            sindex[st] = si
+            structs.append(list(st))
+        struct_seq.append(si)
+    return cells, alphabets, streams, structs, struct_seq
+
+
+def _group_streams(streams):
+    """Group varying cells by identical raw stream; returns member lists and
+    shifted symbol streams (``sym = raw + 1`` so absent maps to 0)."""
+    groups, gidx, gseqs = [], {}, []
+    for ci, seq in enumerate(streams):
+        if len(set(seq)) <= 1:
+            continue
+        key = tuple(seq)
+        gi = gidx.get(key)
+        if gi is None:
+            gi = len(groups)
+            gidx[key] = gi
+            groups.append([])
+            gseqs.append([x + 1 for x in seq])
+        groups[gi].append(ci)
+    return groups, gseqs
+
+
+def _skeleton(paths):
+    """Trie over distinct guard paths; chains carry each path's steps, end node
+    and the frames sharing it."""
+    root = {"kids": {}, "ends": set()}
+    chains, pindex = [], {}
+    for f, fpath in enumerate(paths):
+        key = tuple(tuple(step) for step in fpath)
+        e = pindex.get(key)
+        if e is None:
+            node = root
+            for step in key:
+                node = node["kids"].setdefault(step, {"kids": {}, "ends": set()})
+            e = {"path": key, "end": node, "frames": []}
+            pindex[key] = e
+            chains.append(e)
+        e["frames"].append(f)
+    return root, chains
+
+
+def _derive_stream(root, chains, seq, nodes, nindex):
+    """Lower one symbol stream over the shared path trie.
+
+    Returns ``(root_ref, amb_frames)``; ``nodes``/``nindex`` are shared across
+    streams so identical decision subtrees hash-cons cross-stream.
+    """
+    for e in chains:
+        e["end"]["ends"] = {seq[f] for f in e["frames"]}
+    irvm.lower_trie(root, nodes, nindex)
+    amb = []
+    for e in chains:
+        node, k = root, 0
+        while node["ref"] >= 0:
+            node = node["kids"][e["path"][k]]
+            k += 1
+        if node["ref"] == irvm.AMB:
+            amb.extend(e["frames"])
+    return root["ref"], amb
+
+
 def compress(ir):
     """Apply the lossless passes, returning a compressed IR dict.
 
-    The explicit per-frame trace is replaced by guard dispatch: an interned DAG
-    of the load-bearing guard predicates (those at decision nodes), the decision
-    nodes themselves, and an RLE residual trace for ambiguous frames.
+    Programs factor into per-cell slot alphabets, a SID-order struct stream and
+    co-varying cell-group streams, each derived by decision nodes over recorded
+    guard paths; ambiguous frames fall to one whole-frame combo residual.
     """
-    dispatch = irvm.build_dispatch(ir)
-    used = sorted({gid for gid, _lo, _hi in dispatch["nodes"]})
-    remap = {gid: i for i, gid in enumerate(used)}
-    guards = ir.get("guards", [])
-    reads = _collect_reads(ir, [guards[gid] for gid in used])
-    init_mem = [run for run in ir["init_mem"] if _run_is_read(run, reads)]
     pool, index = [], {}
     programs = [
         {
@@ -128,21 +226,54 @@ def compress(ir):
         }
         for pr in ir["programs"]
     ]
+    cells, alphabets, streams, structs, struct_seq = _decompose(programs, ir["trace"])
+    groups, gseqs = _group_streams(streams)
+    derive = ([(0, struct_seq)] if len(structs) > 1 else []) + [
+        (1 + gi, seq) for gi, seq in enumerate(gseqs)
+    ]
+    root, chains = _skeleton(ir["paths"])
+    nodes, nindex = [], {}
+    roots, amb = {}, {}
+    for sid_, seq in derive:
+        roots[sid_], ambf = _derive_stream(root, chains, seq, nodes, nindex)
+        if ambf:
+            amb[sid_] = set(ambf)
+    amb_streams = sorted(amb)
+    seq_by_id = dict(derive)
+    combos, combo_index, combo_seq = [], {}, []
+    for f in sorted(set().union(*amb.values())) if amb else []:
+        combo = tuple(seq_by_id[s][f] for s in amb_streams)
+        ci = combo_index.get(combo)
+        if ci is None:
+            ci = len(combos)
+            combo_index[combo] = ci
+            combos.append(list(combo))
+        combo_seq.append(ci)
+    used = sorted({gid for gid, _lo, _hi in nodes})
+    remap = {gid: i for i, gid in enumerate(used)}
+    guards = ir.get("guards", [])
+    reads = _collect_reads(ir, [guards[gid] for gid in used])
     gpool, gindex = [], {}
     guard_roots = [_intern(guards[gid], gpool, gindex) for gid in used]
     return {
         "frames": ir["frames"],
-        "init_mem": init_mem,
+        "init_mem": [run for run in ir["init_mem"] if _run_is_read(run, reads)],
         "init_regs": ir["init_regs"],
         "reset_regs": ir.get("reset_regs", False),
         "init_sid": ir.get("init_sid", []),
         "pool": pool,
-        "programs": programs,
+        "cells": cells,
+        "alphabets": alphabets,
+        "structs": structs,
+        "groups": groups,
+        "struct_root": roots.get(0),
+        "group_roots": [roots[1 + gi] for gi in range(len(groups))],
         "guard_pool": gpool,
         "guard_roots": guard_roots,
-        "dnodes": [[remap[gid], lo, hi] for gid, lo, hi in dispatch["nodes"]],
-        "droot": dispatch["root"],
-        "residual_rle": _rle(dispatch["residual"]),
+        "dnodes": [[remap[gid], lo, hi] for gid, lo, hi in nodes],
+        "amb_streams": amb_streams,
+        "combos": combos,
+        "residual_rle": _rle(combo_seq),
     }
 
 
@@ -161,55 +292,117 @@ def _expand(nid, pool, memo):
     return out
 
 
+def _memo_eval(guards, snap, regs, cache):
+    def evalg(gid):
+        v = cache.get(gid)
+        if v is None:
+            v = 1 if irvm._eval(guards[gid], snap, regs) else 0
+            cache[gid] = v
+        return v
+
+    return evalg
+
+
+def _frame_selection(comp, streams, guards, snap, regs, residual, cursor):
+    """Resolve every stream's symbol for one frame; AMB streams consume the
+    shared combo residual (``cursor`` advances at most once per frame)."""
+    syms, pending = {}, []
+    evalg = _memo_eval(guards, snap, regs, {})
+    for sid_, ref in streams:
+        leaf = irvm.walk_dnodes(comp["dnodes"], ref, evalg)
+        if leaf == irvm.AMB:
+            pending.append(sid_)
+        else:
+            syms[sid_] = -leaf - 2
+    if pending:
+        combo = comp["combos"][residual[cursor]]
+        cursor += 1
+        pos = {s: i for i, s in enumerate(comp["amb_streams"])}
+        for sid_ in pending:
+            syms[sid_] = combo[pos[sid_]]
+    return syms, cursor
+
+
 def decompress(comp):
     """Rebuild a replay-equivalent :mod:`tsnap.irvm` IR from the compressed form.
 
-    The trace is regenerated by walking the guard decision DAG (guard exprs +
-    decision nodes + residual) over the reconstructed IR, proving guard
-    selection reproduces it.
+    Per-frame programs and the trace are re-derived by walking each stream's
+    decision nodes against the self-evolved frame-entry state, proving the
+    factored streams reproduce the recorded selection.
     """
     pool, memo = comp["pool"], {}
-    programs = [
-        {
-            "trans": [[a, _expand(g, pool, memo), s] for a, g, s in pr["trans"]],
-            "regs": [_expand(g, pool, memo) for g in pr["regs"]],
-            "sid": [[r, _expand(g, pool, memo)] for r, g in pr["sid"]],
-        }
-        for pr in comp["programs"]
+    cell_exprs = [[_expand(g, pool, memo) for g in alpha] for alpha in comp["alphabets"]]
+    cells = comp["cells"]
+    guards = [_expand(r, comp["guard_pool"], {}) for r in comp["guard_roots"]]
+    m_cells = sorted((c[1], ci) for ci, c in enumerate(cells) if c[0] == "M")
+    r_cells = sorted((c[1], ci) for ci, c in enumerate(cells) if c[0] == "R")
+    streams = ([(0, comp["struct_root"])] if comp["struct_root"] is not None else []) + [
+        (1 + gi, ref) for gi, ref in enumerate(comp["group_roots"])
     ]
-    gpool, gmemo = comp["guard_pool"], {}
-    guards = [_expand(r, gpool, gmemo) for r in comp["guard_roots"]]
-    ir = {
+    residual = []
+    for cid, cnt in comp["residual_rle"]:
+        residual.extend([cid] * cnt)
+    mem = irvm._load_image(comp["init_mem"])
+    entry = list(comp["init_regs"])
+    reset = comp.get("reset_regs", False)
+    regs = list(entry)
+    programs, pindex, trace = [], {}, []
+    cursor = 0
+    for _f in range(comp["frames"]):
+        if reset:
+            regs = list(entry)
+        snap = bytes(mem)
+        syms, cursor = _frame_selection(comp, streams, guards, snap, regs, residual, cursor)
+        raw = {}
+        for sid_, sym in syms.items():
+            if sid_ > 0:
+                for ci in comp["groups"][sid_ - 1]:
+                    raw[ci] = sym - 1
+        struct = comp["structs"][syms.get(0, 0)] if comp["structs"] else []
+        prog = {
+            "trans": [
+                [a, cell_exprs[ci][raw.get(ci, 0)], cells[ci][2]]
+                for a, ci in m_cells
+                if raw.get(ci, 0) >= 0
+            ],
+            "regs": [cell_exprs[ci][raw.get(ci, 0)] for _i, ci in r_cells],
+            "sid": [[cells[ci][1], cell_exprs[ci][raw.get(ci, 0)]] for ci in struct],
+        }
+        key = json.dumps(prog, separators=(",", ":"))
+        pi = pindex.get(key)
+        if pi is None:
+            pi = len(programs)
+            pindex[key] = pi
+            programs.append(prog)
+        trace.append(pi)
+        for addr, e, sz in prog["trans"]:
+            v = irvm._eval(e, snap, regs)
+            for i in range(sz):
+                mem[(addr + i) & 0xFFFF] = (v >> (8 * i)) & 0xFF
+        if not reset:
+            regs = [irvm._eval(e, snap, regs) for e in prog["regs"]]
+    return {
         "frames": comp["frames"],
         "init_mem": comp["init_mem"],
         "init_regs": comp["init_regs"],
-        "reset_regs": comp.get("reset_regs", False),
+        "reset_regs": reset,
         "init_sid": comp.get("init_sid", []),
         "programs": programs,
+        "trace": trace,
         "guards": guards,
     }
-    residual = []
-    for pi, cnt in comp["residual_rle"]:
-        residual.extend([pi] * cnt)
-    dispatch = {
-        "exprs": guards,
-        "nodes": comp["dnodes"],
-        "root": comp["droot"],
-        "residual": residual,
-    }
-    ir["trace"] = irvm.guarded_trace(ir, dispatch)
-    return ir
 
 
 def count_tokens(comp):
     """Per-category token breakdown of a compressed IR."""
-    pool_nodes = len(comp["pool"])
-    slots = sum(len(p["trans"]) + len(p["regs"]) + len(p["sid"]) for p in comp["programs"])
-    programs = pool_nodes + slots
+    slots = sum(len(a) for a in comp["alphabets"])
+    wiring = sum(len(s) for s in comp["structs"]) + sum(len(g) for g in comp["groups"])
+    programs = len(comp["pool"]) + slots + wiring
     init_mem = len(comp["init_mem"])
     guards = len(comp["guard_pool"])
-    guard_table = len(comp["dnodes"])
-    residual = len(comp["residual_rle"])
+    roots = int(comp["struct_root"] is not None) + len(comp["group_roots"])
+    guard_table = len(comp["dnodes"]) + roots
+    residual = len(comp["residual_rle"]) + sum(len(c) for c in comp["combos"])
     return {
         "tokens": programs + init_mem + guards + guard_table + residual,
         "programs": programs,

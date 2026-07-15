@@ -1,7 +1,7 @@
 """Informational tokens/frame report over the HVSC fixture manifest.
 
-Advisory only: prints a per-fixture ``tokens/frame`` table (HARD CONSTRAINT #4)
-and writes it to the path in ``$1`` if given. Never gates CI.
+Advisory only: prints a per-fixture ``tokens/frame`` table (HARD CONSTRAINT #4),
+written to ``$1`` if given; ``$2`` overrides the 400-frame horizon. Never gates CI.
 """
 
 from __future__ import annotations
@@ -27,7 +27,8 @@ def _one(fx):
     path = resolve_tune(fx["relpath"], cache_dir=CACHE, local_env="HVSC")
     if path is None:
         return (fx["relpath"], None)
-    return (Path(fx["relpath"]).stem, tokens.metric(str(path), fx["song"], FRAMES))
+    frames = int(sys.argv[2]) if len(sys.argv) > 2 else FRAMES
+    return (Path(fx["relpath"]).stem, tokens.metric(str(path), fx["song"], frames))
 
 
 def main():
