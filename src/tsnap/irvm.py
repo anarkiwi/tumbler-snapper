@@ -215,15 +215,15 @@ def _path_trie(paths, trace):
     return root
 
 
-def _lower_trie(root):
+def lower_trie(root, nodes=None, nindex=None):
     """Lower the path trie to decision nodes; annotate each trie node's ``ref``.
 
-    Refs: ``>= 0`` decision-node index, ``AMB`` ambiguous (next-guard/end/program
-    conflict -> residual), ``<= -2`` program leaf ``pi = -ref - 2``. Any node whose
-    recorded continuations all reach one ref collapses to it (skipping evaluation);
-    identical decision subtrees are hash-consed.
+    Refs: ``>= 0`` decision node, ``AMB`` conflict -> residual, ``<= -2`` leaf
+    ``sym = -ref - 2``; single-ref continuations collapse, identical subtrees
+    hash-cons. Shared ``nodes``/``nindex`` hash-cons across lowerings.
     """
-    nodes, nindex = [], {}
+    if nodes is None:
+        nodes, nindex = [], {}
     stack = [(root, False)]
     while stack:
         node, done = stack.pop()
@@ -250,6 +250,15 @@ def _lower_trie(root):
     return nodes
 
 
+def walk_dnodes(nodes, root, evalg):
+    """Walk decision nodes from ``root`` with ``evalg(gid) -> bool``; return leaf ref."""
+    ref = root
+    while ref >= 0:
+        gid, lo, hi = nodes[ref]
+        ref = hi if evalg(gid) else lo
+    return ref
+
+
 def build_dispatch(ir):
     """Derive program selection as a decision DAG over the recorded guard paths.
 
@@ -259,7 +268,7 @@ def build_dispatch(ir):
     """
     paths, trace = ir["paths"], ir["trace"]
     root = _path_trie(paths, trace)
-    nodes = _lower_trie(root)
+    nodes = lower_trie(root)
     residual = []
     for fpath, pi in zip(paths, trace):
         node, k = root, 0
@@ -283,10 +292,7 @@ def _run_guarded(ir, dispatch, emit):
     trace, cursor = [], [0]
 
     def select(_f, snap, regs):
-        ref = root
-        while ref >= 0:
-            gid, lo, hi = nodes[ref]
-            ref = hi if _eval(exprs[gid], snap, regs) else lo
+        ref = walk_dnodes(nodes, root, lambda gid: _eval(exprs[gid], snap, regs))
         if ref == AMB:
             pi = residual[cursor[0]]
             cursor[0] += 1

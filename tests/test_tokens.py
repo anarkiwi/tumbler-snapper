@@ -7,10 +7,16 @@ from __future__ import annotations
 import io
 import json
 import contextlib
+from pathlib import Path
 
 import pytest
 
+from fixtures import FIXTURES
+
 from tsnap import irvm, tokens
+
+_CACHE = Path(".oracle-cache/hvsc")
+_HVSC_FRAMES = 400
 
 # --- pure-function units ------------------------------------------------------
 
@@ -33,17 +39,23 @@ def test_node_json_shapes():
 def test_count_tokens_breakdown():
     comp = {
         "pool": [["const", 1], ["reg", 0]],
-        "programs": [{"trans": [[0, 0, 1]], "regs": [1], "sid": [[0, 0], [1, 1]]}],
+        "alphabets": [[0], [1], [0, 1]],
+        "structs": [[2], [2, 0]],
+        "groups": [[2]],
+        "struct_root": 0,
+        "group_roots": [1],
         "init_mem": [[0x1000, "ff"], [0x2000, "aa"]],
         "guard_pool": [["reg", 0], ["const", 1], ["op", "INT_EQUAL", [0, 1], 1]],
         "dnodes": [[0, -2, -3], [0, 0, -1]],
-        "droot": 1,
-        "residual_rle": [[0, 3]],
+        "amb_streams": [1],
+        "combos": [[1], [2]],
+        "residual_rle": [[0, 3], [1, 1]],
     }
     c = tokens.count_tokens(comp)
-    assert c["programs"] == 2 + (1 + 1 + 2)
+    assert c["programs"] == 2 + 4 + (3 + 1)  # pool + slots + (structs + groups)
     assert c["init_mem"] == 2 and c["guards"] == 3
-    assert c["guard_table"] == 2 and c["residual"] == 1
+    assert c["guard_table"] == 2 + 2  # dnodes + stream roots
+    assert c["residual"] == 2 + 2  # RLE runs + combo entries
     assert (
         c["tokens"]
         == c["programs"] + c["init_mem"] + c["guards"] + c["guard_table"] + c["residual"]
@@ -83,6 +95,58 @@ def test_dead_init_elimination_drops_code(direct_sid):
     assert irvm.replay(tokens.decompress(comp)) == irvm.replay(ir)
 
 
+def test_decompress_rebuilds_programs_and_trace(indexed_sid):
+    """Stream derivation reproduces the exact program vocabulary and trace."""
+    ir = irvm.serialize(indexed_sid, 0, 200)
+    out = tokens.decompress(tokens.compress(ir))
+    assert out["programs"] == ir["programs"] and out["trace"] == ir["trace"]
+
+
+def test_cell_factoring_shrinks_slots(branch_sid):
+    """Per-cell alphabets hold fewer slots than the whole-frame program bundles."""
+    ir = irvm.serialize(branch_sid, 0, 120)
+    comp = tokens.compress(ir)
+    bundled = sum(len(p["trans"]) + len(p["regs"]) + len(p["sid"]) for p in ir["programs"])
+    assert len(ir["programs"]) > 1
+    assert sum(len(a) for a in comp["alphabets"]) < bundled
+
+
+def test_covarying_cells_share_a_group(branch_sid):
+    ir = irvm.serialize(branch_sid, 0, 120)
+    comp = tokens.compress(ir)
+    assert any(len(g) > 1 for g in comp["groups"])
+
+
+def _amb_ir():
+    """Two frames with identical (empty) guard paths but different programs."""
+
+    def prog(v):
+        return {"trans": [], "regs": [["reg", 0]], "sid": [[4, ["const", v]]]}
+
+    return {
+        "frames": 2,
+        "init_mem": [],
+        "init_regs": [0],
+        "reset_regs": False,
+        "init_sid": [],
+        "programs": [prog(0x41), prog(0x40)],
+        "trace": [0, 1],
+        "guards": [],
+        "paths": [[], []],
+    }
+
+
+def test_combo_residual_is_whole_frame():
+    """Underivable frames fall to one shared combo residual, not per-group RLEs."""
+    ir = _amb_ir()
+    comp = tokens.compress(ir)
+    assert comp["amb_streams"] == [1] and comp["combos"] == [[1], [2]]
+    assert comp["residual_rle"] == [[0, 1], [1, 1]]
+    out = tokens.decompress(json.loads(json.dumps(comp)))
+    assert out["programs"] == ir["programs"] and out["trace"] == ir["trace"]
+    assert irvm.replay(out) == irvm.replay(ir)
+
+
 # --- metric + determinism -----------------------------------------------------
 
 
@@ -107,6 +171,21 @@ def test_token_count_deterministic(indexed_sid):
     ir = irvm.serialize(indexed_sid, 0, 120)
     assert tokens.token_count(ir) == tokens.token_count(ir)
     assert tokens.compress(ir) == tokens.compress(ir)
+
+
+@pytest.mark.hvsc
+@pytest.mark.parametrize("fx", FIXTURES, ids=lambda fx: fx["relpath"])
+def test_hvsc_tokens_lossless(fx):
+    """Factored compression round-trips programs, trace and replay on real tunes."""
+    from pysidtracker.testing import resolve_tune  # pylint: disable=import-outside-toplevel
+
+    path = resolve_tune(fx["relpath"], cache_dir=_CACHE, local_env="HVSC")
+    if path is None:
+        pytest.skip(f"offline: {fx['relpath']} unavailable")
+    ir = irvm.serialize(str(path), fx["song"], _HVSC_FRAMES)
+    out = tokens.decompress(json.loads(json.dumps(tokens.compress(ir))))
+    assert out["programs"] == ir["programs"] and out["trace"] == ir["trace"]
+    assert irvm.replay(out) == irvm.replay(ir)
 
 
 def test_main_prints_metric(indexed_sid):
