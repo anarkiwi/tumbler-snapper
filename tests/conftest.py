@@ -312,6 +312,116 @@ def smc_sid(tmp_path):
     return _write(tmp_path, "smc.sid", data)
 
 
+# Data-selected control transfers: self-modified JSR operand / branch displacement.
+
+_J_LOAD = 0x7000
+_J_INIT = 0x7000
+_J_PLAY = 0x7010
+_J_COUNTER = 0x7100
+_J_TABLE = 0x7040
+_J_H0 = 0x7050
+_J_H1 = 0x7060
+
+
+def _jsrmod_image():
+    clo, chi = _lohi(_J_COUNTER)
+    tlo, thi = _lohi(_J_TABLE)
+    init_code = _asm([0xA9, 0x00], [0x8D, clo, chi], [0x60])
+    play_code = _asm(
+        [0xAD, clo, chi],  # LDA counter
+        [0x29, 0x01],  # AND #1
+        [0xA8],  # TAY
+        [0xB9, tlo, thi],  # LDA table,Y (handler lo byte)
+        [0x8D, 0x20, 0x70],  # STA jsr-operand-lo
+        [0xEE, clo, chi],  # INC counter
+        [0x20, _J_H0 & 0xFF, _J_H0 >> 8],  # JSR handler (lo self-modified)
+        [0x60],
+    )
+    h0 = _asm([0xA9, 0x11], [0x8D, 0x04, 0xD4], [0x60])
+    h1 = _asm([0xA9, 0x22], [0x8D, 0x04, 0xD4], [0x60])
+    table = bytes((_J_H0 & 0xFF, _J_H1 & 0xFF))
+    return {_J_INIT: init_code, _J_PLAY: play_code, _J_TABLE: table, _J_H0: h0, _J_H1: h1}
+
+
+@pytest.fixture
+def jsrmod_sid(tmp_path):
+    """Handler dispatched per frame by rewriting a JSR operand from a table."""
+    data = assemble(_jsrmod_image(), load=_J_LOAD, init=_J_INIT, play=_J_PLAY)
+    return _write(tmp_path, "jsrmod.sid", data)
+
+
+_D_LOAD = 0x7200
+_D_INIT = 0x7200
+_D_PLAY = 0x7210
+_D_COUNTER = 0x7300
+_D_TABLE = 0x7230
+
+
+def _brmod_image():
+    clo, chi = _lohi(_D_COUNTER)
+    tlo, thi = _lohi(_D_TABLE)
+    init_code = _asm([0xA9, 0x00], [0x8D, clo, chi], [0x60])
+    play_code = _asm(
+        [0xAD, clo, chi],  # LDA counter
+        [0x29, 0x01],  # AND #1
+        [0xA8],  # TAY
+        [0xB9, tlo, thi],  # LDA table,Y (displacement)
+        [0x8D, 0x1E, 0x72],  # STA branch-displacement
+        [0x38],  # SEC
+        [0xB0, 0x00],  # BCS (displacement self-modified)
+        [0xA9, 0x21],  # LDA #$21
+        [0x8D, 0x04, 0xD4],  # STA $D404
+        [0x4C, 0x2C, 0x72],  # JMP done
+        [0xA9, 0x22],  # LDA #$22
+        [0x8D, 0x04, 0xD4],  # STA $D404
+        [0xEE, clo, chi],  # done: INC counter
+        [0x60],
+    )
+    return {_D_INIT: init_code, _D_PLAY: play_code, _D_TABLE: bytes((0x00, 0x08))}
+
+
+@pytest.fixture
+def brmod_sid(tmp_path):
+    """Always-taken branch whose displacement byte is rewritten from a table."""
+    data = assemble(_brmod_image(), load=_D_LOAD, init=_D_INIT, play=_D_PLAY)
+    return _write(tmp_path, "brmod.sid", data)
+
+
+# Relocated player: init copies self-modifying play code below the load image.
+
+_R_LOAD = 0x6800
+_R_INIT = 0x6800
+_R_SRC = 0x6820
+_R_DEST = 0x0800
+
+
+def _reloc_image():
+    body = _asm(
+        [0xEE, 0x04, 0x08],  # INC $0804 (own LDA operand)
+        [0xA9, 0x30],  # LDA #imm (self-modified)
+        [0x8D, 0x01, 0xD4],  # STA $D401
+        [0x60],
+    )
+    slo, shi = _lohi(_R_SRC)
+    dlo, dhi = _lohi(_R_DEST)
+    init_code = _asm(
+        [0xA2, len(body) - 1],  # LDX #len-1
+        [0xBD, slo, shi],  # LDA src,X
+        [0x9D, dlo, dhi],  # STA dest,X
+        [0xCA],
+        [0x10, 0xF7],  # DEX; BPL
+        [0x60],
+    )
+    return {_R_INIT: init_code, _R_SRC: body}
+
+
+@pytest.fixture
+def reloc_sid(tmp_path):
+    """Init relocates the self-modifying play routine below the load image."""
+    data = assemble(_reloc_image(), load=_R_LOAD, init=_R_INIT, play=_R_DEST)
+    return _write(tmp_path, "reloc.sid", data)
+
+
 @pytest.fixture
 def digi_sid(tmp_path):
     """Play routine that writes ``$D418`` eight times per frame (intra-frame repeats)."""
