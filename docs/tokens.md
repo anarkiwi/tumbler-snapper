@@ -166,6 +166,53 @@ collapse) **before** any tracker-layer work. Measure at full-tune horizons
 (CLAUDE.md measurement doctrine): `A_Mind_Is_Born` is 1.88 tok/frm at 400 frames
 and 0.66 at 3200 as `programs` saturates over full playback.
 
+### Step-2 diagnosis (measured) + recommendation
+
+A frame program bundles three parts: `F` (memory transitions, addr-keyed), `sreg`
+(16 CPU-reg exprs, index-keyed), and `sid_seq` (**order-sensitive** SID writes).
+Any one cell varying mints a fresh whole-frame program, re-counting every stable
+cell's slot; `slots = Σ_prog|cells|` dominates `tokens` on every tune.
+
+Decompose into **independent cell streams**: a cell target is `("M",addr,sz)` |
+`("R",idx)` | `("S",reg,occ)` (`occ` = occurrence index of that reg within the
+frame). A global slot pool holds distinct `(cell, gen-ref)` pairs; a
+**frame-structure** stream (active M-set + ordered S-cell targets, 7–280
+distinct/tune) carries SID write order; each cell's **value** stream selects its
+gen-ref per frame. Reconstruction of the per-frame programs is **byte-exact on all
+33 fixtures at 400f** (`replay_cells == replay == deity wlog`).
+
+Measured (400f): per-cell factoring shrinks the generator wiring **8–22×** (Fizz
+9572→424, Sc00ter 4915→405), and slots **saturate** across horizons even when
+`nprog` does not (Boompah slots 350→473 while frames grow 4× and its `tokens/frame`
+*grows* 8.7→13.4). That decoupling — N cells with bounded alphabets whose
+combinations still grow — is the win. `A_Mind_Is_Born` reaches 0.882 tok/frm at
+400f (from 1.875); every tune improves 1.3–3.8×.
+
+The alternative — reuse Step-1's whole-frame dispatch and store each program as
+factored slot-refs, hoisting cells identical across every program — was measured
+and **rejected**: per-program storage stays `nprog×cells` (only ≈10 cells hoist),
+giving no win (Boompah 3390 vs 1558, Fizz 9639 vs 2765).
+
+Like Step 1, this is a `tokens.compress`/`count_tokens` change, **not** an
+`irvm.replay` change: `decompress` rebuilds programs+trace from the factored form
+and reuses the proven replay, gated by the existing
+`replay(decompress(compress(ir))) == replay(ir)` test. Selection (struct stream +
+each cell value stream) is guard-derived by reusing `_path_trie`/`_lower_trie`;
+stored raw it would be O(frames) (`rle_runs`≈12k), so guard-derivation is required.
+
+**Open sub-decision.** Per-cell selection DAGs guard-derive well but do not yet
+*saturate* as cleanly as Step-1's single whole-frame DAG (Boompah decision nodes
+539→2670 over 4× frames). Fix: cross-stream decision-node hash-consing / derive
+each stream as a bounded function of the saturating program index. Residual growth
+on data-indexed tunes (Degree, Boompah) is **Step-3** (symbolic store addresses)
+scope, not a Step-2 defect.
+
+**Recommendation.** Land the slot factoring first — the dominant, proven win that
+brings saturating tunes under the constraint-#4 budget — and treat decision-node
+saturation as a contained fast-follow. Prototypes: `scratchpad/proto_cells.py`
+(lossless decomposition, all 33), `probe_cells.py`/`probe_tokens.py`/
+`probe_horizon.py` (the measurements above).
+
 ## CLI + CI
 
 - `tsnap tokens <file.sid> [song] [frames]` prints the per-tune metric.
