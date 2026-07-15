@@ -300,20 +300,18 @@ class SymVM(PcodeVM):
         self.frame_entry_reg = []
         self.hw = {}
         self.img = (0, 0)
-        self.image_writes = set()
+        self.play_writes = set()
         self.smc = set()
         self._op_subs = None
         self.concrete_only = False
 
     def _wr(self, addr, val, sz):
         super()._wr(addr, val, sz)
-        lo, hi = self.img
         for i in range(sz):
             a = (addr + i) & 0xFFFF
             if a in WATCH:
                 self.hw[a] = (val >> (8 * i)) & 0xFF
-            if lo <= a < hi:
-                self.image_writes.add(a)
+            self.play_writes.add(a)
 
     def begin_frame(self):
         _SIMP_MEMO.clear()
@@ -342,6 +340,19 @@ class SymVM(PcodeVM):
                 return e
         return self._sread(ins[k])
 
+    def _cells_expr(self, addrs):
+        """Frame-entry-pure little-endian word expr over memory cells (sdefs-composed)."""
+        sz = len(addrs)
+        contig = all(a == (addrs[0] + i) & 0xFFFF for i, a in enumerate(addrs))
+        if contig and not any(a in self.sdefs for a in addrs):
+            return ("mem", ("const", addrs[0]), sz)
+        parts = [self.sdefs.get(a, ("mem", ("const", a), 1)) for a in addrs]
+        expr = parts[0]
+        for i in range(1, sz):
+            sh = ("op", "INT_LEFT", (parts[i], ("const", 8 * i)), sz)
+            expr = simplify(("op", "INT_OR", (expr, sh), sz))
+        return expr
+
     def _set_operand(self, rec, pc):
         """A self-modified instruction operand is state: substitute M[addr] at its const slots."""
         self._op_subs = None
@@ -355,17 +366,7 @@ class SymVM(PcodeVM):
         slots = _operand_slots(self.mem, pc, rec)
         if not slots:
             return
-        if any((a0 + i) & 0xFFFF in self.sdefs for i in range(sz)):
-            parts = [
-                self.sdefs.get((a0 + i) & 0xFFFF, ("mem", ("const", (a0 + i) & 0xFFFF), 1))
-                for i in range(sz)
-            ]
-            expr = parts[0]
-            for i in range(1, sz):
-                sh = ("op", "INT_LEFT", (parts[i], ("const", 8 * i)), sz)
-                expr = simplify(("op", "INT_OR", (expr, sh), sz))
-        else:
-            expr = ("mem", ("const", a0), sz)
+        expr = self._cells_expr([(a0 + i) & 0xFFFF for i in range(sz)])
         self._op_subs = dict.fromkeys(slots, expr)
 
     def _swrite(self, vn, expr):
@@ -450,6 +451,36 @@ class SymVM(PcodeVM):
             return
         self.guards.append((pc, pred, int(taken)))
 
+    def _record_target(self, rec, pc):
+        """Record executed-target identity where a control transfer's target is state.
+
+        A play-written jump/branch operand (or indirect-jump vector) selects
+        which code runs next; which target was taken is the frame-entry-pure
+        case ``cells == value`` (same-frame rewrites resolve through ``sdefs``),
+        so alternatives split at replay like branch guards.
+        """
+        ctrl = rec["ctrl"][0]
+        if ctrl in ("br", "jmp", "jsr"):
+            sz = rec["len"] - 1
+            if sz < 1:
+                return
+            cells = [(pc + 1 + i) & 0xFFFF for i in range(sz)]
+        elif ctrl == "jmpind":
+            ptr = rec["ctrl"][1]
+            cells = [ptr, (ptr & 0xFF00) | ((ptr + 1) & 0xFF)]
+        else:
+            return
+        if not any(a in self.smc or a in self.sdefs for a in cells):
+            return
+        val = 0
+        for i, a in enumerate(cells):
+            val |= self.mem[a] << (8 * i)
+        expr = self._cells_expr(cells)
+        pred = simplify(("op", "INT_EQUAL", (expr, ("const", val)), 1))
+        if pred[0] == "const":
+            return
+        self.guards.append((pc, None if _has_uni(pred) else pred, 1))
+
     def _record_code(self, pc):
         """Record executed-instruction identity at a play-written code cell.
 
@@ -464,8 +495,10 @@ class SymVM(PcodeVM):
         self.guards.append((pc, None if _has_uni(pred) else pred, 1))
 
     def run_record(self, rec, pc):
-        if not self.concrete_only and pc in self.smc:
-            self._record_code(pc)
+        if not self.concrete_only:
+            if pc in self.smc:
+                self._record_code(pc)
+            self._record_target(rec, pc)
         self._interp(rec, pc)
         cyc, ctrl, nxt = rec["cyc"], rec["ctrl"], None
         if ctrl[0] == "br":
@@ -727,16 +760,20 @@ def setup(path, song):
 
 
 def smc_operands(path, song, calls):
-    """Addresses in the module image the play routine writes (self-modified state)."""
+    """Memory addresses the play routine writes (self-modified/mutable state).
+
+    Not limited to the load image: init may relocate the player, so any
+    play-written cell an executed instruction's bytes overlap is SMC state.
+    """
     vm, h, cache = setup(path, song)
     vm.concrete_only = True
     advance = frame_driver(vm, h, cache)
     if advance is None:
         return set()
-    vm.image_writes = set()
+    vm.play_writes = set()
     for _ in range(calls):
         advance()
-    return vm.image_writes
+    return vm.play_writes
 
 
 def _word(hw, pair):

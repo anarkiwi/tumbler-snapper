@@ -164,7 +164,11 @@ into predicates/programs (`LDA tbl,X` with concrete `X`), diagnosed
 independently by #56's failed-merge instrumentation and #57's Klemens
 analysis — plus the fully generative transcription-rung tune. `structure`
 (programs + guards + init) is essentially unchanged throughout; the debt
-class is where all movement happens, as designed.
+class is where all movement happens, as designed. *Correction (follow-up
+below): re-diagnosis showed this class is unrecorded data-selected control
+transfers, not load-address folding; with target case guards it derives
+exactly (residual 0 on all seven fixtures at 400/1600 frames). The tables
+above predate that follow-up.*
 
 ### Horizons (exact path dispatch + follow-ups)
 
@@ -239,9 +243,24 @@ states exactly. In order:
    (Degree's forks unify algebraically); **#58** self-modified opcodes as
    `M[pc] == opcode` case guards with mutually-exclusive-equality chaining,
    plus in-frame-rewritten multi-byte operands composed from sdefs (Vacuole
-   fully guard-derived, residual 0). Remaining residual classes: concretized
-   indexed loads (sequencer-recovery scope) and the generative
-   transcription rung.
+   fully guard-derived, residual 0); and the **data-selected control-transfer
+   follow-up** — the residual class previously labelled "concretized indexed
+   loads" re-diagnosed as control transfers whose target bytes are play-written
+   state: self-modified `JSR`/`JMP` operands (Formal `$126B/$1274`, Dancing
+   Donuts `$0E12/$0E1B/$0E69`, Megapetscii, Randy, Smutta, Klemens hi byte) and
+   a self-modified always-taken branch displacement (Starfleet `$E385`).
+   `run_record` recorded no path event at these sites, so identical recorded
+   paths executed different handlers, minting per-frame programs. The recorder
+   now records the case guard `target-state == value` at any `br`/`jmp`/`jsr`
+   whose operand bytes (or `jmpind` vector cells) are play-written (`smc` or
+   this-frame `sdefs`), composed frame-entry-pure through `sdefs` exactly like
+   `_record_code`; `smc_operands` widened from load-image writes to all
+   play-written memory (init-relocated players, e.g. Klemens' copy to `$1000`).
+   Measured: residual 0 on all seven affected fixtures at 400 and 1600 frames
+   (e.g. Formal 47.18 -> 14.49 tok/f @400, 25.66 -> 5.47 @1600; Megapetscii
+   33.19 -> 12.34 / 17.72 -> 3.96; Klemens 11.49 -> 6.46 / 5.64 -> 2.22).
+   Remaining residual class: the generative transcription rung; remaining
+   horizon growth is `gtable` arrangement repetition.
 2. **Sequencer recovery (retires `guard_table`/`residual` debt — the tracker
    layer).** **Prototyped (#54: `prototypes/sequencer.py`,
    `docs/sequencer-survey.md`) — productionization is the open work.** Static

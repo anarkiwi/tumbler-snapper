@@ -382,6 +382,33 @@ def test_guarded_derives_smc_opcode_and_operand(smc_sid):
     assert r["fully_derived"], f"{r['residual']} residual frames"
 
 
+def test_guarded_derives_smc_jsr_target(jsrmod_sid):
+    """A self-modified JSR operand records a target case guard; no residual."""
+    r = _assert_guarded_exact(jsrmod_sid, 0, 120)
+    assert r["fully_derived"], f"{r['residual']} residual frames"
+
+
+def test_guarded_derives_smc_branch_displacement(brmod_sid):
+    """A self-modified always-taken branch displacement stays guard-derived."""
+    r = _assert_guarded_exact(brmod_sid, 0, 120)
+    assert r["fully_derived"], f"{r['residual']} residual frames"
+
+
+def test_relocated_smc_operand_single_program(reloc_sid):
+    """Play code relocated outside the load image still symbolizes its operand."""
+    ir = irvm.serialize(reloc_sid, 0, 100)
+    assert len(ir["programs"]) == 1
+    r = _assert_guarded_exact(reloc_sid, 0, 100)
+    assert r["fully_derived"]
+
+
+def test_indexed_load_program_count_stable(indexed_sid):
+    """State-indexed table loads record one symbolic chain, not per-frame variants."""
+    a = irvm.serialize(indexed_sid, 0, 64)
+    b = irvm.serialize(indexed_sid, 0, 128)
+    assert len(a["programs"]) == len(b["programs"]) == 1
+
+
 def test_path_tree_smc_case_split():
     """Mutually-exclusive instruction-identity guards mint a case decision node."""
     g = [
