@@ -1,8 +1,8 @@
 """Informational tokens/frame report over the HVSC fixture manifest.
 
-Advisory only (never gates CI): per-fixture recovered-structure vs trace-model
-(debt) token classes at ``$2`` frames (default 400), plus component growth to
-4x frames for the quartile tunes by tokens/frame; written to ``$1`` if given.
+Advisory only (never gates CI): per-fixture token classes plus closed-model
+dispatch facts at ``$2`` frames (default 400), and component growth to 4x
+frames for the quartile tunes; written to ``$1`` if given.
 """
 
 from __future__ import annotations
@@ -18,19 +18,38 @@ from pysidtracker.testing import (  # noqa: E402  pylint: disable=wrong-import-p
     resolve_tune,
 )
 
-from tsnap import tokens  # noqa: E402  pylint: disable=wrong-import-position
+from tsnap import irvm, sequencer, tokens  # noqa: E402  pylint: disable=wrong-import-position
 
 FRAMES = 400
 CACHE = Path(".oracle-cache/hvsc")
 COMPONENTS = ("programs", "guards", "init_mem", "guard_table", "residual")
 
 
+def _closed_facts(ir, path):
+    res = sequencer.analyze_ir(ir, path)
+    if "error" in res:
+        return None
+    p = res["pred"]
+    return {
+        "model": f"{res['model_cells']}/{res['total_cells']}",
+        "gclosed": f"{res['guards_closed']}/{res['guards_total']}",
+        "keys": res["dispatch_keys"],
+        "coll": res["collisions"],
+        "exact": f"{p['exact']}/{p['frames']}",
+        "resid": p["residual"],
+        "cycle": p["cycle"],
+    }
+
+
 def _one(task):
-    relpath, song, frames = task
+    relpath, song, frames, closed = task
     path = resolve_tune(relpath, cache_dir=CACHE, local_env="HVSC")
     if path is None:
-        return (relpath, None)
-    return (Path(relpath).stem, tokens.metric(str(path), song, frames))
+        return (relpath, None, None)
+    ir = irvm.serialize(str(path), song, frames)
+    m = tokens.metric_ir(ir)
+    facts = _closed_facts(ir, str(path)) if closed else None
+    return (Path(relpath).stem, m, facts)
 
 
 def _growth(base, grown, comp):
@@ -40,7 +59,7 @@ def _growth(base, grown, comp):
 
 def main():
     frames = int(sys.argv[2]) if len(sys.argv) > 2 else FRAMES
-    tasks = [(fx["relpath"], fx["song"], frames) for fx in FIXTURES]
+    tasks = [(fx["relpath"], fx["song"], frames, True) for fx in FIXTURES]
     with ProcessPoolExecutor(max_workers=8) as ex:
         rows = [r for r in ex.map(_one, tasks) if r[1]]
     rows.sort(key=lambda r: r[1]["tokens_per_frame"])
@@ -49,7 +68,7 @@ def main():
     hdr += " | {:>6s} {:>6s} {:>6s}".format("debt", "gtable", "resid")
     lines = [hdr]
     below = 0
-    for name, m in rows:
+    for name, m, _facts in rows:
         below += m["tokens_per_frame"] < 1.0
         lines.append(
             f"{name:32s} {m['tokens_per_frame']:9.3f} {m['tokens']:7d} {m['frames']:4d} | "
@@ -57,15 +76,29 @@ def main():
             f"{m['debt']:6d} {m['guard_table']:6d} {m['residual']:6d}"
         )
     lines.append(f"\n< 1.0 tok/frame: {below}/{len(rows)} fixtures")
+    lines.append("\nclosed-model dispatch (sequencer closure over the same IR):")
+    lines.append(
+        "{:32s} {:>9s} {:>9s} {:>5s} {:>5s} {:>11s} {:>6s}  {:s}".format(
+            "tune", "model", "gclosed", "keys", "coll", "exact", "resid", "cycle"
+        )
+    )
+    for name, _m, facts in rows:
+        if facts is None:
+            lines.append(f"{name:32s} no per-frame play driver")
+            continue
+        lines.append(
+            f"{name:32s} {facts['model']:>9s} {facts['gclosed']:>9s} {facts['keys']:5d} "
+            f"{facts['coll']:5d} {facts['exact']:>11s} {facts['resid']:6d}  {facts['cycle']}"
+        )
     n = len(rows)
     picks = sorted({0, n // 4, n // 2, (3 * n) // 4, n - 1}) if n else []
     subset = [rows[i][0] for i in picks]
     by_stem = {Path(fx["relpath"]).stem: fx for fx in FIXTURES}
-    gtasks = [(by_stem[s]["relpath"], by_stem[s]["song"], frames * 4) for s in subset]
+    gtasks = [(by_stem[s]["relpath"], by_stem[s]["song"], frames * 4, False) for s in subset]
     with ProcessPoolExecutor(max_workers=8) as ex:
-        grown = dict(ex.map(_one, gtasks))
+        grown = {r[0]: r[1] for r in ex.map(_one, gtasks)}
     lines.append(f"\ncomponent growth {frames} -> {frames * 4} frames (quartiles by tok/frm):")
-    base = dict(rows)
+    base = {name: m for name, m, _f in rows}
     for s in subset:
         g = grown.get(s)
         if not g:

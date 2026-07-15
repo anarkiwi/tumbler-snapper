@@ -113,6 +113,7 @@ def _run_capture(path, song, frames):
     reset_regs = bool(h.play_address)
     init_regs = play_entry_reg(vm.idle_reg) if reset_regs else list(vm.reg)
     programs, index, trace = [], {}, []
+    reg_key = (lambda _sreg: ()) if reset_regs else tuple
     guards_ser, guard_index = [], {}
     path_pool, path_index, path_ids = [], {}, []
     ground = [[tuple(rv) for rv in init_sid]]
@@ -125,7 +126,7 @@ def _run_capture(path, song, frames):
         except RuntimeError:
             break
         trans = tuple(sorted((a, e, vm.Fsz[a]) for a, e in vm.F.items()))
-        key = (trans, tuple(vm.sreg), tuple((a - SID, e) for a, e in vm.sid_seq))
+        key = (trans, reg_key(vm.sreg), tuple((a - SID, e) for a, e in vm.sid_seq))
         pi = index.get(key)
         if pi is None:
             pi = len(programs)
@@ -303,12 +304,21 @@ def _mint_dnode(nodes, nindex, gid, lo, hi):
     return nid
 
 
+def _path_tkn(path):
+    """Guard values recorded on a path: gid -> taken (None on conflict)."""
+    tkn = {}
+    for _site, gid, taken in path:
+        if gid != -1 and tkn.setdefault(gid, taken) != taken:
+            tkn[gid] = None
+    return tkn
+
+
 def build_path_tree(paths, labels, nodes, nindex, guards=()):
     """Discrimination tree over ordered branch paths selecting ``labels``.
 
     Subsets split at the earliest divergence (execution order): a shared
     guard's ``taken`` split mints a node; other divergences are quotiented per
-    variant class, elided iff all classes agree, else case-chained if exclusive.
+    variant class — elided/case-chained/nest-split, else AMB (residual).
     """
     gindex, groups, glabs = {}, [], []
     for f, path in enumerate(paths):
@@ -321,7 +331,47 @@ def build_path_tree(paths, labels, nodes, nindex, guards=()):
         groups[g][1].append(f)
         glabs[g].add(int(labels[f]))
     glab = [labs.pop() if len(labs) == 1 else None for labs in glabs]
-    ret, excl = [], {}
+    ret, excl, tkn_memo = [], {}, {}
+
+    def gval(g, gid):
+        """Guard value determined by group ``g``'s own recorded path, else None."""
+        tk = tkn_memo.get(g)
+        if tk is None:
+            tk = tkn_memo[g] = _path_tkn(groups[g][0])
+        t = tk.get(gid)
+        if t is not None:
+            return t
+        if any(tk.get(o) == 1 for o in excl.get(gid, ())):
+            return 0
+        return None
+
+    def nest(items):
+        """Split ``(group, ref)`` classes on guards every group determines.
+
+        Candidates in execution order (earliest recorded occurrence);
+        collections no guard separates fall to AMB (residual).
+        """
+        refs = {r for _g, r in items}
+        if len(refs) == 1:
+            return refs.pop()
+        first, vals = {}, {}
+        for g, _r in items:
+            for pos, (_site, gid, _tk) in enumerate(groups[g][0]):
+                if gid != -1 and (gid not in first or pos < first[gid]):
+                    first[gid] = pos
+        for gid in list(first):
+            got = [gval(g, gid) for g, _r in items]
+            if None in got or len(set(got)) != 2:
+                del first[gid]
+            else:
+                vals[gid] = got
+        if not first:
+            return AMB
+        gid = min(first, key=lambda k: (first[k], k))
+        lo = [it for it, v in zip(items, vals[gid]) if v == 0]
+        hi = [it for it, v in zip(items, vals[gid]) if v == 1]
+        return _mint_dnode(nodes, nindex, gid, nest(lo), nest(hi))
+
     stack = [("visit", list(range(len(groups))), 0)]
     while stack:
         op = stack.pop()
@@ -330,14 +380,14 @@ def build_path_tree(paths, labels, nodes, nindex, guards=()):
             ret.append(_mint_dnode(nodes, nindex, gid, lo, hi))
             continue
         if op[0] == "merge":
-            keys = op[1]
+            keys, clsgrps = op[1], op[2]
             refs = [ret.pop() for _ in range(len(keys))]
             if len(set(refs)) == 1:
                 ret.append(refs[0])
                 continue
             case = _case_gids(keys, guards)
             if case is None:
-                ret.append(AMB)
+                ret.append(nest([(g, r) for cls, r in zip(clsgrps, refs) for g in cls]))
                 continue
             for a in case:
                 excl.setdefault(a, set()).update(b for b in case if b != a)
@@ -372,7 +422,7 @@ def build_path_tree(paths, labels, nodes, nindex, guards=()):
         for g in subset:
             path = groups[g][0]
             classes.setdefault(path[q] if q < len(path) else None, []).append(g)
-        stack.append(("merge", list(classes)))
+        stack.append(("merge", list(classes), list(classes.values())))
         for cls in classes.values():
             stack.append(("visit", cls, q + 1))
     root = ret.pop()

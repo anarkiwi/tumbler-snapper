@@ -6,6 +6,16 @@ generator-IR** — per-cell symbolic transitions, recorded guards, and `init_mem
 dereference — never by mining the concrete trace. The generator-IR replay is
 used **only** as a pass/fail checker (doctrine #1/#2).
 
+Status: the analysis core is productionized as `tsnap.sequencer` (#60;
+`analyze_ir` reuses an already-serialized IR, `tools/token_report.py` prints
+per-fixture closure/dispatch/prediction facts). The survey tables below are
+the #54 prototype run and predate #55–#61 and the closed-model-dispatch
+branch; on that branch the guard-valuation collision class is retired at 400
+frames (collisions 0 and prediction exact on all 33 fixtures — the colliders
+differed only in replay-dead register exprs, now excluded from program
+identity), and Degree's gate-1 pins moved accordingly
+(`tests/test_sequencer_unit.py::test_analyze_degree_gate1_pins`).
+
 Run: `python3 prototypes/sequencer.py <file.sid> [song] [frames]` or
 `python3 prototypes/sequencer.py --survey [frames]` (HVSC fixture manifest,
 multiprocessing, 55 s wall alarm per tune).
@@ -223,15 +233,19 @@ measurement-horizon fact, not a method limit.
 
 ## Next steps
 
-1. Land step-1 ordered CFG-path dispatch and key the model program selection
-   on branch paths (site-ordered), which records folded predicates' sites and
-   removes the valuation-collision residual class (Degree/Klemens/Vacuole).
-2. Widen `smc_operands` coverage (Degree's pulse-sweep operand is written
-   after the 512-call probe) so SMC immediates symbolize as state.
+1. ~~Land step-1 ordered CFG-path dispatch~~ **done** (#55–#58, #61); the
+   valuation-collision residual class at 400 frames is retired on the
+   closed-model-dispatch branch (replay-dead register exprs out of program
+   identity). Remaining collisions at longer horizons (A_Mind_Is_Born's LFSR
+   reload) are data-indexed — the deciding byte constant-folds per frame —
+   transcription scope.
+2. ~~Widen `smc_operands` coverage~~ **done** (#61: all play-written memory).
 3. Emit the tracker-IR view (orderlist/patterns/rows) from the recovered
    chains: pattern payload runs are the patterns; the pattern-pointer reload
    read is the orderlist; row timers give frames-per-row. Gate byte-exact via
-   the sequence ladder.
+   the sequence ladder. This payload emission is the open work and the only
+   mechanism that retires pre-loop `gtable` growth (docs/tokens.md,
+   closed-model dispatch section).
 4. Longer horizons per tune (full playback) so orderlist-level accessors fire;
    the analysis cost is linear in frames (survey: 21 s / 79 s wall for
    400 / 1600 frames over 33 fixtures on 8 workers).

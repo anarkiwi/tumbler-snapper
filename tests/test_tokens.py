@@ -113,6 +113,25 @@ def test_cell_factoring_shrinks_slots(branch_sid):
     assert sum(len(a) for a in comp["alphabets"]) < bundled
 
 
+def test_closed_state_dispatch_saturates_across_repeat(branch_sid):
+    """A tune whose state fully closes stores no per-frame dispatch: guard_table
+    and guards are unchanged once the arrangement repeats (state cycle 256)."""
+    c1 = tokens.count_tokens(tokens.compress(irvm.serialize(branch_sid, 0, 320)))
+    c2 = tokens.count_tokens(tokens.compress(irvm.serialize(branch_sid, 0, 640)))
+    assert c1["residual"] == c2["residual"] == 0
+    assert c1["guard_table"] > 0
+    assert c2["guard_table"] == c1["guard_table"] and c2["guards"] == c1["guards"]
+
+
+def test_volatile_fallback_residual_is_lossless(volatile_sid):
+    """Non-closing (volatile-driven) selection falls back to stored residual."""
+    ir = irvm.serialize(volatile_sid, 0, 64)
+    comp = tokens.compress(ir)
+    assert tokens.count_tokens(comp)["residual"] > 0
+    dec = tokens.decompress(comp)
+    assert dec["trace"] == ir["trace"] and irvm.replay(dec) == irvm.replay(ir)
+
+
 def test_covarying_cells_share_a_group(branch_sid):
     ir = irvm.serialize(branch_sid, 0, 120)
     comp = tokens.compress(ir)

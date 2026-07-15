@@ -56,6 +56,7 @@ WATCH = {
     0xFFFF,
 }
 MIN_CIA_LATCH = 256
+VOLATILE_READS = frozenset((0xD011, 0xD012, 0xD019, 0xD41B, 0xD41C, 0xDC0D))
 
 
 def apply_op(mn, a, b, sz):
@@ -304,6 +305,7 @@ class SymVM(PcodeVM):
         self.smc = set()
         self._op_subs = None
         self.concrete_only = False
+        self.vol_seq = 0
 
     def _wr(self, addr, val, sz):
         super()._wr(addr, val, sz)
@@ -323,6 +325,7 @@ class SymVM(PcodeVM):
         self.frame_writes = {}
         self.sid_seq = []
         self.guards = []
+        self.vol_seq = 0
 
     def _sread(self, vn):
         sp, off, _sz = vn
@@ -410,7 +413,12 @@ class SymVM(PcodeVM):
                 addr, sz = rv(ins[0]), out[2]
                 wv(out, self._rd(addr, sz))
                 if sym:
-                    if addr in self.sdefs:
+                    if self.volatile and any(
+                        (addr + i) & 0xFFFF in VOLATILE_READS for i in range(sz)
+                    ):
+                        self.vol_seq -= 1
+                        self._swrite(out, ("uni", self.vol_seq))
+                    elif addr in self.sdefs:
                         self._swrite(out, self.sdefs[addr])
                     else:
                         self._swrite(out, ("mem", simplify(self._sread_op(ins, 0, oi)), sz))

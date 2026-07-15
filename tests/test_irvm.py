@@ -409,6 +409,26 @@ def test_indexed_load_program_count_stable(indexed_sid):
     assert len(a["programs"]) == len(b["programs"]) == 1
 
 
+def test_volatile_branch_falls_back_to_residual(volatile_sid):
+    """Volatile-read control keeps trace and guarded replay exact via residual."""
+    r = irvm.roundtrip(volatile_sid, 0, 64)
+    assert r["match"]
+    g = irvm.roundtrip_guarded(volatile_sid, 0, 64)
+    assert g["match"] and g["residual"] > 0 and not g["fully_derived"]
+
+
+def test_reset_regs_programs_carry_no_reg_exprs(direct_sid):
+    """Per-frame register resets make final register exprs replay-dead; dropped."""
+    ir = irvm.serialize(direct_sid, 0, 16)
+    assert ir["reset_regs"] and all(pr["regs"] == [] for pr in ir["programs"])
+
+
+def test_nonreset_programs_keep_reg_exprs(handler_sid):
+    """Without a play-address reset, register exprs stay in program identity."""
+    ir = irvm.serialize(handler_sid, 0, 16)
+    assert not ir["reset_regs"] and all(len(pr["regs"]) == 16 for pr in ir["programs"])
+
+
 def test_path_tree_smc_case_split():
     """Mutually-exclusive instruction-identity guards mint a case decision node."""
     g = [
@@ -428,6 +448,45 @@ def test_path_tree_non_exclusive_gid_mismatch_is_residual():
         ["op", "INT_EQUAL", [["mem", ["const", 0x11], 1], ["const", 2]], 1],
     ]
     paths = [((0x1000, 0, 1),), ((0x1000, 1, 1),)]
+    root, amb = irvm.build_path_tree(paths, [0, 1], [], {}, g)
+    assert root == irvm.AMB and amb == [0, 1]
+
+
+def test_path_tree_nest_split_on_recorded_guard():
+    """A failed merge nest-splits on a guard both classes record on their paths."""
+    g = [["op", "INT_EQUAL", [["mem", ["const", 0x10], 1], ["const", 0]], 1]]
+    paths = [
+        ((0x1000, -1, 0), (0x1004, 0, 1)),
+        ((0x1000, -1, 1), (0x1004, 0, 0)),
+    ]
+    nodes, nindex = [], {}
+    root, amb = irvm.build_path_tree(paths, [0, 1], nodes, nindex, g)
+    assert not amb and root == 0 and nodes == [[0, -3, -2]]
+
+
+def test_path_tree_nest_split_multiway():
+    """A 3-way divergence chains nest splits over the recorded guard set."""
+    g = [
+        ["op", "INT_EQUAL", [["mem", ["const", 0x10], 1], ["const", 0]], 1],
+        ["op", "INT_EQUAL", [["mem", ["const", 0x11], 1], ["const", 0]], 1],
+    ]
+    paths = [
+        ((0x1000, -1, 0), (0x2000, 0, 1), (0x2004, 1, 1)),
+        ((0x1001, -1, 0), (0x2000, 0, 0), (0x2004, 1, 1)),
+        ((0x1002, -1, 0), (0x2000, 0, 0), (0x2004, 1, 0)),
+    ]
+    nodes, nindex = [], {}
+    root, amb = irvm.build_path_tree(paths, [0, 1, 2], nodes, nindex, g)
+    assert not amb and len(nodes) == 2
+
+
+def test_path_tree_nest_split_undetermined_stays_residual():
+    """Nest-splitting never uses a guard some class's path leaves undetermined."""
+    g = [["op", "INT_EQUAL", [["mem", ["const", 0x10], 1], ["const", 0]], 1]]
+    paths = [
+        ((0x1000, -1, 0), (0x1004, 0, 1)),
+        ((0x1000, -1, 1),),
+    ]
     root, amb = irvm.build_path_tree(paths, [0, 1], [], {}, g)
     assert root == irvm.AMB and amb == [0, 1]
 

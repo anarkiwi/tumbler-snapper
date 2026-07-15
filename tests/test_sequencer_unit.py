@@ -218,14 +218,35 @@ def test_analyze_no_frames(monkeypatch):
     assert S.verdict(res) == "no frames (no play driver)"
 
 
-# Gate-1 pins: prototypes/sequencer.py analyze() at d748890, Degree.sid song 0, 400 frames.
+def test_analyze_ir_closed_model_cycles(branch_sid):
+    """Fully-closed state predicts exactly from init_mem and finds the song loop."""
+    res = S.analyze_ir(S.irvm.serialize(branch_sid, 0, 320), branch_sid)
+    assert res["model_cells"] == res["total_cells"] and not res["collisions"]
+    p = res["pred"]
+    assert p["exact"] == p["frames"] and p["residual"] == 0 and p["cycle"] == (1, 256)
+
+
+def test_analyze_ir_volatile_state_does_not_close(volatile_sid):
+    """A volatile-fed cell drops from the model; dispatch falls back exactly."""
+    res = S.analyze_ir(S.irvm.serialize(volatile_sid, 0, 64), volatile_sid)
+    assert res["dropped"].get("uni")
+    assert res["model_cells"] < res["total_cells"]
+    assert res["collisions"] and res["pred"]["residual"] > 0
+    assert res["pred"]["exact"] == res["pred"]["frames"]
+
+
 @pytest.mark.hvsc
 def test_analyze_degree_gate1_pins():
+    """Gate-1 pins, Degree.sid song 0, 400 frames.
+
+    Dropping replay-dead register exprs from program identity merged the
+    register-only variants that collided at gate 1: residual 2 -> 0.
+    """
     path = _resolve("MUSICIANS/P/Pezac/Degree.sid")
     if path is None:
         pytest.skip("offline: Degree.sid unavailable")
     res = S.analyze(str(path), 0, 400)
-    assert S.verdict(res) == "exact(resid=2)+seq"
+    assert S.verdict(res) == "exact+seq"
     assert res["ncls"] == {
         "accum": 2,
         "computed": 5,
@@ -235,11 +256,10 @@ def test_analyze_degree_gate1_pins():
         "toggle": 1,
     }
     assert res["model_cells"] == res["total_cells"] == 66
-    assert res["guards_closed"] == res["guards_total"] == 69
+    assert res["guards_closed"] == res["guards_total"] == 72
     assert res["rprogs"] == 72
-    assert res["dispatch_keys"] == 183 and res["collisions"] == 1
-    assert res["pred"]["exact"] == 400 and res["pred"]["residual"] == 2
-    assert res["pred"]["first_residual"] == 193
+    assert res["dispatch_keys"] == 184 and res["collisions"] == 0
+    assert res["pred"]["exact"] == 400 and res["pred"]["residual"] == 0
     assert len(res["tables"]) == 56
     assert res["max_chain"] == 4 and res["max_depth"] == 2
 

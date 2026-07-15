@@ -422,6 +422,42 @@ def reloc_sid(tmp_path):
     return _write(tmp_path, "reloc.sid", data)
 
 
+# Volatile-read control: gate selected by a branch on the noise oscillator.
+
+_V_LOAD = 0x7600
+_V_INIT = 0x7600
+_V_PLAY = 0x7610
+_V_COUNTER = 0x7700
+_V_NOISE = 0x7701
+
+
+def _volatile_image():
+    clo, chi = _lohi(_V_COUNTER)
+    nlo, nhi = _lohi(_V_NOISE)
+    init_code = _asm([0xA9, 0x00], [0x8D, clo, chi], [0x60])
+    play_code = _asm(
+        [0xAD, 0x1B, 0xD4],  # LDA $D41B (volatile noise oscillator)
+        [0x8D, nlo, nhi],  # STA noise cell
+        [0x29, 0x01],  # AND #1
+        [0xF0, 0x08],  # BEQ else
+        [0xA9, 0x41],
+        [0x8D, 0x04, 0xD4],  # LDA #$41; STA $D404
+        [0x4C, 0x27, 0x76],  # JMP done
+        [0xA9, 0x40],
+        [0x8D, 0x04, 0xD4],  # else: LDA #$40; STA $D404
+        [0xEE, clo, chi],  # done: INC counter
+        [0x60],
+    )
+    return {_V_INIT: init_code, _V_PLAY: play_code}
+
+
+@pytest.fixture
+def volatile_sid(tmp_path):
+    """Gate write selected by a branch on a volatile SID oscillator read."""
+    data = assemble(_volatile_image(), load=_V_LOAD, init=_V_INIT, play=_V_PLAY)
+    return _write(tmp_path, "volatile.sid", data)
+
+
 @pytest.fixture
 def digi_sid(tmp_path):
     """Play routine that writes ``$D418`` eight times per frame (intra-frame repeats)."""
