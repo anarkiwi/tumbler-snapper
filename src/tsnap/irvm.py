@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import sys
 
-import numpy as np
-
 from tsnap.recover import (
     SID,
     setup,
@@ -115,7 +113,8 @@ def _run_capture(path, song, frames):
     reset_regs = bool(h.play_address)
     init_regs = play_entry_reg(vm.idle_reg) if reset_regs else list(vm.reg)
     programs, index, trace = [], {}, []
-    guards_ser, guard_index, paths = [], {}, []
+    guards_ser, guard_index = [], {}
+    path_pool, path_index, path_ids = [], {}, []
     ground = [[tuple(rv) for rv in init_sid]]
     played = 0
     for _f in range(frames):
@@ -134,14 +133,23 @@ def _run_capture(path, song, frames):
             programs.append(key)
         trace.append(pi)
         fpath = []
-        for pred, taken in vm.guards:
+        for site, pred, taken in vm.guards:
+            if pred is None:
+                fpath.append((site, -1, taken))
+                continue
             gi = guard_index.get(pred)
             if gi is None:
                 gi = len(guards_ser)
                 guard_index[pred] = gi
                 guards_ser.append(_ser(pred))
-            fpath.append([gi, taken])
-        paths.append(fpath)
+            fpath.append((site, gi, taken))
+        fpath = tuple(fpath)
+        pid = path_index.get(fpath)
+        if pid is None:
+            pid = len(path_pool)
+            path_index[fpath] = pid
+            path_pool.append([list(ev) for ev in fpath])
+        path_ids.append(pid)
         ground.append([(r, v) for _c, r, v in vm.wlog[wstart:]])
         played += 1
     ir = {
@@ -160,7 +168,8 @@ def _run_capture(path, song, frames):
         ],
         "trace": trace,
         "guards": guards_ser,
-        "paths": paths,
+        "path_pool": path_pool,
+        "paths": path_ids,
     }
     return ir, ground
 
@@ -205,39 +214,53 @@ def _run_ir(ir, emit):
 AMB = -1
 
 
-def _guard_matrix(ir):
-    """Re-drive the IR and evaluate every guard on each frame-entry state.
+def _frame_paths(ir):
+    """Per-frame ordered branch paths as tuples of ``(site, guard-id, taken)``.
 
-    Returns ``(gmat, feat_gids)``: a ``uint8[nframes, nfeat]`` matrix over guards
-    non-constant across frames, and the raw guard id per (ascending) column. The
-    re-driven states equal replay's, so a tree over these features routes as replay.
+    ``guard-id`` indexes ``ir["guards"]``; ``-1`` marks an opaque
+    (volatile-dependent) predicate. Absent paths decode to empty paths.
     """
-    guards = ir.get("guards", [])
-    trace = ir["trace"]
-    nfr = len(trace)
-    snaps = []
-    _drive_ir(ir, nfr, lambda f, s, r: trace[f], lambda pr, s, r: snaps.append((s, list(r))))
-    gmat = np.zeros((nfr, len(guards)), dtype=np.uint8)
-    for f, (snap, regs) in enumerate(snaps):
-        for gi, g in enumerate(guards):
-            if _eval(g, snap, regs):
-                gmat[f, gi] = 1
-    useful = [gi for gi in range(len(guards)) if 0 < int(gmat[:, gi].sum()) < nfr]
-    return gmat[:, useful], useful
+    pool = [tuple(tuple(ev) for ev in p) for p in ir.get("path_pool", [])]
+    ids = ir.get("paths")
+    if ids is None:
+        return [()] * len(ir["trace"])
+    return [pool[pid] for pid in ids]
 
 
-def induce_tree(labels, gmat, feat_gids, nodes, nindex):
-    """Induce an ID3 decision tree selecting ``labels`` from boolean guard features.
+def _verify_routing(groups, glab, assigned, nodes, root):
+    """Assert every path routes to its assigned leaf (exact by construction)."""
+    for g, (path, _frames) in enumerate(groups):
+        tkn = {}
+        for _site, gid, taken in path:
+            if gid != -1:
+                if tkn.setdefault(gid, taken) != taken:
+                    raise AssertionError(f"guard {gid} not frame-entry-pure")
+        ref = walk_dnodes(nodes, root, lambda gid, tkn=tkn: tkn[gid])
+        if ref != assigned[g] or (ref != AMB and -ref - 2 != glab[g]):
+            raise AssertionError(f"path dispatch mis-routes group {g}")
 
-    Each split maximizes label purity among features non-constant in the subset,
-    ties to the lowest guard id; pure subsets are leaves (``sym = -ref - 2``),
-    unsplittable ones fall to ``AMB``; nodes hash-cons into ``nodes``/``nindex``.
+
+def build_path_tree(paths, labels, nodes, nindex):
+    """Discrimination tree over ordered branch paths selecting ``labels``.
+
+    Subsets split at the earliest path divergence (execution order, never
+    statistics): a ``taken`` split of a shared evaluable guard mints a
+    hash-consed decision node; anything else falls to the whole-frame residual.
     """
-    labels = np.asarray(labels)
-    feat_gids = np.asarray(feat_gids)
-    amb_frames = []
-    ret = []
-    stack = [("visit", np.arange(len(labels)))]
+    gindex, groups, glabs = {}, [], []
+    for f, path in enumerate(paths):
+        g = gindex.get(path)
+        if g is None:
+            g = len(groups)
+            gindex[path] = g
+            groups.append((path, []))
+            glabs.append(set())
+        groups[g][1].append(f)
+        glabs[g].add(int(labels[f]))
+    glab = [labs.pop() if len(labs) == 1 else None for labs in glabs]
+    assigned = [AMB] * len(groups)
+    amb_frames, ret = [], []
+    stack = [("visit", list(range(len(groups))), 0)]
     while stack:
         op = stack.pop()
         if op[0] == "build":
@@ -253,33 +276,40 @@ def induce_tree(labels, gmat, feat_gids, nodes, nindex):
                 nodes.append([gid, lo, hi])
             ret.append(nid)
             continue
-        rows = op[1]
-        lab = labels[rows]
-        uniq = np.unique(lab)
-        if len(uniq) == 1:
-            ret.append(-(int(uniq[0]) + 2))
+        _, subset, pos = op
+        labs = {glab[g] for g in subset}
+        if len(labs) <= 1:
+            lab = labs.pop() if labs else None
+            ref = AMB if lab is None else -(lab + 2)
+            for g in subset:
+                assigned[g] = ref
+                if ref == AMB:
+                    amb_frames.extend(groups[g][1])
+            ret.append(ref)
             continue
-        sub = gmat[rows]
-        n = len(rows)
-        colsum = sub.sum(axis=0)
-        vcols = np.nonzero((colsum > 0) & (colsum < n))[0]
-        if vcols.size == 0:
-            amb_frames.extend(int(r) for r in rows)
+        q, evs = pos, set()
+        while len(evs) <= 1:
+            evs = {groups[g][0][q] if q < len(groups[g][0]) else None for g in subset}
+            q += 1
+        q -= 1
+        clean = (
+            None not in evs
+            and len(evs) == 2
+            and len({ev[:2] for ev in evs}) == 1
+            and next(iter(evs))[1] != -1
+        )
+        if not clean:
+            for g in subset:
+                amb_frames.extend(groups[g][1])
             ret.append(AMB)
             continue
-        inv = np.searchsorted(uniq, lab)
-        onehot = np.zeros((len(uniq), n), dtype=np.int32)
-        onehot[inv, np.arange(n)] = 1
-        subv = sub[:, vcols].astype(np.int32)
-        counts1 = onehot @ subv
-        counts0 = onehot.sum(axis=1)[:, None] - counts1
-        score = counts0.max(axis=0) + counts1.max(axis=0)
-        best = int(vcols[int(score.argmax())])
-        col = sub[:, best]
-        stack.append(("build", int(feat_gids[best])))
-        stack.append(("visit", rows[col == 1]))
-        stack.append(("visit", rows[col == 0]))
-    return ret.pop(), amb_frames
+        stack.append(("build", next(iter(evs))[1]))
+        stack.append(("visit", [g for g in subset if groups[g][0][q][2] == 1], q + 1))
+        stack.append(("visit", [g for g in subset if groups[g][0][q][2] == 0], q + 1))
+    root = ret.pop()
+    _verify_routing(groups, glab, assigned, nodes, root)
+    amb_frames.sort()
+    return root, amb_frames
 
 
 def walk_dnodes(nodes, root, evalg):
@@ -292,18 +322,16 @@ def walk_dnodes(nodes, root, evalg):
 
 
 def build_dispatch(ir):
-    """Derive program selection by ID3 induction over the guard set.
+    """Lower program selection from the play routine's ordered branch paths.
 
-    Guards are frame-entry-pure, so identical memory evolution retraces each frame
-    exactly; frames a genuine same-state collision leaves ambiguous fall to a
-    frame-ordered residual.
+    Guards are frame-entry-pure, so each decision node re-evaluates at replay
+    to the recorded ``taken``; frames whose first divergence is opaque or whose
+    identical path yields distinct programs fall to a frame-ordered residual.
     """
     trace = ir["trace"]
-    gmat, feat_gids = _guard_matrix(ir)
     nodes, nindex = [], {}
-    root, amb_frames = induce_tree(np.array(trace), gmat, feat_gids, nodes, nindex)
-    amb = set(amb_frames)
-    residual = [trace[f] for f in range(len(trace)) if f in amb]
+    root, amb_frames = build_path_tree(_frame_paths(ir), trace, nodes, nindex)
+    residual = [trace[f] for f in amb_frames]
     return {
         "exprs": ir.get("guards", []),
         "nodes": nodes,

@@ -135,8 +135,23 @@ def test_roundtrip_intraframe_multiwrite(digi_sid):
 _FLIP = {"trans": [[0x10, ["op", "INT_XOR", [["mem", ["const", 0x10], 1], ["const", 1]], 1], 1]]}
 
 
-def _mini_ir(programs, guards, trace, init_mem=None):
+def _paths(fpaths):
+    """Per-frame event lists -> (path_pool, path ids)."""
+    pool, pidx, ids = [], {}, []
+    for p in fpaths:
+        key = tuple(tuple(ev) for ev in p)
+        pid = pidx.get(key)
+        if pid is None:
+            pid = len(pool)
+            pidx[key] = pid
+            pool.append([list(ev) for ev in key])
+        ids.append(pid)
+    return pool, ids
+
+
+def _mini_ir(programs, guards, trace, init_mem=None, fpaths=None):
     """A small memory-backed IR: dispatch re-drives memory and evaluates guards."""
+    pool, ids = _paths(fpaths if fpaths is not None else [[] for _ in trace])
     return {
         "frames": len(trace),
         "init_mem": init_mem if init_mem is not None else [],
@@ -145,6 +160,8 @@ def _mini_ir(programs, guards, trace, init_mem=None):
         "programs": programs,
         "guards": guards,
         "trace": trace,
+        "path_pool": pool,
+        "paths": ids,
     }
 
 
@@ -155,18 +172,19 @@ def test_dispatch_single_program_is_leaf():
 
 
 def test_dispatch_decides_on_evolving_memory():
-    """A single guard over program-evolved memory becomes one decision node."""
+    """A recorded branch on program-evolved memory becomes one decision node."""
     programs = [
         {**_FLIP, "regs": [], "sid": [[0, ["const", 1]]]},
         {**_FLIP, "regs": [], "sid": [[0, ["const", 2]]]},
     ]
     g = [["mem", ["const", 0x10], 1]]
-    d = irvm.build_dispatch(_mini_ir(programs, g, [0, 1, 0, 1], [[0x10, "01"]]))
+    fpaths = [[[0x1000, 0, 1]], [[0x1000, 0, 0]], [[0x1000, 0, 1]], [[0x1000, 0, 0]]]
+    d = irvm.build_dispatch(_mini_ir(programs, g, [0, 1, 0, 1], [[0x10, "01"]], fpaths))
     assert d["nodes"] == [[0, -3, -2]] and d["root"] == 0 and not d["residual"]
 
 
 def test_dispatch_same_state_collision_is_residual():
-    """Different programs at an identical frame-entry state fall to residual."""
+    """Different programs on an identical branch path fall to residual."""
 
     def prog(v):
         return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
@@ -176,30 +194,77 @@ def test_dispatch_same_state_collision_is_residual():
 
 
 def test_dispatch_converging_selection_collapses():
-    """A guard that varies but never changes the selection mints no node."""
+    """A branch that varies but never changes the selection mints no node."""
     prog = {**_FLIP, "regs": [], "sid": [[0, ["const", 7]]]}
     g = [["mem", ["const", 0x10], 1]]
-    d = irvm.build_dispatch(_mini_ir([prog], g, [0, 0, 0, 0], [[0x10, "01"]]))
+    fpaths = [[[0x1000, 0, 1]], [[0x1000, 0, 0]], [[0x1000, 0, 1]], [[0x1000, 0, 0]]]
+    d = irvm.build_dispatch(_mini_ir([prog], g, [0, 0, 0, 0], [[0x10, "01"]], fpaths))
     assert not d["nodes"] and d["root"] == -2 and not d["residual"]
 
 
+def test_dispatch_opaque_divergence_is_residual():
+    """Frames whose first path divergence is an opaque predicate fall to residual."""
+
+    def prog(v):
+        return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
+
+    fpaths = [[[0x1000, -1, 1]], [[0x1000, -1, 0]], [[0x1000, -1, 1]]]
+    d = irvm.build_dispatch(_mini_ir([prog(1), prog(2)], [], [0, 1, 0], None, fpaths))
+    assert d["root"] == irvm.AMB and d["residual"] == [0, 1, 0]
+
+
+def test_dispatch_structural_path_mismatch_is_residual():
+    """A path that is a strict prefix of another cannot mint a decision node."""
+
+    def prog(v):
+        return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
+
+    g = [["mem", ["const", 0x10], 1], ["mem", ["const", 0x11], 1]]
+    fpaths = [[[0x1000, 0, 1]], [[0x1000, 0, 1], [0x1004, 1, 0]]]
+    d = irvm.build_dispatch(_mini_ir([prog(1), prog(2)], g, [0, 1], None, fpaths))
+    assert d["root"] == irvm.AMB and d["residual"] == [0, 1]
+
+
+def test_dispatch_prefix_compression_splits_at_divergence():
+    """Shared path prefixes mint no nodes; the split is at the first divergence."""
+
+    def prog(v):
+        return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
+
+    g = [["mem", ["const", 0x10], 1], ["mem", ["const", 0x11], 1]]
+    shared = [0x1000, 0, 1]
+    fpaths = [[shared, [0x1004, 1, 0]], [shared, [0x1004, 1, 1]]]
+    d = irvm.build_dispatch(_mini_ir([prog(1), prog(2)], g, [0, 1], None, fpaths))
+    assert d["nodes"] == [[1, -2, -3]] and d["root"] == 0 and not d["residual"]
+
+
+def test_dispatch_empty_trace():
+    """Zero played frames (no play driver) build an empty dispatch."""
+    d = irvm.build_dispatch(_mini_ir([], [], []))
+    assert d["root"] == irvm.AMB and not d["nodes"] and not d["residual"]
+
+
+def test_path_tree_rejects_impure_guard():
+    """Conflicting takens for one guard within a frame violate entry-purity."""
+    paths = [((0x1000, 0, 1), (0x1001, 0, 0)), ((0x1000, 0, 0),)]
+    with pytest.raises(AssertionError):
+        irvm.build_path_tree(paths, [0, 1], [], {})
+
+
 def test_guarded_trace_walks_evolving_memory():
-    """The DAG re-derives selection from memory the programs themselves evolve."""
+    """The tree re-derives selection from memory the programs themselves evolve."""
     flip = {"trans": [[0x10, ["op", "INT_XOR", [["mem", ["const", 0x10], 1], ["const", 1]], 1], 1]]}
     programs = [
         {**flip, "regs": [], "sid": [[0, ["const", 1]]]},
         {**flip, "regs": [], "sid": [[0, ["const", 2]]]},
     ]
-    ir = {
-        "frames": 4,
-        "init_mem": [[0x10, "01"]],
-        "init_regs": [0] * 16,
-        "reset_regs": True,
-        "programs": programs,
-        "guards": [["mem", ["const", 0x10], 1]],
-        "paths": [[[0, 1]], [[0, 0]], [[0, 1]], [[0, 0]]],
-        "trace": [0, 1, 0, 1],
-    }
+    ir = _mini_ir(
+        programs,
+        [["mem", ["const", 0x10], 1]],
+        [0, 1, 0, 1],
+        [[0x10, "01"]],
+        [[[0x1000, 0, 1]], [[0x1000, 0, 0]], [[0x1000, 0, 1]], [[0x1000, 0, 0]]],
+    )
     dispatch = irvm.build_dispatch(ir)
     assert dispatch["nodes"] == [[0, -3, -2]] and not dispatch["residual"]
     assert irvm.guarded_trace(ir, dispatch) == ir["trace"]

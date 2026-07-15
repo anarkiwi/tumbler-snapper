@@ -10,8 +10,6 @@ from __future__ import annotations
 import json
 import sys
 
-import numpy as np
-
 from tsnap import irvm
 
 # pylint: disable=protected-access
@@ -177,8 +175,8 @@ def compress(ir):
     """Apply the lossless passes, returning a compressed IR dict.
 
     Programs factor into per-cell slot alphabets, a SID-order struct stream and
-    co-varying cell-group streams, each derived by ID3 induction over the guard
-    set; ambiguous frames fall to one whole-frame combo residual.
+    co-varying cell-group streams, each lowered from the recorded ordered branch
+    paths; ambiguous frames fall to one whole-frame combo residual.
     """
     pool, index = [], {}
     programs = [
@@ -194,11 +192,11 @@ def compress(ir):
     derive = ([(0, struct_seq)] if len(structs) > 1 else []) + [
         (1 + gi, seq) for gi, seq in enumerate(gseqs)
     ]
-    gmat, feat_gids = irvm._guard_matrix(ir)
+    paths = irvm._frame_paths(ir)
     nodes, nindex = [], {}
     roots, amb = {}, {}
     for sid_, seq in derive:
-        roots[sid_], ambf = irvm.induce_tree(np.array(seq), gmat, feat_gids, nodes, nindex)
+        roots[sid_], ambf = irvm.build_path_tree(paths, seq, nodes, nindex)
         if ambf:
             amb[sid_] = set(ambf)
     amb_streams = sorted(amb)
@@ -357,7 +355,8 @@ def decompress(comp):
 
 
 def count_tokens(comp):
-    """Per-category token breakdown of a compressed IR."""
+    """Per-category token breakdown of a compressed IR, split into
+    recovered-structure vs trace-model (debt) classes."""
     slots = sum(len(a) for a in comp["alphabets"])
     wiring = sum(len(s) for s in comp["structs"]) + sum(len(g) for g in comp["groups"])
     programs = len(comp["pool"]) + slots + wiring
@@ -373,6 +372,8 @@ def count_tokens(comp):
         "guards": guards,
         "guard_table": guard_table,
         "residual": residual,
+        "structure": programs + init_mem + guards,
+        "debt": guard_table + residual,
     }
 
 
@@ -398,6 +399,8 @@ def metric(path, song, frames):
         "guard_table": c["guard_table"],
         "residual": c["residual"],
         "init_mem": c["init_mem"],
+        "structure": c["structure"],
+        "debt": c["debt"],
         "dominant": dominant,
     }
 
@@ -413,7 +416,8 @@ def main(argv=None):
         f"{m['tokens_per_frame']:.4f} tok/frame  "
         f"tokens={m['tokens']} frames={m['frames']}  "
         f"(programs={m['programs']} guards={m['guards']} guard_table={m['guard_table']} "
-        f"residual={m['residual']} init_mem={m['init_mem']}; dominant={m['dominant']})"
+        f"residual={m['residual']} init_mem={m['init_mem']}; dominant={m['dominant']}; "
+        f"structure={m['structure']} debt={m['debt']})"
     )
     return m
 

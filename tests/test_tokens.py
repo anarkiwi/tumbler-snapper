@@ -60,6 +60,8 @@ def test_count_tokens_breakdown():
         c["tokens"]
         == c["programs"] + c["init_mem"] + c["guards"] + c["guard_table"] + c["residual"]
     )
+    assert c["structure"] == c["programs"] + c["init_mem"] + c["guards"]
+    assert c["debt"] == c["guard_table"] + c["residual"]
 
 
 # --- interning + lossless compression -----------------------------------------
@@ -132,7 +134,8 @@ def _amb_ir():
         "programs": [prog(0x41), prog(0x40)],
         "trace": [0, 1],
         "guards": [],
-        "paths": [[], []],
+        "path_pool": [[]],
+        "paths": [0, 0],
     }
 
 
@@ -158,6 +161,7 @@ def test_metric_fields(indexed_sid):
     )
     assert m["tokens_per_frame"] == pytest.approx(m["tokens"] / m["frames"])
     assert m["dominant"] in ("programs", "guards", "guard_table", "residual", "init_mem")
+    assert m["structure"] + m["debt"] == m["tokens"]
 
 
 def test_guard_dispatch_reproduces_trace(indexed_sid):
