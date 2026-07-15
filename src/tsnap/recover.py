@@ -261,7 +261,6 @@ class SymVM(PcodeVM):
         self.frame_writes = {}
         self.sid_seq = []
         self.guards = []
-        self._guard_seen = set()
         self.init_sid = []
         self.idle_reg = []
         self.frame_entry_reg = []
@@ -295,7 +294,6 @@ class SymVM(PcodeVM):
         self.frame_writes = {}
         self.sid_seq = []
         self.guards = []
-        self._guard_seen = set()
 
     def _sread(self, vn):
         sp, off, sz = vn
@@ -388,22 +386,26 @@ class SymVM(PcodeVM):
                 s = (self._sread(ins[0]), self._sread(ins[1]))
                 self._swrite(out, simplify(("op", mn, s, out[2])))
 
-    def _record_guard(self, flag_expr, pol, taken):
-        """Keep the branch's path condition as a memory/register-pure predicate.
+    def _record_branch(self, pc, flag_expr, pol, taken):
+        """Record one ordered branch event ``(site, predicate, taken)``.
 
-        The predicate ``flag == pol`` evaluates to the concrete ``taken`` at the
-        frame-entry state, so program selection can be re-derived at replay by
-        evaluating it against the self-evolved memory. Const/uniq-dependent flags
-        carry no recoverable state and are dropped.
+        The predicate ``flag == pol`` is frame-entry-pure (mem/entry-reg exprs,
+        including table loads), so it evaluates to the concrete ``taken`` on the
+        frame-entry state and selection can be re-derived at replay. Constant
+        predicates decide identically on every entry state and are skipped;
+        volatile (``uni``-dependent) predicates are recorded opaque
+        (predicate ``None``) so path alignment is preserved.
         """
         fe = simplify(flag_expr)
-        if fe[0] == "const" or _has_uni(fe):
+        if fe[0] == "const":
+            return
+        if _has_uni(fe):
+            self.guards.append((pc, None, int(taken)))
             return
         pred = simplify(("op", "INT_EQUAL", (fe, ("const", pol & 0xFF)), 1))
-        if pred[0] == "const" or pred in self._guard_seen:
+        if pred[0] == "const":
             return
-        self._guard_seen.add(pred)
-        self.guards.append((pred, int(taken)))
+        self.guards.append((pc, pred, int(taken)))
 
     def run_record(self, rec, pc):
         self._interp(rec, pc)
@@ -412,7 +414,7 @@ class SymVM(PcodeVM):
             _k, flag, pol, tgt, ft = ctrl
             taken = self.reg[flag[1]] == pol
             if not self.concrete_only:
-                self._record_guard(self.sreg[flag[1]], pol, taken)
+                self._record_branch(pc, self.sreg[flag[1]], pol, taken)
             if taken:
                 cyc += 1 + (1 if (ft & 0xFF00) != (tgt & 0xFF00) else 0)
                 nxt = tgt
