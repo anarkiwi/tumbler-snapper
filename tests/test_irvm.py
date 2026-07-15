@@ -132,56 +132,55 @@ def test_roundtrip_intraframe_multiwrite(digi_sid):
     assert r["writes"] == 40 * 8
 
 
-def _dispatch_ir(guards, paths, trace):
-    return {"guards": guards, "paths": paths, "trace": trace, "frames": len(trace)}
+_FLIP = {"trans": [[0x10, ["op", "INT_XOR", [["mem", ["const", 0x10], 1], ["const", 1]], 1], 1]]}
+
+
+def _mini_ir(programs, guards, trace, init_mem=None):
+    """A small memory-backed IR: dispatch re-drives memory and evaluates guards."""
+    return {
+        "frames": len(trace),
+        "init_mem": init_mem if init_mem is not None else [],
+        "init_regs": [0] * 16,
+        "reset_regs": True,
+        "programs": programs,
+        "guards": guards,
+        "trace": trace,
+    }
 
 
 def test_dispatch_single_program_is_leaf():
-    d = irvm.build_dispatch(_dispatch_ir([], [[], []], [0, 0]))
+    prog = {"trans": [], "regs": [], "sid": [[0, ["const", 5]]]}
+    d = irvm.build_dispatch(_mini_ir([prog], [], [0, 0, 0]))
     assert not d["nodes"] and d["root"] == -2 and not d["residual"]
 
 
-def test_dispatch_decides_on_path_guard():
+def test_dispatch_decides_on_evolving_memory():
+    """A single guard over program-evolved memory becomes one decision node."""
+    programs = [
+        {**_FLIP, "regs": [], "sid": [[0, ["const", 1]]]},
+        {**_FLIP, "regs": [], "sid": [[0, ["const", 2]]]},
+    ]
     g = [["mem", ["const", 0x10], 1]]
-    paths = [[[0, 1]], [[0, 0]], [[0, 1]]]
-    d = irvm.build_dispatch(_dispatch_ir(g, paths, [0, 1, 0]))
+    d = irvm.build_dispatch(_mini_ir(programs, g, [0, 1, 0, 1], [[0x10, "01"]]))
     assert d["nodes"] == [[0, -3, -2]] and d["root"] == 0 and not d["residual"]
 
 
-def test_dispatch_skips_single_outcome_chain():
-    """A guard recorded with one outcome only carries no selection; no node."""
-    g = [["reg", 0], ["mem", ["const", 0x10], 1]]
-    paths = [[[0, 1], [1, 1]], [[0, 1], [1, 0]]]
-    d = irvm.build_dispatch(_dispatch_ir(g, paths, [0, 1]))
-    assert d["nodes"] == [[1, -3, -2]] and d["root"] == 0
+def test_dispatch_same_state_collision_is_residual():
+    """Different programs at an identical frame-entry state fall to residual."""
 
+    def prog(v):
+        return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
 
-def test_dispatch_leaf_conflict_is_residual():
-    """Identical complete paths selecting different programs fall to residual."""
-    d = irvm.build_dispatch(_dispatch_ir([], [[], [], []], [0, 1, 0]))
+    d = irvm.build_dispatch(_mini_ir([prog(1), prog(2)], [], [0, 1, 0]))
     assert d["root"] == irvm.AMB and d["residual"] == [0, 1, 0]
 
 
-def test_dispatch_end_vs_continue_is_residual():
-    """A path that is a proper prefix of another cannot be resolved by guards."""
-    g = [["reg", 0]]
-    d = irvm.build_dispatch(_dispatch_ir(g, [[[0, 1]], []], [0, 1]))
-    assert d["root"] == irvm.AMB and d["residual"] == [0, 1]
-
-
-def test_dispatch_collapses_converging_conflict():
-    """Conflicting continuations that all reach one program need no resolution."""
-    g = [["reg", 0], ["reg", 1]]
-    paths = [[[0, 1]], [[1, 0]], []]
-    d = irvm.build_dispatch(_dispatch_ir(g, paths, [0, 0, 0]))
+def test_dispatch_converging_selection_collapses():
+    """A guard that varies but never changes the selection mints no node."""
+    prog = {**_FLIP, "regs": [], "sid": [[0, ["const", 7]]]}
+    g = [["mem", ["const", 0x10], 1]]
+    d = irvm.build_dispatch(_mini_ir([prog], g, [0, 0, 0, 0], [[0x10, "01"]]))
     assert not d["nodes"] and d["root"] == -2 and not d["residual"]
-
-
-def test_dispatch_collapses_equal_subtrees():
-    """A guard whose both outcomes reach the same program decides nothing."""
-    g = [["reg", 0]]
-    d = irvm.build_dispatch(_dispatch_ir(g, [[[0, 1]], [[0, 0]]], [0, 0]))
-    assert not d["nodes"] and d["root"] == -2
 
 
 def test_guarded_trace_walks_evolving_memory():

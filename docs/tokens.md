@@ -2,8 +2,8 @@
 
 A principled, reproducible tokenization of the Phase-1 generator-IR
 (`tsnap.irvm`), lossless compression passes (interned generator DAG, dead-init
-elimination, and per-cell slot factoring with guard-derived stream dispatch —
-Phase-4 Steps 1–2), and the `total_IR_tokens / total_frames` metric (HARD
+elimination, and per-cell slot factoring with decision-tree guard dispatch —
+Phase-4 Steps 1–3), and the `total_IR_tokens / total_frames` metric (HARD
 CONSTRAINT #4). The metric quantifies how much song structure is still
 un-recovered; it is never fitted to output and never fudged toward `< 1.0`.
 
@@ -55,71 +55,89 @@ JSON) in `tests/test_tokens.py`, and over all 33 HVSC fixtures by
    list (write order/repeats); memory-cell presence is carried by the cell's
    own stream (`absent` symbol). Cells with identical per-frame selection
    join one **group** stream (co-varying cells — voices — collapse to one
-   stream). Every stream (struct + groups) is *derived*, not stored: the
-   concolic run records each frame's branch **path** (`recover.SymVM.
-   _record_guard` predicates, frame-entry-pure), and each stream lowers the
-   shared path trie to a **decision-node table** (`irvm.lower_trie`) —
-   single-outcome chains and converging conflicts collapse; identical subtrees
-   hash-cons **across streams**. Frames where any stream is ambiguous (recorded
-   paths conflict — data-indexed divergence) fall to **one whole-frame
-   residual**: an RLE of **combo** ids, a combo holding one symbol per
-   ever-ambiguous stream — never per-group residuals, whose cost multiplies by
-   the number of simultaneously-ambiguous groups. Provably lossless: predicates
-   are frame-entry-pure, so identical memory evolution retraces each frame's
-   recorded path; `decompress` re-derives the exact program vocabulary and
+   stream). Every stream (struct + groups) is *derived*, not stored, by
+   **decision-tree induction (ID3) over the full guard set** (`irvm.induce_tree`,
+   Phase-4 Step-3): the recorded guards (`recover.SymVM._record_guard`
+   predicates, frame-entry-pure) are evaluated on the self-evolved frame-entry
+   state (`irvm._guard_matrix`) as boolean features, and each stream's symbol is
+   selected by the tree that maximizes per-branch label purity, splitting on the
+   lowest-id guard that helps. Decision nodes hash-cons **across streams**;
+   pure/converging subtrees collapse. This replaces the earlier path-trie
+   lowering, which only accepted a clean single-guard 2-kid node and dumped the
+   rest to residual even when the guard *vector* already determined the frame.
+   Only frames a **genuine same-state collision** leaves ambiguous (the recorded
+   guards do not distinguish two different programs — data-indexed divergence)
+   fall to **one whole-frame residual**: an RLE of **combo** ids, a combo holding
+   one symbol per ever-ambiguous stream — never per-group residuals, whose cost
+   multiplies by the number of simultaneously-ambiguous groups. Provably
+   lossless: guards are frame-entry-pure, so identical memory evolution retraces
+   each frame exactly; `decompress` re-derives the exact program vocabulary and
    trace and replays byte-exact (== deity wlog), gated on all 33 fixtures.
 
 ## Measured results
 
-400 frames per tune, HVSC fixture manifest (33 fixtures), sorted by `step2`
-`tokens/frame`. `step1` is the prior whole-frame-program metric (decision-DAG
-dispatch, superseded table in git history); `step2` is the landed per-cell
-factoring. `prog` = pool + slots + wiring; `gtable` = shared decision nodes +
-stream roots; `resid` = residual RLE runs + combo entries.
+400 frames per tune, HVSC fixture manifest (33 fixtures), sorted by `step3`
+`tokens/frame`. `step2` is the prior per-cell factoring with path-trie stream
+dispatch; `step3` is the landed decision-tree (ID3) guard dispatch. `prog` = pool
++ slots + wiring; `gtable` = shared decision nodes + stream roots; `resid` =
+residual RLE runs + combo entries.
 
-| tune | step1 | step2 | prog | guards | gtable | resid | init |
+| tune | step2 | step3 | prog | guards | gtable | resid | init |
 |------|------:|------:|-----:|-------:|-------:|------:|-----:|
 | Goldberg_Variations_parts_1-7 | 0.000 | 0.000 | 0 | 0 | 0 | 0 | 0 |
-| A_Mind_Is_Born | 1.875 | 1.055 | 359 | 20 | 37 | 0 | 6 |
-| Massacre_on_Stage | 5.098 | 3.047 | 775 | 144 | 252 | 0 | 48 |
-| Mystifiable_Intro_2 | 8.148 | 3.533 | 939 | 134 | 306 | 0 | 34 |
-| Into_Hinterland_World | 10.915 | 4.385 | 949 | 140 | 629 | 8 | 28 |
-| Boompah | 8.675 | 4.545 | 1103 | 126 | 557 | 10 | 22 |
-| Let_it_out | 13.428 | 4.803 | 1350 | 154 | 404 | 0 | 13 |
-| Heat_Remix | 6.260 | 4.895 | 1525 | 95 | 319 | 0 | 19 |
-| Superkid_in_Space | 6.638 | 4.910 | 1506 | 91 | 256 | 68 | 43 |
-| Kate_and_Martin | 11.562 | 5.253 | 1087 | 165 | 826 | 0 | 23 |
-| Sc00ter | 15.170 | 6.100 | 1581 | 222 | 621 | 0 | 16 |
-| Old_Cracktro_Tune | 15.963 | 6.183 | 1199 | 237 | 953 | 4 | 80 |
-| Take_Off | 18.655 | 7.062 | 1787 | 200 | 793 | 0 | 45 |
-| Ninja_Carnage | 19.040 | 7.465 | 1422 | 184 | 1326 | 25 | 29 |
-| Fizz_Extended | 26.363 | 8.012 | 1520 | 184 | 1475 | 0 | 26 |
-| Fatale | 17.685 | 8.072 | 1596 | 218 | 1357 | 0 | 58 |
-| Space_Ache_Preview | 35.627 | 8.623 | 1236 | 235 | 1927 | 0 | 51 |
-| Meeting_94 | 42.020 | 8.880 | 1623 | 332 | 1559 | 7 | 31 |
-| Old_Times | 31.760 | 9.248 | 1941 | 286 | 1443 | 0 | 29 |
-| Smutta | 21.080 | 10.440 | 1522 | 224 | 954 | 1431 | 45 |
-| 8_Bit-Maerchenland_V2 | 23.340 | 10.738 | 3150 | 114 | 895 | 0 | 136 |
-| Klemens | 27.913 | 11.485 | 1636 | 220 | 1085 | 1598 | 55 |
-| Dancing_Donuts | 49.108 | 11.863 | 1407 | 266 | 2949 | 86 | 37 |
-| Aviator_Arcade_II | 78.147 | 12.585 | 1532 | 205 | 3264 | 0 | 33 |
-| Degree | 14.170 | 12.852 | 948 | 97 | 441 | 3559 | 96 |
-| Randy_the_Great | 28.140 | 12.877 | 1555 | 234 | 1846 | 1490 | 26 |
-| Super_Goatron | 56.578 | 14.390 | 1902 | 243 | 3544 | 0 | 67 |
-| Vi_drar_till_tune_1 | 62.740 | 16.890 | 1580 | 337 | 3875 | 905 | 59 |
-| Starfleet_Academy_Main_Theme | 32.822 | 23.335 | 1810 | 278 | 1583 | 5595 | 68 |
-| Vacuole | 40.615 | 32.110 | 1299 | 233 | 1613 | 9614 | 85 |
-| Megapetscii | 52.080 | 35.335 | 1621 | 278 | 2484 | 9695 | 56 |
-| Formal_Axiomatic_Theories | 68.248 | 51.890 | 1630 | 282 | 2913 | 15859 | 72 |
-| 202212220942 | 98.812 | 59.425 | 11216 | 11 | 65 | 12427 | 51 |
+| A_Mind_Is_Born | 1.055 | 1.030 | 359 | 20 | 27 | 0 | 6 |
+| Massacre_on_Stage | 3.047 | 2.795 | 775 | 130 | 165 | 0 | 48 |
+| Mystifiable_Intro_2 | 3.533 | 3.283 | 939 | 137 | 202 | 0 | 35 |
+| Into_Hinterland_World | 4.385 | 3.810 | 949 | 170 | 377 | 0 | 28 |
+| Boompah | 4.545 | 3.975 | 1103 | 152 | 313 | 0 | 22 |
+| Kate_and_Martin | 5.253 | 4.457 | 1087 | 203 | 470 | 0 | 23 |
+| Superkid_in_Space | 4.910 | 4.560 | 1506 | 106 | 169 | 0 | 43 |
+| Let_it_out | 4.803 | 4.603 | 1350 | 227 | 251 | 0 | 13 |
+| Old_Cracktro_Tune | 6.183 | 4.615 | 1199 | 243 | 324 | 0 | 80 |
+| Heat_Remix | 4.895 | 4.737 | 1525 | 114 | 237 | 0 | 19 |
+| Degree | 12.852 | 4.878 | 948 | 164 | 594 | 149 | 96 |
+| Space_Ache_Preview | 8.623 | 5.473 | 1236 | 288 | 615 | 0 | 50 |
+| Sc00ter | 6.100 | 5.582 | 1581 | 247 | 389 | 0 | 16 |
+| Smutta | 10.440 | 5.825 | 1522 | 266 | 496 | 0 | 46 |
+| Fizz_Extended | 8.012 | 5.845 | 1520 | 240 | 552 | 0 | 26 |
+| Ninja_Carnage | 7.465 | 6.093 | 1422 | 306 | 680 | 0 | 29 |
+| Fatale | 8.072 | 6.293 | 1596 | 318 | 543 | 0 | 60 |
+| Take_Off | 7.062 | 6.330 | 1787 | 255 | 442 | 0 | 48 |
+| Meeting_94 | 8.880 | 6.465 | 1623 | 346 | 580 | 6 | 31 |
+| Aviator_Arcade_II | 12.585 | 6.508 | 1532 | 312 | 724 | 0 | 35 |
+| Randy_the_Great | 12.877 | 6.710 | 1555 | 336 | 767 | 0 | 26 |
+| Megapetscii | 35.335 | 7.030 | 1621 | 363 | 772 | 0 | 56 |
+| Vi_drar_till_tune_1 | 16.890 | 7.298 | 1580 | 416 | 863 | 0 | 60 |
+| Dancing_Donuts | 11.863 | 7.713 | 1407 | 406 | 1235 | 0 | 37 |
+| Starfleet_Academy_Main_Theme | 23.335 | 7.777 | 1810 | 331 | 901 | 0 | 69 |
+| Formal_Axiomatic_Theories | 51.890 | 7.905 | 1630 | 449 | 1009 | 0 | 74 |
+| Old_Times | 9.248 | 7.973 | 1941 | 422 | 795 | 0 | 31 |
+| Super_Goatron | 14.390 | 8.047 | 1902 | 340 | 901 | 0 | 76 |
+| Klemens | 11.485 | 8.900 | 1636 | 284 | 1020 | 565 | 55 |
+| Vacuole | 32.110 | 9.957 | 1299 | 522 | 1793 | 234 | 135 |
+| 8_Bit-Maerchenland_V2 | 10.738 | 10.197 | 3150 | 231 | 555 | 0 | 143 |
+| 202212220942 | 59.425 | 59.182 | 11216 | 71 | 295 | 12040 | 51 |
 
-Every tune improves at 400 frames (1.1–6.2×). The dominant term shifts from
-`programs` (whole-frame bundles) to `guard_table` on decision-heavy tunes and to
-`residual` on data-indexed tunes — exactly the Step-3 target.
+Every tune improves or holds at 400 frames; the residual-heavy tunes collapse
+(Formal 51.9→7.9, Megapetscii 35.3→7.0, Starfleet 23.3→7.8, Vacuole 32.1→10.0,
+Degree 12.9→4.9) as their `residual` drops to ≈0. The dominant term is now
+`programs`/`guard_table` on nearly every tune — exactly the Step-3 target.
+`residual` survives only where guards genuinely fail to distinguish two programs
+at the same frame-entry state: Vacuole (234), Degree (149), Klemens (565), and
+the generative `202212220942` (12040, a fully generative player — transcription
+rung, not dispatch).
 
-### Step-2 outcome (horizons)
+### Step-3 outcome (horizons)
 
-Full-tune horizons (`tools/token_report.py <out> <frames>`, 400/1600):
+Full-tune horizons (`python -m tsnap.tokens <tune> 0 <frames>`, 400/1600):
+
+- **Formal_Axiomatic_Theories**: 7.905 → **2.467** (1600f); `prog` 1630→1691
+  saturates while frames grow 4×, `resid` stays 0.
+- **Vacuole**: 9.957 → **5.442** (1600f); `resid` barely grows (234→254 — the
+  genuine same-state collisions are ~O(1)), `gtable` 1793→5486 is the residual
+  term.
+
+Prior (`tools/token_report.py <out> <frames>`, 400/1600) at Step-2:
 
 - **A_Mind_Is_Born**: 1.055 → 0.397 (1600f) → **0.268** (3200f) — well under the
   constraint-#4 budget as the cell alphabets saturate.
@@ -144,20 +162,38 @@ cells hoist).
 ### Phase-4 changes (dependency order)
 
 1. **Record path conditions (guards).** **Done.** Each conditional branch's
-   path condition is kept as a memory/register-pure predicate together with the
-   frame's (guard, taken) path; selection is derived by walking decision nodes
-   lowered from the recorded paths.
-2. **Per-cell / per-voice decomposition.** **Done (this step).** The monolithic
-   frame bundle is replaced by per-cell slot alphabets + derived struct/group
-   streams; voice separation falls out of co-varying cell groups. Remaining:
-   per-stream decision-node growth on non-saturating tunes (cross-stream
-   hash-consing is in; deeper sharing is a fast-follow).
-3. **Symbolic store addresses.** Carry `(addr_expr, val_expr)` in program
-   order, evaluated at replay: removes concrete-indexed-store forking (the
-   current residual) and fixes overlapping different-width store order.
+   path condition is kept as a memory/register-pure predicate; selection is
+   derived from the recorded guards.
+2. **Per-cell / per-voice decomposition.** **Done.** The monolithic frame bundle
+   is replaced by per-cell slot alphabets + derived struct/group streams; voice
+   separation falls out of co-varying cell groups.
+3. **Decision-tree guard dispatch (Step-3).** **Done.** Each stream's selection
+   is induced by ID3 over the full guard vector (`irvm.induce_tree`), replacing
+   the path-trie lowering that discarded frames the guard vector already
+   determined. Residual falls to ≈0 except genuine same-state collisions.
+   *Correction to the record:* the originally-planned "symbolic store addresses"
+   was measured to give **zero** residual reduction — store addresses are already
+   constant, and the divergence was control-flow the lowering discarded, not
+   concrete-indexed-store forking — so it is demoted/dropped.
 4. **Hash-cons exprs at construction** with canonical commutative operand
    order: equality becomes pointer compare, the id-keyed simplify memo becomes
    trivially correct, and `tokens` interning stops re-doing the work.
+
+### Proposed next step
+
+The dominant term is now `guard_table`/`programs`. Next:
+
+1. **Shrink the guard decision-DAG.** Reduced-BDD-style minimization of the
+   shared decision nodes plus guard-expr hash-consing at construction (item 4),
+   attacking `gtable` on decision-heavy tunes (e.g. Vacuole 1793, Dancing_Donuts
+   1235).
+2. **Clear the small genuine-collision residual** (Vacuole ~13 frames, Degree
+   ~50) by recovering the currently-dropped **data-dependent** branch conditions
+   — predicates on loaded table values / loop-trip counts that
+   `recover._record_guard` drops as `uni`-dependent — so the guard vector fully
+   determines those frames too.
+
+Re-measure at full-tune horizons before starting the tracker-IR layer.
 
 Measure at full-tune horizons after each step (CLAUDE.md measurement doctrine);
 short horizons understate amortization.

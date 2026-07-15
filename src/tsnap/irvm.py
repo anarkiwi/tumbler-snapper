@@ -1,13 +1,14 @@
 """Serializable generator-IR and a self-contained replay VM.
 
-``serialize`` builds a JSON-able IR from a :mod:`tsnap.recover` run; ``replay``
-rebuilds the ordered ``$D400..$D418`` stream from the IR alone; ``roundtrip``
-proves it byte-exact against the deity ``PcodeVM`` write log.
+``serialize`` builds a JSON-able IR; ``replay`` rebuilds the ordered
+``$D400..$D418`` stream; ``roundtrip`` proves it byte-exact vs the deity log.
 """
 
 from __future__ import annotations
 
 import sys
+
+import numpy as np
 
 from tsnap.recover import (
     SID,
@@ -204,50 +205,81 @@ def _run_ir(ir, emit):
 AMB = -1
 
 
-def _path_trie(paths, trace):
-    """Trie over per-frame (guard-id, taken) paths; each leaf collects programs."""
-    root = {"kids": {}, "ends": set()}
-    for fpath, pi in zip(paths, trace):
-        node = root
-        for gid, taken in fpath:
-            node = node["kids"].setdefault((gid, taken), {"kids": {}, "ends": set()})
-        node["ends"].add(pi)
-    return root
+def _guard_matrix(ir):
+    """Re-drive the IR and evaluate every guard on each frame-entry state.
 
-
-def lower_trie(root, nodes=None, nindex=None):
-    """Lower the path trie to decision nodes; annotate each trie node's ``ref``.
-
-    Refs: ``>= 0`` decision node, ``AMB`` conflict -> residual, ``<= -2`` leaf
-    ``sym = -ref - 2``; single-ref continuations collapse, identical subtrees
-    hash-cons. Shared ``nodes``/``nindex`` hash-cons across lowerings.
+    Returns ``(gmat, feat_gids)``: a ``uint8[nframes, nfeat]`` matrix over guards
+    non-constant across frames, and the raw guard id per (ascending) column. The
+    re-driven states equal replay's, so a tree over these features routes as replay.
     """
-    if nodes is None:
-        nodes, nindex = [], {}
-    stack = [(root, False)]
+    guards = ir.get("guards", [])
+    trace = ir["trace"]
+    nfr = len(trace)
+    snaps = []
+    _drive_ir(ir, nfr, lambda f, s, r: trace[f], lambda pr, s, r: snaps.append((s, list(r))))
+    gmat = np.zeros((nfr, len(guards)), dtype=np.uint8)
+    for f, (snap, regs) in enumerate(snaps):
+        for gi, g in enumerate(guards):
+            if _eval(g, snap, regs):
+                gmat[f, gi] = 1
+    useful = [gi for gi in range(len(guards)) if 0 < int(gmat[:, gi].sum()) < nfr]
+    return gmat[:, useful], useful
+
+
+def induce_tree(labels, gmat, feat_gids, nodes, nindex):
+    """Induce an ID3 decision tree selecting ``labels`` from boolean guard features.
+
+    Each split maximizes label purity among features non-constant in the subset,
+    ties to the lowest guard id; pure subsets are leaves (``sym = -ref - 2``),
+    unsplittable ones fall to ``AMB``; nodes hash-cons into ``nodes``/``nindex``.
+    """
+    labels = np.asarray(labels)
+    feat_gids = np.asarray(feat_gids)
+    amb_frames = []
+    ret = []
+    stack = [("visit", np.arange(len(labels)))]
     while stack:
-        node, done = stack.pop()
-        if not done:
-            stack.append((node, True))
-            stack.extend((k, False) for k in node["kids"].values())
-            continue
-        kids, ends = node["kids"], node["ends"]
-        gids = {g for g, _t in kids}
-        refs = {c["ref"] for c in kids.values()} | {-(pi + 2) for pi in ends}
-        if len(refs) == 1:
-            node["ref"] = next(iter(refs))
-        elif ends or len(gids) != 1 or len(kids) != 2:
-            node["ref"] = AMB
-        else:
-            (gid,) = gids
-            key = (gid, kids[(gid, 0)]["ref"], kids[(gid, 1)]["ref"])
+        op = stack.pop()
+        if op[0] == "build":
+            gid, hi, lo = op[1], ret.pop(), ret.pop()
+            if lo == hi:
+                ret.append(lo)
+                continue
+            key = (gid, lo, hi)
             nid = nindex.get(key)
             if nid is None:
                 nid = len(nodes)
                 nindex[key] = nid
-                nodes.append(list(key))
-            node["ref"] = nid
-    return nodes
+                nodes.append([gid, lo, hi])
+            ret.append(nid)
+            continue
+        rows = op[1]
+        lab = labels[rows]
+        uniq = np.unique(lab)
+        if len(uniq) == 1:
+            ret.append(-(int(uniq[0]) + 2))
+            continue
+        sub = gmat[rows]
+        n = len(rows)
+        colsum = sub.sum(axis=0)
+        vcols = np.nonzero((colsum > 0) & (colsum < n))[0]
+        if vcols.size == 0:
+            amb_frames.extend(int(r) for r in rows)
+            ret.append(AMB)
+            continue
+        inv = np.searchsorted(uniq, lab)
+        onehot = np.zeros((len(uniq), n), dtype=np.int32)
+        onehot[inv, np.arange(n)] = 1
+        subv = sub[:, vcols].astype(np.int32)
+        counts1 = onehot @ subv
+        counts0 = onehot.sum(axis=1)[:, None] - counts1
+        score = counts0.max(axis=0) + counts1.max(axis=0)
+        best = int(vcols[int(score.argmax())])
+        col = sub[:, best]
+        stack.append(("build", int(feat_gids[best])))
+        stack.append(("visit", rows[col == 1]))
+        stack.append(("visit", rows[col == 0]))
+    return ret.pop(), amb_frames
 
 
 def walk_dnodes(nodes, root, evalg):
@@ -260,27 +292,22 @@ def walk_dnodes(nodes, root, evalg):
 
 
 def build_dispatch(ir):
-    """Derive program selection as a decision DAG over the recorded guard paths.
+    """Derive program selection by ID3 induction over the guard set.
 
-    Guard predicates are frame-entry-pure, so identical memory evolution retraces
-    each frame's recorded path exactly; frames reaching an ambiguous trie node
-    fall to a frame-ordered residual.
+    Guards are frame-entry-pure, so identical memory evolution retraces each frame
+    exactly; frames a genuine same-state collision leaves ambiguous fall to a
+    frame-ordered residual.
     """
-    paths, trace = ir["paths"], ir["trace"]
-    root = _path_trie(paths, trace)
-    nodes = lower_trie(root)
-    residual = []
-    for fpath, pi in zip(paths, trace):
-        node, k = root, 0
-        while node["ref"] >= 0:
-            node = node["kids"][tuple(fpath[k])]
-            k += 1
-        if node["ref"] == AMB:
-            residual.append(pi)
+    trace = ir["trace"]
+    gmat, feat_gids = _guard_matrix(ir)
+    nodes, nindex = [], {}
+    root, amb_frames = induce_tree(np.array(trace), gmat, feat_gids, nodes, nindex)
+    amb = set(amb_frames)
+    residual = [trace[f] for f in range(len(trace)) if f in amb]
     return {
         "exprs": ir.get("guards", []),
         "nodes": nodes,
-        "root": root["ref"],
+        "root": root,
         "residual": residual,
     }
 
