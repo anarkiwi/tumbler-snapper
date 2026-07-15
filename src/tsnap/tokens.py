@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import sys
 
+import numpy as np
+
 from tsnap import irvm
 
 # pylint: disable=protected-access
@@ -171,51 +173,12 @@ def _group_streams(streams):
     return groups, gseqs
 
 
-def _skeleton(paths):
-    """Trie over distinct guard paths; chains carry each path's steps, end node
-    and the frames sharing it."""
-    root = {"kids": {}, "ends": set()}
-    chains, pindex = [], {}
-    for f, fpath in enumerate(paths):
-        key = tuple(tuple(step) for step in fpath)
-        e = pindex.get(key)
-        if e is None:
-            node = root
-            for step in key:
-                node = node["kids"].setdefault(step, {"kids": {}, "ends": set()})
-            e = {"path": key, "end": node, "frames": []}
-            pindex[key] = e
-            chains.append(e)
-        e["frames"].append(f)
-    return root, chains
-
-
-def _derive_stream(root, chains, seq, nodes, nindex):
-    """Lower one symbol stream over the shared path trie.
-
-    Returns ``(root_ref, amb_frames)``; ``nodes``/``nindex`` are shared across
-    streams so identical decision subtrees hash-cons cross-stream.
-    """
-    for e in chains:
-        e["end"]["ends"] = {seq[f] for f in e["frames"]}
-    irvm.lower_trie(root, nodes, nindex)
-    amb = []
-    for e in chains:
-        node, k = root, 0
-        while node["ref"] >= 0:
-            node = node["kids"][e["path"][k]]
-            k += 1
-        if node["ref"] == irvm.AMB:
-            amb.extend(e["frames"])
-    return root["ref"], amb
-
-
 def compress(ir):
     """Apply the lossless passes, returning a compressed IR dict.
 
     Programs factor into per-cell slot alphabets, a SID-order struct stream and
-    co-varying cell-group streams, each derived by decision nodes over recorded
-    guard paths; ambiguous frames fall to one whole-frame combo residual.
+    co-varying cell-group streams, each derived by ID3 induction over the guard
+    set; ambiguous frames fall to one whole-frame combo residual.
     """
     pool, index = [], {}
     programs = [
@@ -231,11 +194,11 @@ def compress(ir):
     derive = ([(0, struct_seq)] if len(structs) > 1 else []) + [
         (1 + gi, seq) for gi, seq in enumerate(gseqs)
     ]
-    root, chains = _skeleton(ir["paths"])
+    gmat, feat_gids = irvm._guard_matrix(ir)
     nodes, nindex = [], {}
     roots, amb = {}, {}
     for sid_, seq in derive:
-        roots[sid_], ambf = _derive_stream(root, chains, seq, nodes, nindex)
+        roots[sid_], ambf = irvm.induce_tree(np.array(seq), gmat, feat_gids, nodes, nindex)
         if ambf:
             amb[sid_] = set(ambf)
     amb_streams = sorted(amb)
