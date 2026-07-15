@@ -225,6 +225,83 @@ def test_dispatch_structural_path_mismatch_is_residual():
     assert d["root"] == irvm.AMB and d["residual"] == [0, 1]
 
 
+def test_dispatch_opaque_nonbearing_is_elided():
+    """An opaque divergence whose variant classes lower identically is elided."""
+
+    def prog(v):
+        return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
+
+    g = [["mem", ["const", 0x10], 1]]
+    fpaths = [
+        [[0x1000, -1, 1], [0x1004, 0, 1]],
+        [[0x1000, -1, 0], [0x1004, 0, 1]],
+        [[0x1000, -1, 1], [0x1004, 0, 0]],
+        [[0x1000, -1, 0], [0x1004, 0, 0]],
+    ]
+    d = irvm.build_dispatch(_mini_ir([prog(1), prog(2)], g, [0, 0, 1, 1], None, fpaths))
+    assert d["nodes"] == [[0, -3, -2]] and d["root"] == 0 and not d["residual"]
+
+
+def test_dispatch_opaque_loadbearing_is_residual():
+    """An opaque divergence whose variant classes lower differently stays residual."""
+
+    def prog(v):
+        return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
+
+    fpaths = [
+        [[0x1000, -1, 1], [0x1004, 0, 1]],
+        [[0x1000, -1, 0], [0x1004, 0, 1]],
+    ]
+    g = [["mem", ["const", 0x10], 1]]
+    d = irvm.build_dispatch(_mini_ir([prog(1), prog(2)], g, [0, 1], None, fpaths))
+    assert d["root"] == irvm.AMB and not d["nodes"] and d["residual"] == [0, 1]
+
+
+def test_dispatch_structural_variance_nonbearing_is_elided():
+    """Opaque-loop length variance (structural mismatch) merges when non-bearing."""
+
+    def prog(v):
+        return {"trans": [], "regs": [], "sid": [[0, ["const", v]]]}
+
+    g = [["mem", ["const", 0x10], 1]]
+    fpaths = [
+        [[0x1000, -1, 1], [0x1000, -1, 0], [0x1004, 0, 1]],
+        [[0x1000, -1, 0], [0x1004, 0, 1]],
+        [[0x1000, -1, 1], [0x1000, -1, 0], [0x1004, 0, 0]],
+        [[0x1000, -1, 0], [0x1004, 0, 0]],
+    ]
+    d = irvm.build_dispatch(_mini_ir([prog(1), prog(2)], g, [0, 0, 1, 1], None, fpaths))
+    assert d["nodes"] == [[0, -3, -2]] and d["root"] == 0 and not d["residual"]
+
+
+def test_guarded_trace_skips_elided_opaque_events():
+    """Replay routes on evaluable guards only; elided opaque events never evaluate."""
+    programs = [
+        {**_FLIP, "regs": [], "sid": [[0, ["const", 1]]]},
+        {**_FLIP, "regs": [], "sid": [[0, ["const", 2]]]},
+    ]
+    g = [["mem", ["const", 0x10], 1]]
+    fpaths = [
+        [[0x1000, -1, 1], [0x1004, 0, 1]],
+        [[0x1000, -1, 1], [0x1004, 0, 0]],
+        [[0x1000, -1, 0], [0x1004, 0, 1]],
+        [[0x1000, -1, 0], [0x1004, 0, 0]],
+    ]
+    ir = _mini_ir(programs, g, [0, 1, 0, 1], [[0x10, "01"]], fpaths)
+    dispatch = irvm.build_dispatch(ir)
+    assert dispatch["nodes"] == [[0, -3, -2]] and not dispatch["residual"]
+    assert irvm.guarded_trace(ir, dispatch) == ir["trace"]
+
+
+def test_prune_dnodes_drops_failed_merge_leftovers():
+    """Nodes minted under a failed merge are unreachable and pruned."""
+    nodes = [[0, -2, -3], [1, 0, -4], [2, -2, 1]]
+    kept, (root,) = irvm.prune_dnodes(nodes, [1])
+    assert kept == [[0, -2, -3], [1, 0, -4]] and root == 1
+    kept, roots = irvm.prune_dnodes(nodes, [irvm.AMB])
+    assert kept == [] and roots == [irvm.AMB]
+
+
 def test_dispatch_prefix_compression_splits_at_divergence():
     """Shared path prefixes mint no nodes; the split is at the first divergence."""
 

@@ -79,10 +79,18 @@ JSON) in `tests/test_tokens.py`, and over all 33 HVSC fixtures by
    node (hash-consed **across streams**; converging subtrees collapse); replay
    re-evaluates the predicate on the self-evolved frame-entry state, which
    reproduces the recorded `taken` exactly — routing is **asserted at build**
-   (`irvm._verify_routing`), not sampled. Frames whose first divergence is at
-   an opaque predicate or a structural path mismatch, or whose identical full
-   path still selects distinct symbols (SMC / data-indexed divergence), fall
-   to **one whole-frame residual**: an RLE of **combo** ids, a combo holding
+   (`irvm._verify_routing`), not sampled. Any other divergence (opaque event,
+   guard-id or structural/length mismatch) is **quotiented**: the subset
+   partitions by its variant at the divergence and each class lowers
+   independently; the event is elided iff every class yields the *identical*
+   hash-consed subtree — a bisimulation-style merge on exact dispatch
+   behavior, never majority or purity — so a varying volatile branch whose
+   outcome never affects selection cannot poison the frames after it (replay
+   never evaluates elided events; unreachable failed-merge nodes are pruned).
+   Frames whose divergence stays load-bearing and non-evaluable, or whose
+   identical full path still selects distinct symbols (SMC / data-indexed
+   divergence), fall to **one whole-frame residual**: an RLE of **combo**
+   ids, a combo holding
    one symbol per ever-ambiguous stream — never per-group residuals, whose
    cost multiplies by the number of simultaneously-ambiguous groups. Provably
    lossless: `decompress` re-derives the exact program vocabulary and trace

@@ -227,25 +227,34 @@ def _frame_paths(ir):
     return [pool[pid] for pid in ids]
 
 
-def _verify_routing(groups, glab, assigned, nodes, root):
-    """Assert every path routes to its assigned leaf (exact by construction)."""
-    for g, (path, _frames) in enumerate(groups):
+def _verify_routing(groups, glab, nodes, root):
+    """Assert every path routes to its own label's leaf; collect residual frames.
+
+    Elided (quotiented) events never appear in ``nodes``, so the walk skips
+    them; exactness is asserted at build for every group.
+    """
+    amb_frames = []
+    for g, (path, frames) in enumerate(groups):
         tkn = {}
         for _site, gid, taken in path:
             if gid != -1:
                 if tkn.setdefault(gid, taken) != taken:
                     raise AssertionError(f"guard {gid} not frame-entry-pure")
         ref = walk_dnodes(nodes, root, lambda gid, tkn=tkn: tkn[gid])
-        if ref != assigned[g] or (ref != AMB and -ref - 2 != glab[g]):
+        if ref == AMB:
+            amb_frames.extend(frames)
+        elif -ref - 2 != glab[g]:
             raise AssertionError(f"path dispatch mis-routes group {g}")
+    amb_frames.sort()
+    return amb_frames
 
 
 def build_path_tree(paths, labels, nodes, nindex):
     """Discrimination tree over ordered branch paths selecting ``labels``.
 
-    Subsets split at the earliest path divergence (execution order, never
-    statistics): a ``taken`` split of a shared evaluable guard mints a
-    hash-consed decision node; anything else falls to the whole-frame residual.
+    Subsets split at the earliest divergence (execution order): a shared
+    evaluable guard's ``taken`` split mints a node; other divergences are
+    quotiented per variant class, elided iff all classes yield one subtree.
     """
     gindex, groups, glabs = {}, [], []
     for f, path in enumerate(paths):
@@ -258,8 +267,7 @@ def build_path_tree(paths, labels, nodes, nindex):
         groups[g][1].append(f)
         glabs[g].add(int(labels[f]))
     glab = [labs.pop() if len(labs) == 1 else None for labs in glabs]
-    assigned = [AMB] * len(groups)
-    amb_frames, ret = [], []
+    ret = []
     stack = [("visit", list(range(len(groups))), 0)]
     while stack:
         op = stack.pop()
@@ -276,16 +284,15 @@ def build_path_tree(paths, labels, nodes, nindex):
                 nodes.append([gid, lo, hi])
             ret.append(nid)
             continue
+        if op[0] == "merge":
+            refs = {ret.pop() for _ in range(op[1])}
+            ret.append(refs.pop() if len(refs) == 1 else AMB)
+            continue
         _, subset, pos = op
         labs = {glab[g] for g in subset}
         if len(labs) <= 1:
             lab = labs.pop() if labs else None
-            ref = AMB if lab is None else -(lab + 2)
-            for g in subset:
-                assigned[g] = ref
-                if ref == AMB:
-                    amb_frames.extend(groups[g][1])
-            ret.append(ref)
+            ret.append(AMB if lab is None else -(lab + 2))
             continue
         q, evs = pos, set()
         while len(evs) <= 1:
@@ -298,18 +305,38 @@ def build_path_tree(paths, labels, nodes, nindex):
             and len({ev[:2] for ev in evs}) == 1
             and next(iter(evs))[1] != -1
         )
-        if not clean:
-            for g in subset:
-                amb_frames.extend(groups[g][1])
-            ret.append(AMB)
+        if clean:
+            stack.append(("build", next(iter(evs))[1]))
+            stack.append(("visit", [g for g in subset if groups[g][0][q][2] == 1], q + 1))
+            stack.append(("visit", [g for g in subset if groups[g][0][q][2] == 0], q + 1))
             continue
-        stack.append(("build", next(iter(evs))[1]))
-        stack.append(("visit", [g for g in subset if groups[g][0][q][2] == 1], q + 1))
-        stack.append(("visit", [g for g in subset if groups[g][0][q][2] == 0], q + 1))
+        classes = {}
+        for g in subset:
+            path = groups[g][0]
+            classes.setdefault(path[q] if q < len(path) else None, []).append(g)
+        stack.append(("merge", len(classes)))
+        for cls in classes.values():
+            stack.append(("visit", cls, q + 1))
     root = ret.pop()
-    _verify_routing(groups, glab, assigned, nodes, root)
-    amb_frames.sort()
+    amb_frames = _verify_routing(groups, glab, nodes, root)
     return root, amb_frames
+
+
+def prune_dnodes(nodes, roots):
+    """Drop nodes unreachable from ``roots`` (failed-merge leftovers).
+
+    Returns remapped ``(nodes, roots)``; ids stay child-before-parent ordered.
+    """
+    live, stack = set(), [r for r in roots if r >= 0]
+    while stack:
+        nid = stack.pop()
+        if nid in live:
+            continue
+        live.add(nid)
+        stack.extend(ref for ref in nodes[nid][1:] if ref >= 0)
+    remap = {old: new for new, old in enumerate(sorted(live))}
+    kept = [[nodes[o][0]] + [remap[r] if r >= 0 else r for r in nodes[o][1:]] for o in sorted(live)]
+    return kept, [remap[r] if r >= 0 else r for r in roots]
 
 
 def walk_dnodes(nodes, root, evalg):
@@ -331,6 +358,7 @@ def build_dispatch(ir):
     trace = ir["trace"]
     nodes, nindex = [], {}
     root, amb_frames = build_path_tree(_frame_paths(ir), trace, nodes, nindex)
+    nodes, (root,) = prune_dnodes(nodes, [root])
     residual = [trace[f] for f in amb_frames]
     return {
         "exprs": ir.get("guards", []),
