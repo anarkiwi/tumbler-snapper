@@ -199,6 +199,8 @@ def compress(ir):
         roots[sid_], ambf = irvm.build_path_tree(paths, seq, nodes, nindex)
         if ambf:
             amb[sid_] = set(ambf)
+    nodes, pruned = irvm.prune_dnodes(nodes, [roots[s] for s, _ in derive])
+    roots = {s: r for (s, _), r in zip(derive, pruned)}
     amb_streams = sorted(amb)
     seq_by_id = dict(derive)
     combos, combo_index, combo_seq = [], {}, []
