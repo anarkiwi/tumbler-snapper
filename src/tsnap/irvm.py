@@ -227,7 +227,20 @@ def _frame_paths(ir):
     return [pool[pid] for pid in ids]
 
 
-def _verify_routing(groups, glab, nodes, root):
+def _path_eval(tkn, excl):
+    """Guard evaluation from recorded takens; case partners imply falsehood."""
+
+    def evalg(gid):
+        if gid in tkn:
+            return tkn[gid]
+        if any(tkn.get(o) == 1 for o in excl.get(gid, ())):
+            return 0
+        raise AssertionError(f"guard {gid} undetermined on path")
+
+    return evalg
+
+
+def _verify_routing(groups, glab, nodes, root, excl):
     """Assert every path routes to its own label's leaf; collect residual frames.
 
     Elided (quotiented) events never appear in ``nodes``, so the walk skips
@@ -240,7 +253,7 @@ def _verify_routing(groups, glab, nodes, root):
             if gid != -1:
                 if tkn.setdefault(gid, taken) != taken:
                     raise AssertionError(f"guard {gid} not frame-entry-pure")
-        ref = walk_dnodes(nodes, root, lambda gid, tkn=tkn: tkn[gid])
+        ref = walk_dnodes(nodes, root, _path_eval(tkn, excl))
         if ref == AMB:
             amb_frames.extend(frames)
         elif -ref - 2 != glab[g]:
@@ -249,12 +262,53 @@ def _verify_routing(groups, glab, nodes, root):
     return amb_frames
 
 
-def build_path_tree(paths, labels, nodes, nindex):
+def _eq_case(g):
+    """``(lhs, const)`` when ``g`` is ``INT_EQUAL(lhs, const)``, else ``None``."""
+    if g[0] == "op" and g[1] == "INT_EQUAL" and g[2][1][0] == "const":
+        return (g[2][0], g[2][1][1])
+    return None
+
+
+def _case_gids(evs, guards):
+    """gids (in ``evs`` order) of a mutually-exclusive guard case, else ``None``.
+
+    Each event asserts its own guard (``taken`` 1) and the guards test one
+    shared expression against pairwise-distinct constants (self-modified
+    instruction identities), so evaluating them in order routes exactly.
+    """
+    if any(ev is None or ev[1] == -1 or ev[2] != 1 for ev in evs):
+        return None
+    gids = [ev[1] for ev in evs]
+    if len(set(gids)) != len(gids):
+        return None
+    cases = [_eq_case(guards[g]) for g in gids]
+    if any(c is None for c in cases):
+        return None
+    lhs = cases[0][0]
+    if any(c[0] != lhs for c in cases[1:]) or len({c[1] for c in cases}) != len(cases):
+        return None
+    return gids
+
+
+def _mint_dnode(nodes, nindex, gid, lo, hi):
+    """Hash-cons one decision node; equal branches collapse to the branch."""
+    if lo == hi:
+        return lo
+    key = (gid, lo, hi)
+    nid = nindex.get(key)
+    if nid is None:
+        nid = len(nodes)
+        nindex[key] = nid
+        nodes.append([gid, lo, hi])
+    return nid
+
+
+def build_path_tree(paths, labels, nodes, nindex, guards=()):
     """Discrimination tree over ordered branch paths selecting ``labels``.
 
     Subsets split at the earliest divergence (execution order): a shared
-    evaluable guard's ``taken`` split mints a node; other divergences are
-    quotiented per variant class, elided iff all classes yield one subtree.
+    guard's ``taken`` split mints a node; other divergences are quotiented per
+    variant class, elided iff all classes agree, else case-chained if exclusive.
     """
     gindex, groups, glabs = {}, [], []
     for f, path in enumerate(paths):
@@ -267,26 +321,30 @@ def build_path_tree(paths, labels, nodes, nindex):
         groups[g][1].append(f)
         glabs[g].add(int(labels[f]))
     glab = [labs.pop() if len(labs) == 1 else None for labs in glabs]
-    ret = []
+    ret, excl = [], {}
     stack = [("visit", list(range(len(groups))), 0)]
     while stack:
         op = stack.pop()
         if op[0] == "build":
             gid, hi, lo = op[1], ret.pop(), ret.pop()
-            if lo == hi:
-                ret.append(lo)
-                continue
-            key = (gid, lo, hi)
-            nid = nindex.get(key)
-            if nid is None:
-                nid = len(nodes)
-                nindex[key] = nid
-                nodes.append([gid, lo, hi])
-            ret.append(nid)
+            ret.append(_mint_dnode(nodes, nindex, gid, lo, hi))
             continue
         if op[0] == "merge":
-            refs = {ret.pop() for _ in range(op[1])}
-            ret.append(refs.pop() if len(refs) == 1 else AMB)
+            keys = op[1]
+            refs = [ret.pop() for _ in range(len(keys))]
+            if len(set(refs)) == 1:
+                ret.append(refs[0])
+                continue
+            case = _case_gids(keys, guards)
+            if case is None:
+                ret.append(AMB)
+                continue
+            for a in case:
+                excl.setdefault(a, set()).update(b for b in case if b != a)
+            ref = refs[-1]
+            for gid, hi in zip(case[-2::-1], refs[-2::-1]):
+                ref = _mint_dnode(nodes, nindex, gid, ref, hi)
+            ret.append(ref)
             continue
         _, subset, pos = op
         labs = {glab[g] for g in subset}
@@ -314,11 +372,11 @@ def build_path_tree(paths, labels, nodes, nindex):
         for g in subset:
             path = groups[g][0]
             classes.setdefault(path[q] if q < len(path) else None, []).append(g)
-        stack.append(("merge", len(classes)))
+        stack.append(("merge", list(classes)))
         for cls in classes.values():
             stack.append(("visit", cls, q + 1))
     root = ret.pop()
-    amb_frames = _verify_routing(groups, glab, nodes, root)
+    amb_frames = _verify_routing(groups, glab, nodes, root, excl)
     return root, amb_frames
 
 
@@ -357,7 +415,7 @@ def build_dispatch(ir):
     """
     trace = ir["trace"]
     nodes, nindex = [], {}
-    root, amb_frames = build_path_tree(_frame_paths(ir), trace, nodes, nindex)
+    root, amb_frames = build_path_tree(_frame_paths(ir), trace, nodes, nindex, ir.get("guards", []))
     nodes, (root,) = prune_dnodes(nodes, [root])
     residual = [trace[f] for f in amb_frames]
     return {

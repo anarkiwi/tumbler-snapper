@@ -231,3 +231,32 @@ def test_cadence_cia_irq_masked_is_video(cadence_builder):
     c = R.discover_cadence(cadence_builder("irqoff.sid", init), 0)
     assert c["source"] == "PAL video"
     assert c["latch"] is None
+
+
+def test_operand_slots_immediate_multi_read():
+    """ADC reads its immediate in several ops; all are operand slots, masks are not."""
+    from deity_informant import lift  # pylint: disable=import-outside-toplevel
+
+    mem = bytearray(0x10000)
+    mem[0x1000:0x1002] = bytes((0x69, 0x80))  # ADC #$80 (operand equals N-flag mask)
+    rec = lift(mem, 0x1000)
+    slots = set(R._operand_slots(mem, 0x1000, rec))
+    all80 = {
+        (oi, ii)
+        for oi, (_mn, _out, ins) in enumerate(rec["ops"])
+        for ii, vn in enumerate(ins)
+        if vn[0] == "c" and vn[1] == 0x80
+    }
+    assert len({oi for oi, _ii in slots}) >= 2
+    assert slots < all80, "lifter-internal $80 masks must not be operand slots"
+
+
+def test_operand_slots_absolute_address():
+    """An absolute-mode operand address const is an operand slot."""
+    from deity_informant import lift  # pylint: disable=import-outside-toplevel
+
+    mem = bytearray(0x10000)
+    mem[0x1000:0x1003] = bytes((0xAD, 0x34, 0x12))  # LDA $1234
+    rec = lift(mem, 0x1000)
+    slots = R._operand_slots(mem, 0x1000, rec)
+    assert any(rec["ops"][oi][2][ii][1] == 0x1234 for oi, ii in slots)

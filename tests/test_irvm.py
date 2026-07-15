@@ -376,6 +376,35 @@ def test_guarded_matches_trace_replay(indexed_sid):
     assert irvm.replay_guarded(ir) == irvm.replay(ir)
 
 
+def test_guarded_derives_smc_opcode_and_operand(smc_sid):
+    """Toggled ALU opcode + rewritten operand stay guard-derived, no residual."""
+    r = _assert_guarded_exact(smc_sid, 0, 120)
+    assert r["fully_derived"], f"{r['residual']} residual frames"
+
+
+def test_path_tree_smc_case_split():
+    """Mutually-exclusive instruction-identity guards mint a case decision node."""
+    g = [
+        ["op", "INT_EQUAL", [["mem", ["const", 0x10], 1], ["const", 0x69]], 1],
+        ["op", "INT_EQUAL", [["mem", ["const", 0x10], 1], ["const", 0xE9]], 1],
+    ]
+    paths = [((0x1000, 0, 1),), ((0x1000, 1, 1),)]
+    nodes, nindex = [], {}
+    root, amb = irvm.build_path_tree(paths, [0, 1], nodes, nindex, g)
+    assert not amb and root == 0 and nodes == [[0, -3, -2]]
+
+
+def test_path_tree_non_exclusive_gid_mismatch_is_residual():
+    """Distinct guards over distinct cells cannot case-split; frames fall to residual."""
+    g = [
+        ["op", "INT_EQUAL", [["mem", ["const", 0x10], 1], ["const", 1]], 1],
+        ["op", "INT_EQUAL", [["mem", ["const", 0x11], 1], ["const", 2]], 1],
+    ]
+    paths = [((0x1000, 0, 1),), ((0x1000, 1, 1),)]
+    root, amb = irvm.build_path_tree(paths, [0, 1], [], {}, g)
+    assert root == irvm.AMB and amb == [0, 1]
+
+
 def test_serialize_is_json_selfcontained(indexed_sid):
     ir = irvm.serialize(indexed_sid, 0, 60)
     reloaded = json.loads(json.dumps(ir))

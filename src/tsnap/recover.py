@@ -355,10 +355,15 @@ class SymVM(PcodeVM):
         slots = _operand_slots(self.mem, pc, rec)
         if not slots:
             return
-        if sz == 1:
-            expr = self.sdefs.get(a0, ("mem", ("const", a0), 1))
-        elif any((a0 + i) & 0xFFFF in self.sdefs for i in range(sz)):
-            return
+        if any((a0 + i) & 0xFFFF in self.sdefs for i in range(sz)):
+            parts = [
+                self.sdefs.get((a0 + i) & 0xFFFF, ("mem", ("const", (a0 + i) & 0xFFFF), 1))
+                for i in range(sz)
+            ]
+            expr = parts[0]
+            for i in range(1, sz):
+                sh = ("op", "INT_LEFT", (parts[i], ("const", 8 * i)), sz)
+                expr = simplify(("op", "INT_OR", (expr, sh), sz))
         else:
             expr = ("mem", ("const", a0), sz)
         self._op_subs = dict.fromkeys(slots, expr)
@@ -445,7 +450,22 @@ class SymVM(PcodeVM):
             return
         self.guards.append((pc, pred, int(taken)))
 
+    def _record_code(self, pc):
+        """Record executed-instruction identity at a play-written code cell.
+
+        A self-modified opcode selects among instructions; which one ran is the
+        frame-entry-pure case ``M[pc] == opcode`` (same-frame rewrites resolve
+        through ``sdefs``), so alternatives split at replay like branch guards.
+        """
+        cell = self.sdefs.get(pc, ("mem", ("const", pc), 1))
+        pred = simplify(("op", "INT_EQUAL", (cell, ("const", self.mem[pc])), 1))
+        if pred[0] == "const":
+            return
+        self.guards.append((pc, None if _has_uni(pred) else pred, 1))
+
     def run_record(self, rec, pc):
+        if not self.concrete_only and pc in self.smc:
+            self._record_code(pc)
         self._interp(rec, pc)
         cyc, ctrl, nxt = rec["cyc"], rec["ctrl"], None
         if ctrl[0] == "br":
