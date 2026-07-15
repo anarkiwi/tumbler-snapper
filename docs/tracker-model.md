@@ -126,7 +126,9 @@ only; pitch/tuning standardization is deferred.
   dominating guard; the frame/row/pattern/song hierarchy is which guard gates
   each cell's update; the loop point is where the orderlist-position cell's
   transition wraps. A per-frame concrete trace (`capture_trace`) is
-  display-only diagnostics (CLAUDE.md doctrine #1).
+  display-only diagnostics (CLAUDE.md doctrine #1). Stream/program dispatch is
+  lowered from the play routine's ordered branch paths (doctrine #3), never
+  induced statistically from the trace.
 
 ## Replay / losslessness
 

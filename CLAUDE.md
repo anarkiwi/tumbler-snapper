@@ -66,10 +66,22 @@ tiny. Discover these structures from the P-Code; do not assume any one layout.
       grid. Trackers cannot express e.g. an LFSR generator and do not need to;
    3. **raw guarded generators** — fallback for unfactorable register
       *behaviors* only, never the sequence.
-3. **Phase-4 IR order** (`docs/tokens.md`): record branch guards → per-cell /
-   per-voice decomposition → symbolic store addresses → hash-consed exprs;
-   re-measure tokens/frame before any tracker-layer work.
-4. **Measurement doctrine.** tokens/frame is judged at full-tune horizons
+3. **Dispatch is derived, never induced.** Program/stream selection is lowered
+   from the play routine's own ordered branch paths — (site, frame-entry-pure
+   predicate, taken) in execution order — exact by construction for all
+   frames. Statistical induction over execution traces (decision-tree
+   learning, purity scores, feature matrices) is trace-fitting, banned for
+   the same reason as fitting to output.
+4. **Encoder freeze.** A compression pass is legitimate only if it replaces
+   stored data with a recovered mechanism; re-encoding the same data more
+   cleverly is not progress, and tokens/frame is an acceptance test, never an
+   optimization target. Trace-model terms (`guard_table`, `residual`) are
+   debt — un-recovered structure — and are reported separately from
+   recovered-structure tokens (song data + player model). A component whose
+   tokens grow with playback horizon is un-recovered structure regardless of
+   its absolute size; structure work (sequencer recovery) always outranks
+   encoder work.
+5. **Measurement doctrine.** tokens/frame is judged at full-tune horizons
    (constraint #4 is over full playback; short horizons understate
    amortization); every rung, including transcription, meets `< 1.0`. Limit
    claims need measured evidence (roundtrip + oracle stream), expire as the
