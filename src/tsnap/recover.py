@@ -250,6 +250,40 @@ def _has_uni(e):
     return False
 
 
+_SLOT_CACHE = {}
+
+
+def _operand_slots(mem, pc, rec):
+    """P-Code (op, input) slots whose const carries the instruction's full operand.
+
+    Found by differential lifting: re-lift the same opcode with perturbed operand
+    bytes; const inputs that track the operand are operand slots. Derived consts
+    (e.g. an izy pointer hi-byte, operand+1) are left as constants.
+    """
+    ln = rec["len"]
+    ib = bytes(mem[(pc + i) & 0xFFFF] for i in range(ln))
+    slots = _SLOT_CACHE.get(ib)
+    if slots is not None:
+        return slots
+    buf = bytearray(ib) + bytes(8)
+    for i in range(1, ln):
+        buf[i] ^= 0x55
+    alt = lift(buf, 0)
+    val = int.from_bytes(ib[1:], "little")
+    slots = []
+    if len(alt["ops"]) == len(rec["ops"]):
+        for oi, (a, b) in enumerate(zip(rec["ops"], alt["ops"])):
+            if a[0] != b[0] or len(a[2]) != len(b[2]):
+                slots = []
+                break
+            for ii, (va, vb) in enumerate(zip(a[2], b[2])):
+                if va[0] == "c" and vb[0] == "c" and va[1] != vb[1] and va[1] == val:
+                    slots.append((oi, ii))
+    slots = tuple(slots)
+    _SLOT_CACHE[ib] = slots
+    return slots
+
+
 class SymVM(PcodeVM):
     def __init__(self, mem):
         super().__init__(mem)
@@ -268,10 +302,7 @@ class SymVM(PcodeVM):
         self.img = (0, 0)
         self.image_writes = set()
         self.smc = set()
-        self._op_addr = None
-        self._op_val = 0
-        self._op_sz = 0
-        self._op_pending = False
+        self._op_subs = None
         self.concrete_only = False
 
     def _wr(self, addr, val, sz):
@@ -296,34 +327,41 @@ class SymVM(PcodeVM):
         self.guards = []
 
     def _sread(self, vn):
-        sp, off, sz = vn
+        sp, off, _sz = vn
         if sp == "c":
-            if self._op_pending and off == self._op_val and sz == self._op_sz:
-                self._op_pending = False
-                a = self._op_addr
-                if sz == 1 and a in self.sdefs:
-                    return self.sdefs[a]
-                return ("mem", ("const", a), sz)
             return ("const", off)
         if sp == "r":
             return self.sreg[off]
         return self.suni.get(off, ("uni", off))
 
+    def _sread_op(self, ins, k, oi):
+        subs = self._op_subs
+        if subs is not None:
+            e = subs.get((oi, k))
+            if e is not None:
+                return e
+        return self._sread(ins[k])
+
     def _set_operand(self, rec, pc):
-        """A self-modified instruction operand is state: symbolize it as M[addr]."""
+        """A self-modified instruction operand is state: substitute M[addr] at its const slots."""
+        self._op_subs = None
         ln = rec["len"]
-        self._op_addr = None
-        self._op_pending = False
         if ln < 2:
             return
-        a0 = pc + 1
-        if not any((a0 + i) & 0xFFFF in self.smc for i in range(ln - 1)):
+        a0 = (pc + 1) & 0xFFFF
+        sz = ln - 1
+        if not any((a0 + i) & 0xFFFF in self.smc for i in range(sz)):
             return
-        val = 0
-        for i in range(ln - 1):
-            val |= self.mem[(a0 + i) & 0xFFFF] << (8 * i)
-        self._op_addr, self._op_val, self._op_sz = a0, val, ln - 1
-        self._op_pending = True
+        slots = _operand_slots(self.mem, pc, rec)
+        if not slots:
+            return
+        if sz == 1:
+            expr = self.sdefs.get(a0, ("mem", ("const", a0), 1))
+        elif any((a0 + i) & 0xFFFF in self.sdefs for i in range(sz)):
+            return
+        else:
+            expr = ("mem", ("const", a0), sz)
+        self._op_subs = dict.fromkeys(slots, expr)
 
     def _swrite(self, vn, expr):
         if vn[0] == "r":
@@ -348,12 +386,12 @@ class SymVM(PcodeVM):
             else:
                 uniq[vn[1]] = v
 
-        for mn, out, ins in rec["ops"]:
+        for oi, (mn, out, ins) in enumerate(rec["ops"]):
             if mn == "STORE":
                 addr, sz = rv(ins[0]), ins[1][2]
                 self._wr(addr, rv(ins[1]), sz)
                 if sym:
-                    expr = simplify(self._sread(ins[1]))
+                    expr = simplify(self._sread_op(ins, 1, oi))
                     self.sdefs[addr] = expr
                     self.F[addr] = expr
                     self.Fsz[addr] = sz
@@ -369,12 +407,12 @@ class SymVM(PcodeVM):
                     if addr in self.sdefs:
                         self._swrite(out, self.sdefs[addr])
                     else:
-                        self._swrite(out, ("mem", simplify(self._sread(ins[0])), sz))
+                        self._swrite(out, ("mem", simplify(self._sread_op(ins, 0, oi)), sz))
                 continue
             if mn in ("COPY", "INT_ZEXT"):
                 wv(out, rv(ins[0]))
                 if sym:
-                    self._swrite(out, self._sread(ins[0]))
+                    self._swrite(out, self._sread_op(ins, 0, oi))
                 continue
             a, b = rv(ins[0]), rv(ins[1])
             if mn == "INT_CARRY":
@@ -383,7 +421,7 @@ class SymVM(PcodeVM):
                 v = apply_op(mn, a, b, out[2])
             wv(out, v)
             if sym:
-                s = (self._sread(ins[0]), self._sread(ins[1]))
+                s = (self._sread_op(ins, 0, oi), self._sread_op(ins, 1, oi))
                 self._swrite(out, simplify(("op", mn, s, out[2])))
 
     def _record_branch(self, pc, flag_expr, pol, taken):
@@ -802,7 +840,7 @@ def _resolve_shadows(variants):
 
 
 def run(path, song, frames):
-    smc = smc_operands(path, song, min(frames, 512))
+    smc = smc_operands(path, song, frames)
     vm, h, cache = setup(path, song)
     vm.smc = smc
     advance = frame_driver(vm, h, cache)
