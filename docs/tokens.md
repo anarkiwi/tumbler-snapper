@@ -102,10 +102,12 @@ JSON) in `tests/test_tokens.py`, and over all 33 HVSC fixtures by
 
 400 frames per tune, HVSC fixture manifest (33 fixtures), sorted by `path`
 `tokens/frame`. `id3` is the retracted decision-tree induction (kept for the
-record); `path` is the landed exact CFG-path dispatch. `struct` = programs +
-guards + init (recovered structure); `debt` = gtable + resid (trace model);
-`prog` = pool + slots + wiring; `gtable` = shared decision nodes + stream
-roots; `resid` = residual RLE runs + combo entries.
+record); `path` is exact CFG-path dispatch as refined by the follow-ups
+(semantic quotient #56, SMC operand symbolization #57, SMC opcode case guards
++ composed multi-byte operands #58). `struct` = programs + guards + init
+(recovered structure); `debt` = gtable + resid (trace model); `prog` = pool +
+slots + wiring; `gtable` = shared decision nodes + stream roots; `resid` =
+residual RLE runs + combo entries.
 
 | tune | id3 | path | struct | debt | prog | guards | gtable | resid | init |
 |------|----:|-----:|-------:|-----:|-----:|-------:|-------:|------:|-----:|
@@ -115,6 +117,7 @@ roots; `resid` = residual RLE runs + combo entries.
 | Mystifiable_Intro_2 | 3.283 | 3.533 | 1107 | 306 | 939 | 134 | 306 | 0 | 34 |
 | Into_Hinterland_World | 3.810 | 4.385 | 1117 | 637 | 949 | 140 | 629 | 8 | 28 |
 | Boompah | 3.975 | 4.545 | 1251 | 567 | 1103 | 126 | 557 | 10 | 22 |
+| Degree | 4.878 | 4.803 | 1158 | 763 | 927 | 135 | 697 | 66 | 96 |
 | Let_it_out | 4.603 | 4.803 | 1517 | 404 | 1350 | 154 | 404 | 0 | 13 |
 | Heat_Remix | 4.737 | 4.895 | 1639 | 319 | 1525 | 95 | 319 | 0 | 19 |
 | Superkid_in_Space | 4.560 | 5.020 | 1621 | 387 | 1506 | 73 | 233 | 154 | 42 |
@@ -123,61 +126,71 @@ roots; `resid` = residual RLE runs + combo entries.
 | Old_Cracktro_Tune | 4.615 | 6.183 | 1516 | 957 | 1199 | 237 | 953 | 4 | 80 |
 | Take_Off | 6.330 | 7.062 | 2032 | 793 | 1787 | 200 | 793 | 0 | 45 |
 | Ninja_Carnage | 6.093 | 7.465 | 1635 | 1351 | 1422 | 184 | 1326 | 25 | 29 |
+| Vacuole | 9.957 | 7.973 | 1660 | 1529 | 1305 | 256 | 1529 | 0 | 99 |
 | Fizz_Extended | 5.845 | 8.012 | 1730 | 1475 | 1520 | 184 | 1475 | 0 | 26 |
 | Fatale | 6.293 | 8.072 | 1872 | 1357 | 1596 | 218 | 1357 | 0 | 58 |
 | Space_Ache_Preview | 5.473 | 8.623 | 1522 | 1927 | 1236 | 235 | 1927 | 0 | 51 |
-| Meeting_94 | 6.465 | 8.880 | 1986 | 1566 | 1623 | 332 | 1559 | 7 | 31 |
+| Meeting_94 | 6.465 | 8.893 | 1992 | 1565 | 1623 | 338 | 1565 | 0 | 31 |
 | Old_Times | 7.973 | 9.248 | 2256 | 1443 | 1941 | 286 | 1443 | 0 | 29 |
 | Smutta | 5.825 | 9.890 | 1766 | 2190 | 1522 | 199 | 759 | 1431 | 45 |
 | 8_Bit-Maerchenland_V2 | 10.197 | 10.738 | 3400 | 895 | 3150 | 114 | 895 | 0 | 136 |
 | Klemens | 8.900 | 11.485 | 1911 | 2683 | 1636 | 220 | 1085 | 1598 | 55 |
-| Degree | 4.878 | 11.715 | 1045 | 3641 | 948 | 14 | 82 | 3559 | 83 |
 | Dancing_Donuts | 7.713 | 11.863 | 1710 | 3035 | 1407 | 266 | 2949 | 86 | 37 |
 | Randy_the_Great | 6.710 | 12.295 | 1794 | 3124 | 1555 | 213 | 1634 | 1490 | 26 |
 | Aviator_Arcade_II | 6.508 | 12.585 | 1770 | 3264 | 1532 | 205 | 3264 | 0 | 33 |
-| Super_Goatron | 8.047 | 14.390 | 2212 | 3544 | 1902 | 243 | 3544 | 0 | 67 |
+| Super_Goatron | 8.047 | 14.287 | 2198 | 3517 | 1888 | 243 | 3517 | 0 | 67 |
 | Vi_drar_till_tune_1 | 7.298 | 16.723 | 1976 | 4713 | 1580 | 337 | 3808 | 905 | 59 |
 | Starfleet_Academy_Main_Theme | 7.777 | 21.218 | 2007 | 6480 | 1810 | 131 | 885 | 5595 | 66 |
-| Vacuole | 9.957 | 27.630 | 1381 | 9671 | 1299 | 0 | 57 | 9614 | 82 |
 | Megapetscii | 7.030 | 33.185 | 1917 | 11357 | 1621 | 240 | 1662 | 9695 | 56 |
-| Formal_Axiomatic_Theories | 7.905 | 49.450 | 1847 | 17933 | 1630 | 146 | 1118 | 16815 | 71 |
+| Formal_Axiomatic_Theories | 7.905 | 47.182 | 1863 | 17010 | 1630 | 162 | 1151 | 15859 | 71 |
 | 202212220942 | 59.182 | 59.425 | 11278 | 12492 | 11216 | 11 | 65 | 12427 | 51 |
 
-The totals are **worse than the retracted ID3 numbers on most tunes** — stated
-plainly, per doctrine #4 (the metric is acceptance-only, not an optimization
-target). Aggregate `gtable` grew 19056 → 36824 and `resid` grew ≈13k → 63423.
-That gap is exactly what the classifier had been hiding: ID3 generalized over
-the trace (any purity-improving guard could stand in for the real dispatch
-condition), compressing debt it had not derived. Under exact path dispatch a
-frame is either derived from the play routine's own branch structure or it is
-residual: the large residuals (Formal, Megapetscii, Vacuole, Starfleet,
-Degree, Smutta, Klemens, Randy) are frames whose first path divergence is at
-an **opaque** (volatile-read) predicate or whose identical path selects
-distinct programs — genuinely un-derived control flow, now measured instead of
-masked. `structure` (programs + guards + init) is essentially unchanged;
-the entire regression is in the debt class, where it belongs.
+The totals remain **worse than the retracted ID3 numbers on most tunes** —
+stated plainly, per doctrine #4 (the metric is acceptance-only, not an
+optimization target). At the initial #55 landing aggregate `gtable` grew
+19056 → 36824 and `resid` grew ≈13k → 63423; the gap is exactly what the
+classifier had been hiding: ID3 generalized over the trace (any
+purity-improving guard could stand in for the real dispatch condition),
+compressing debt it had not derived. The follow-ups (#56/#57/#58) retired the
+**SMC divergence class** by mechanism, not encoding — self-modified immediates
+symbolize as `M[addr]` via differential-lift operand slots, self-modified
+opcodes become `M[pc] == opcode` case guards, in-frame-rewritten multi-byte
+operands compose from sdefs — collapsing Vacuole 27.63 → 7.97, Degree
+11.72 → 4.80 and cutting aggregate `resid` 63423 → 49353 (`gtable` 36824 →
+38923, the retired residual now derived). The remaining large residuals
+(Formal, Megapetscii, Starfleet, Smutta, Klemens, Randy, 202212220942) are
+the **concretized indexed-load class** — per-frame table addresses folded
+into predicates/programs (`LDA tbl,X` with concrete `X`), diagnosed
+independently by #56's failed-merge instrumentation and #57's Klemens
+analysis — plus the fully generative transcription-rung tune. `structure`
+(programs + guards + init) is essentially unchanged throughout; the debt
+class is where all movement happens, as designed.
 
-### Horizons (exact path dispatch)
+### Horizons (exact path dispatch + follow-ups)
 
-Full-tune horizons (`python -m tsnap.tokens <tune> 0 <frames>`, 400/1600):
+Full-tune horizons (`python -m tsnap.tokens <tune> 0 <frames>`,
+400/1600/3200):
 
-- **A_Mind_Is_Born**: 1.055 → **0.397** (1600f) → **0.268** (3200f) — under
-  the constraint-#4 budget as the cell alphabets saturate.
-- **Old_Times**: 9.248 → **3.031**; `prog` 1941→2082 saturates, `gtable`
-  1443→2375 still grows — un-recovered arrangement repetition.
-- **Super_Goatron**: 14.390 → **8.026**; `gtable` 3544→9770 grows ~linearly.
-- **Boompah**: 4.545 → **3.972**; `gtable` 557→2454 and `resid` 10→2085 both
-  grow with horizon.
-- **Degree**: 11.715 → **7.443**; `resid` is O(frames) (3559→10429) —
-  data-indexed divergence.
-- **Vacuole**: 27.630 → **28.717** — residual-bound throughout (9614→43931).
-- **Formal_Axiomatic_Theories**: 49.450 → **25.657**; `resid` O(frames)
-  (16815→37726).
+- **A_Mind_Is_Born**: 1.055 → **0.397** → **0.268** — under the
+  constraint-#4 budget, but `resid` 0→136→344 still grows (~0.1/frame): the
+  LFSR reload-vs-shift divergence is data-indexed, sequencer-recovery scope.
+- **Degree**: 4.803 → **1.775** → **1.172**; `resid` **saturates** at 66→70
+  (was O(frames) pre-#57/#58).
+- **Vacuole**: 7.973 → **4.437** → **3.995**; `resid` **0 at every horizon**
+  (was 53633 @1600f pre-#58); remaining debt is `gtable` growth 4671→9412.
+- **Boompah**: 4.545 → **2.801** → **1.837**; `resid` **saturates** at 386;
+  `gtable` 2361→3640 still grows — arrangement repetition.
+- **Old_Times**: 9.248 → **3.031** → **2.073**; `resid` 0 throughout;
+  `gtable` 2375→3909 grows — arrangement repetition.
+- **Formal_Axiomatic_Theories**: 47.182 → **25.657** → **23.118**; `resid`
+  O(frames) (15859→37726→69775) — concretized indexed loads.
+- **Megapetscii**: 33.185 → **17.718** → **12.613**; `resid` O(frames) —
+  same class.
 
-Every component that grows with horizon (`gtable` on the arrangement-driven
-tunes, `resid` on the volatile-polling / data-indexed ones) is un-recovered
-structure by definition (doctrine #4) — the target of sequencer recovery
-(course-correction step 2), not of encoder work.
+Every component that still grows with horizon (`gtable` on the
+arrangement-driven tunes, `resid` on the concretized-indexed-load ones) is
+un-recovered structure by definition (doctrine #4) — the target of sequencer
+recovery (course-correction step 2), not of encoder work.
 
 ### Phase-4 changes (dependency order)
 
@@ -219,15 +232,30 @@ states exactly. In order:
    is frames whose first divergence is at an opaque predicate or whose
    identical path still yields distinct programs (SMC). No purity heuristics
    anywhere. Measured outcome above: totals worsen vs ID3 on most tunes —
-   the debt ID3 hid is now measured.
+   the debt ID3 hid is now measured. Refined by three follow-ups: **#56**
+   semantic quotient over opaque/structural divergence (bisimulation merge on
+   identical subtrees, never statistics); **#57** self-modified immediates
+   symbolized as `M[operand_addr]` via differential-lift operand slots
+   (Degree's forks unify algebraically); **#58** self-modified opcodes as
+   `M[pc] == opcode` case guards with mutually-exclusive-equality chaining,
+   plus in-frame-rewritten multi-byte operands composed from sdefs (Vacuole
+   fully guard-derived, residual 0). Remaining residual classes: concretized
+   indexed loads (sequencer-recovery scope) and the generative
+   transcription rung.
 2. **Sequencer recovery (retires `guard_table`/`residual` debt — the tracker
-   layer).** Static dataflow over the recovered per-cell transitions: classify
+   layer).** **Prototyped (#54: `prototypes/sequencer.py`,
+   `docs/sequencer-survey.md`) — productionization is the open work.** Static
+   dataflow over the recovered per-cell transitions: classify
    state cells by transition shape (counter: guard-gated `x±k` with wrap;
    pointer: reloaded from `table[cell]`), follow the accessor chains into
    `init_mem`, and emit the dereferenced orderlist/pattern/table bytes as the
    payload — the wrap of the position cell's transition is the loop point.
    Guards then only gate the row/tick clock; the payload is O(song data),
-   which is where `< 1.0` tokens/frame comes from structurally for every tune.
+   which is where `< 1.0` tokens/frame comes from structurally for every
+   tune. Symbolic accessor-chain dereference is also what retires the
+   concretized-indexed-load residual class (Formal, Megapetscii, Klemens,
+   Starfleet) — the folded addresses are exactly the chains the prototype
+   resolves.
 3. **Report split.** **Done.** `tools/token_report.py` reports
    recovered-structure vs trace-model tokens per tune plus each component's
    growth across horizons (400 → 1600, quartile tunes by tokens/frame); the
