@@ -386,7 +386,11 @@ def token_count(ir):
 
 def metric(path, song, frames):
     """Measure ``tokens / frames`` for one tune; return the full breakdown."""
-    ir = irvm.serialize(path, song, frames)
+    return metric_ir(irvm.serialize(path, song, frames))
+
+
+def metric_ir(ir):
+    """``tokens / frames`` breakdown of an already-serialized generator-IR."""
     comp = compress(ir)
     c = count_tokens(comp)
     played = comp["frames"]

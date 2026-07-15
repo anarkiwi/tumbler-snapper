@@ -527,7 +527,11 @@ def chain_depth(reg):
 
 def analyze(path, song=0, frames=DEFAULT_FRAMES):
     """Full pipeline for one tune; returns a result dict (no printing)."""
-    ir = irvm.serialize(path, song, frames)
+    return analyze_ir(irvm.serialize(path, song, frames), path)
+
+
+def analyze_ir(ir, path=""):
+    """Full pipeline over an already-serialized generator-IR."""
     if not ir["trace"]:
         return {"path": path, "error": "no frames (no play driver)"}
     it = ExprInterner()
