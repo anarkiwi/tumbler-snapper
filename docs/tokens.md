@@ -20,7 +20,17 @@ over the *compressed* IR (below), in these categories:
 | `guard_table` | each decision node `(guard-ref, lo-ref, hi-ref)` of the shared (cross-stream hash-consed) decision-node table, plus one root ref per derived stream | the derivable part of the control flow |
 | `residual` | each `(combo-index, repeat-count)` pair of the RLE'd whole-frame residual plus each entry of each combo (one symbol per ever-ambiguous stream) | the still-undecomposed control flow (data-indexed divergence) |
 
-`tokens = programs + init_mem + guards + guard_table + residual`. The count is
+`tokens = programs + init_mem + guards + guard_table + residual`. The
+categories split into two classes (doctrine #4, encoder freeze):
+**recovered-structure** tokens (`programs`, `init_mem`, `guards` — the player
+model plus the song data it indexes; O(1) in playback horizon once saturated)
+and **trace-model** tokens (`guard_table`, `residual` — encodings of the
+composition's unfolding). Trace-model tokens are **debt**: they stand in for
+sequencer structure (orderlist/pattern repetition) not yet recovered, and any
+component whose count grows with horizon is un-recovered structure whatever
+its absolute size. Debt is retired by recovering mechanism (dereferencing
+sequencer data from `init_mem`), never by encoding the same data more
+cleverly. The count is
 **deterministic** and not gameable: DAG interning cannot fall below the number of
 distinct sub-generators or guards, cell alphabets cannot fall below the number of
 distinct `(cell, generator)` pairs the tune exhibits, RLE cannot fall below the
@@ -175,28 +185,47 @@ cells hoist).
    was measured to give **zero** residual reduction — store addresses are already
    constant, and the divergence was control-flow the lowering discarded, not
    concrete-indexed-store forking — so it is demoted/dropped.
-4. **Hash-cons exprs at construction** with canonical commutative operand
-   order: equality becomes pointer compare, the id-keyed simplify memo becomes
-   trivially correct, and `tokens` interning stops re-doing the work.
+4. **Hash-cons exprs at construction** — **dropped** (encoder freeze,
+   doctrine #4): measured to recover no structure; it re-encodes the same
+   data. Same verdict for the once-proposed BDD-style decision-DAG
+   minimization.
 
-### Proposed next step
+### Course correction (doctrine #3/#4) and next steps
 
-The dominant term is now `guard_table`/`programs`. Next:
+Step-3's ID3 induction is retracted as method: it fits a classifier
+(purity-scored splits over a frames × guards feature matrix) to the execution
+trace, statistically re-approximating dispatch structure the play routine
+states exactly. Symptoms of the underlying gap remain in the measurements
+above: `gtable` grows roughly linearly with horizon on e.g. Boompah and
+Vacuole — trace memorization, not recovered structure. The metric numbers
+stand; the mechanism is replaced. In order:
 
-1. **Shrink the guard decision-DAG.** Reduced-BDD-style minimization of the
-   shared decision nodes plus guard-expr hash-consing at construction (item 4),
-   attacking `gtable` on decision-heavy tunes (e.g. Vacuole 1793, Dancing_Donuts
-   1235).
-2. **Clear the small genuine-collision residual** (Vacuole ~13 frames, Degree
-   ~50) by recovering the currently-dropped **data-dependent** branch conditions
-   — predicates on loaded table values / loop-trip counts that
-   `recover._record_guard` drops as `uni`-dependent — so the guard vector fully
-   determines those frames too.
-
-Re-measure at full-tune horizons before starting the tracker-IR layer.
+1. **Exact CFG-path dispatch (replaces ID3).** `recover` records each frame's
+   **ordered** branch path — (site, frame-entry-pure predicate, taken),
+   including data-dependent predicates (mem-derived exprs are frame-entry
+   pure); only truly volatile (`uni`) predicates stay opaque. Dispatch lowers
+   to a discrimination tree over paths: split each frame subset at the
+   earliest branch event where members diverge — the split point is dictated
+   by execution order, not statistics — with hash-consed nodes. Exact by
+   construction for all frames; residual shrinks to frames whose first
+   divergence is at an opaque predicate or whose identical path still yields
+   distinct programs (SMC). No purity heuristics anywhere.
+2. **Sequencer recovery (retires `guard_table` debt — the tracker layer).**
+   Static dataflow over the recovered per-cell transitions: classify state
+   cells by transition shape (counter: guard-gated `x±k` with wrap; pointer:
+   reloaded from `table[cell]`), follow the accessor chains into `init_mem`,
+   and emit the dereferenced orderlist/pattern/table bytes as the payload —
+   the wrap of the position cell's transition is the loop point. Guards then
+   only gate the row/tick clock; the payload is O(song data), which is where
+   `< 1.0` tokens/frame comes from structurally for every tune.
+3. **Report split.** `tools/token_report.py` reports recovered-structure vs
+   trace-model tokens per tune plus each component's growth across horizons
+   (400 → 1600); the health signal is trace-model debt trending to zero and
+   per-component growth O(1), not the total.
 
 Measure at full-tune horizons after each step (CLAUDE.md measurement doctrine);
-short horizons understate amortization.
+short horizons understate amortization. tokens/frame is acceptance-only —
+encoder passes that lower it without recovering mechanism are out of scope.
 
 ## CLI + CI
 
