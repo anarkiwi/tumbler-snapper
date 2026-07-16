@@ -377,12 +377,17 @@ encoder passes that lower it without recovering mechanism are out of scope.
   rung (`mode=walk|dispatch`).
 - `python -m tsnap.irvm <file.sid> [song] [frames]` proves both trace and guarded
   replay byte-exact vs the deity write log and reports guard-derivation coverage.
-- `tools/token_report.py [out] [frames]` emits the full manifest table (rung
-  per fixture, recovered-structure vs trace-model classes; default 400
-  frames), the per-fixture closed-model dispatch facts, and component growth
-  to 4x frames for the quartile tunes; the advisory
-  `oracle` CI job runs it and uploads `token-metric.txt` as an artifact. No hard `< 1.0` gate exists (it would force
-  fudging); CI asserts the *lossless* and *deterministic* properties in
+- `tools/token_report.py [out] [full|frames] [--oracle]` — default mode
+  measures every fixture at its **full-tune horizon** (`Songlengths.md5`
+  seconds x the tune's recovered cadence via `tsnap.horizon`), gates trace
+  roundtrip + compressed-rung replay (and, with `--oracle`, the sidtrace
+  register-change stream) byte-exact, and reports state-loop detection with
+  loop-amortized tokens/frame. A numeric frames arg selects the fixed-horizon
+  advisory mode (token classes, closed-model dispatch facts, quartile
+  component growth); the advisory `oracle` CI job runs that at 400 frames
+  and uploads `token-metric.txt` (full horizons need the local HVSC tree and
+  exceed CI budgets). No hard `< 1.0` gate exists (it would force fudging);
+  CI asserts the *lossless* and *deterministic* properties in
   `tests/test_tokens.py` — `test_hvsc_tokens_lossless` gates byte-exact
   compressed replay over all 33 fixtures on whichever rung each takes — and
   guarded byte-exactness in `tests/test_irvm.py::test_hvsc_guarded_byte_exact`.
