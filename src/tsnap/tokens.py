@@ -178,8 +178,9 @@ def compress(ir, walk=True):
     gated byte-exact) is tried first; tunes it rejects keep the dispatch
     pipeline (slot alphabets + path-derived streams + combo residual).
     """
+    reject = None
     if walk:
-        comp, _reason = payload.build(ir)
+        comp, reject = payload.build(ir)
         if comp is not None:
             walk_reads = payload.collect_reads(comp)
             comp["init_mem"] = [run for run in ir["init_mem"] if _run_is_read(run, walk_reads)]
@@ -226,6 +227,7 @@ def compress(ir, walk=True):
     guard_roots = [_intern(guards[gid], gpool, gindex) for gid in used]
     return {
         "mode": "dispatch",
+        "walk_reject": reject,
         "frames": ir["frames"],
         "init_mem": [run for run in ir["init_mem"] if _run_is_read(run, reads)],
         "init_regs": ir["init_regs"],

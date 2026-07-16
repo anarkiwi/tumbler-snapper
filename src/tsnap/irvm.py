@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import sys
 
 from tsnap.recover import (
@@ -189,6 +190,57 @@ def serialize(path, song, frames):
     """Build a self-contained generator-IR from a recover run."""
     ir, _ground = _run_capture(path, song, frames)
     return ir
+
+
+def capture(path, song, frames):
+    """``(ir, ground)``: the generator-IR plus the deity per-frame write log."""
+    return _run_capture(path, song, frames)
+
+
+def truncate(ir, frames):
+    """Prefix of a captured IR restricted to its first ``frames`` frames.
+
+    Programs are re-indexed to those the prefix trace uses (first-use order),
+    so the result equals a fresh ``serialize`` at the shorter horizon.
+    """
+    trace = ir["trace"][:frames]
+    used = sorted(set(trace), key=trace.index)
+    remap = {pi: i for i, pi in enumerate(used)}
+    out = dict(ir)
+    out["frames"] = len(trace)
+    out["trace"] = [remap[pi] for pi in trace]
+    out["programs"] = [ir["programs"][pi] for pi in used]
+    if ir.get("paths") is not None:
+        out["paths"] = ir["paths"][:frames]
+    if "segs" in ir:
+        out["segs"] = ir["segs"][:frames]
+    return out
+
+
+def state_cycle(ir):
+    """First frame-entry state recurrence ``(start, period)``, else ``None``.
+
+    State = the full memory image plus CPU registers when they carry across
+    frames, hashed at frame entry. The replay VM is closed over this state, so
+    a recurrence proves all later evolution repeats with that period.
+    """
+    reset = ir.get("reset_regs", False)
+    seen, frame, hits = {}, [0], []
+
+    def emit(_pr, snap, regs):
+        h = hashlib.blake2b(snap, digest_size=16)
+        if not reset:
+            h.update(",".join(map(str, regs)).encode())
+        d = h.digest()
+        f = frame[0]
+        frame[0] = f + 1
+        if not hits:
+            prev = seen.setdefault(d, f)
+            if prev != f:
+                hits.append((prev, f - prev))
+
+    _run_ir(ir, emit)
+    return hits[0] if hits else None
 
 
 def _drive_ir(ir, nframes, select, emit):
