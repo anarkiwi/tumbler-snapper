@@ -191,9 +191,9 @@ where a loop exists, else raw.
 tune                               rung   len_s tick_hz frames trace  comp  orac  tokens   tok/f  loop@ period  grow   amort  <1.0
 Goldberg_Variations_parts_1-7  no per-frame play driver
 Mystifiable_Intro_2                walk   465.0   50.12  23308    ok    ok    ok    2223   0.095     -1     -1    -1       -   yes
-Superkid_in_Space                  walk   369.0   50.12  18496    ok    ok    ok    3276   0.177     -1     -1    -1       -   yes
+Superkid_in_Space                  walk   369.0   50.12  18496    ok    ok    ok    3516   0.190     -1     -1    -1       -   yes
 Degree                             walk   117.0   50.12   5865    ok    ok    ok    1411   0.241     -1     -1    -1       -   yes
-Klemens                            walk   136.0   50.12   6817    ok    ok    ok    1868   0.274     -1     -1    -1       -   yes
+Klemens                            walk   136.0   50.12   6817    ok    ok    ok    1928   0.283     -1     -1    -1       -   yes
 Boompah                            walk   189.9   50.12   9520    ok    ok    ok    2778   0.292     -1     -1    -1       -   yes
 Sc00ter                            walk   182.0  200.50  36491    ok    ok    ok   10625   0.291     -1     -1    -1       -   yes
 Randy_the_Great                    walk   178.0   50.12   8922    ok    ok    ok    3508   0.393     -1     -1    -1       -   yes
@@ -208,34 +208,40 @@ Old_Cracktro_Tune                  walk    52.0   50.12   2606    ok    ok    ok
 Massacre_on_Stage                  walk    54.0   50.12   2707    ok    ok    ok    2022   0.747     -1     -1    -1       -   yes
 Megapetscii                        walk    88.0   50.12   4411    ok    ok    ok    3374   0.765     -1     -1    -1       -   yes
 Formal_Axiomatic_Theories          walk   111.1   50.12   5569    ok    ok    ok    4307   0.773     -1     -1    -1       -   yes
-202212220942                       walk   102.7   60.00   6162    ok    ok    ok    4998   0.811      2   6144     0   0.811   yes
+202212220942                       walk   102.7   60.00   6162    ok    ok    ok    6718   1.090      2   6144     0   1.090    NO
 Meeting_94                         walk   110.1   50.12   5519    ok    ok    ok    4509   0.817     -1     -1    -1       -   yes
 Into_Hinterland_World              walk    38.3   50.12   1920    ok    ok    ok    1734   0.903     -1     -1    -1       -   yes
 Old_Times                          walk    97.0   50.12   4862    ok    ok    ok    4644   0.955     -1     -1    -1       -   yes
 Smutta                             walk    34.0   50.12   1704    ok    ok    ok    1685   0.989     -1     -1    -1       -   yes
-Dancing_Donuts                     walk    99.4   50.12   4982    ok    ok    ok    5268   1.057     -1     -1    -1       -    NO
-Ninja_Carnage                      walk    87.1   50.12   4368    ok    ok    ok    4731   1.083     -1     -1    -1       -    NO
-Take_Off                           walk   123.0   50.12   6165    ok    ok    ok    6866   1.114     -1     -1    -1       -    NO
+Dancing_Donuts                     walk    99.4   50.12   4982    ok    ok    ok    5407   1.085     -1     -1    -1       -    NO
+Ninja_Carnage                      walk    87.1   50.12   4368    ok    ok    ok    4970   1.138     -1     -1    -1       -    NO
+Take_Off                           walk   123.0   50.12   6165    ok    ok    ok    7568   1.228     -1     -1    -1       -    NO
 Aviator_Arcade_II                  walk    61.3   50.12   3073    ok    ok    ok    3506   1.141     -1     -1    -1       -    NO
-Vacuole                            walk   232.0   50.12  11629    ok    ok    ok   15660   1.347     -1     -1    -1       -    NO
-Space_Ache_Preview                 walk    30.6   50.12   1536    ok    ok    ok    2213   1.441     -1     -1    -1       -    NO
-Super_Goatron                      walk    63.2   50.12   3170    ok    ok    ok    4655   1.468     -1     -1    -1       -    NO
-Vi_drar_till_tune_1                walk    57.5   50.12   2880    ok    ok    ok    4259   1.479     -1     -1    -1       -    NO
+Vacuole                            walk   232.0   50.12  11629    ok    ok    ok   15699   1.350     -1     -1    -1       -    NO
+Space_Ache_Preview                 walk    30.6   50.12   1536    ok    ok    ok    2271   1.479     -1     -1    -1       -    NO
+Super_Goatron                      walk    63.2   50.12   3170    ok    ok    ok    5593   1.764     -1     -1    -1       -    NO
+Vi_drar_till_tune_1                walk    57.5   50.12   2880    ok    ok    ok    4507   1.565     -1     -1    -1       -    NO
 A_Mind_Is_Born                 dispatch   136.5   50.12   6843    ok    ok  FAIL   39902   5.831     -1     -1    -1       -    NO
 ```
 
 (Meeting_94 and Sc00ter are re-verdicted on the read-placement/stack-recording
 recorder below — both moved dispatch → walk, shedding all debt (previously
 `Sc00ter dispatch 14456 tokens, 0.396, 10845 gtable` and `Meeting_94 dispatch
-10476 tokens, 1.898, 7833 gtable`) — with fresh full-length oracle gates. The
-other rows carry the prior measurement: recorded stack stores add a few
-structure tokens per tune, as re-measured in the 400-frame table below.)
+10476 tokens, 1.898, 7833 gtable`) — with fresh full-length oracle gates.
+Eleven rows (the eight over-budget fixtures plus Klemens, Superkid_in_Space,
+202212220942) are re-measured on the current recorder for the per-stream
+factoring step; their deltas vs the prior table are the #65/#66 recorder
+vocabulary (recorded stack stores + read-placement guards), largest on the
+JSR-heavy players — 202212220942 crosses the budget on that vocabulary alone
+(4998 → 6718 tokens, identical plain-walk comp; its `orac` gate carries over
+since the compressed stream is byte-identical to the previously oracle-gated
+trace stream). The remaining rows carry the prior measurement.)
 
-**Verdict: 23/32 measured fixtures meet `< 1.0` tokens/frame at their full
+**Verdict: 22/32 measured fixtures meet `< 1.0` tokens/frame at their full
 horizon** (up from 1/33 at 400 frames — amortization is real, but not yet
-universal). All trace/comp gates pass on 32/32; the one oracle gate failure
-and the nine budget failures are diagnosed below (diagnosis only; encoder
-freeze applies).
+universal; 202212220942 dropped out on re-measurement, see above). All
+trace/comp gates pass on 32/32; the one oracle gate failure and the budget
+failures are diagnosed below (diagnosis only; encoder freeze applies).
 
 Component split at the full horizon (`struct` = prog + guards + cfg + init,
 recovered structure; `debt` = gtable + resid, trace model; `walk-reject` =
@@ -244,9 +250,9 @@ the stated mechanical reason a tune left the walk rung):
 ```
 tune                            struct   prog guards    cfg   init   debt  dominant
 Mystifiable_Intro_2               2223   1416    137    575     95      0  programs
-Superkid_in_Space                 3276   2493    298    434     51      0  programs
+Superkid_in_Space                 3516   2733    298    434     51      0  programs
 Degree                            1411    640     85    167    519      0  programs
-Klemens                           1868   1264    125    372    107      0  programs
+Klemens                           1928   1324    125    372    107      0  programs
 Boompah                           2778   1699    179    756    144      0  programs
 Sc00ter                          10625   3881    346   6347     51      0       cfg
 Randy_the_Great                   3508   2261    207    924    116      0  programs
@@ -261,19 +267,19 @@ Old_Cracktro_Tune                 1866   1188    166    313    199      0  progr
 Massacre_on_Stage                 2022   1290    172    356    204      0  programs
 Megapetscii                       3374   2229    215    856     74      0  programs
 Formal_Axiomatic_Theories         4307   2547    235   1143    382      0  programs
-202212220942                      4998   3138    509   1162    189      0  programs
+202212220942                      6718   4210    652   1667    189      0  programs
 Meeting_94                        4509   2697    401   1345     66      0  programs
 Into_Hinterland_World             1734   1188    143    363     40      0  programs
 Old_Times                         4644   2945    355   1282     62      0  programs
 Smutta                            1685   1192    168    266     59      0  programs
-Dancing_Donuts                    5268   3411    201   1478    178      0  programs
-Ninja_Carnage                     4731   3356    227   1011    137      0  programs
-Take_Off                          6866   4442    522   1705    197      0  programs
+Dancing_Donuts                    5407   3548    202   1479    178      0  programs
+Ninja_Carnage                     4970   3549    230   1054    137      0  programs
+Take_Off                          7568   4526    548   2297    197      0  programs
 Aviator_Arcade_II                 3506   2167    234   1051     54      0  programs
-Vacuole                          15660   3653    704  10850    453      0       cfg
-Space_Ache_Preview                2213   1501    158    493     61      0  programs
-Super_Goatron                     4655   2977    357   1030    291      0  programs
-Vi_drar_till_tune_1               4259   2747    216   1208     88      0  programs
+Vacuole                          15699   3692    704  10850    453      0       cfg
+Space_Ache_Preview                2271   1559    158    493     61      0  programs
+Super_Goatron                     5593   3256    384   1662    291      0  programs
+Vi_drar_till_tune_1               4507   2995    216   1208     88      0  programs
 A_Mind_Is_Born                    2193   2146     38      0      9  37709   residual  walk-reject=non-reset-regs
 ```
 
@@ -331,7 +337,7 @@ DB horizon *is* the full playback and the raw figure is the honest one.
 
 ### `< 1.0` failures at full horizon (mechanistic notes)
 
-All nine remaining failures are recovered-structure vocabulary still being
+All walk-rung failures are recovered-structure vocabulary still being
 *consumed* when the songlength DB horizon ends — debt is 0 on every walk
 fixture, so no trace-model debt is involved:
 
@@ -343,9 +349,16 @@ fixture, so no trace-model debt is involved:
   frames. These are the same tunes that pass at 0.09–0.99 when given
   3–8 minute horizons elsewhere in the table; the failure mode is horizon
   length, not growth class.
-- **Vacuole** (232 s, 1.347): `cfg` 10850 dominates — context-trie entries
+- **Vacuole** (232 s, 1.350): `cfg` 10850 dominates — context-trie entries
   keep minting because voices driven by the same song clock keep composing
-  new history contexts; vocabulary had not saturated by the fade-out.
+  new history contexts; vocabulary had not saturated by the fade-out. The
+  step-8 diagnosis below attributes this to its shared-cursor sequencer
+  (composed per-position lhs variants), not to cross-voice recombination.
+- **202212220942** (102.7 s, 1.090): JSR-heavy player; the #65/#66 recorded
+  stack-store/read-placement vocabulary pushed it over on re-measurement
+  (prog 3138 → 4210, guards 509 → 652, cfg 1162 → 1667); like the rest,
+  vocabulary still being consumed at the horizon end (state loop at frame 2,
+  period 6144 — just under the 6162-frame horizon).
 - **Meeting_94 / Sc00ter — resolved** (formerly `nondeterministic-context`
   dispatch fallbacks). Diagnosed mechanism: a computed load lands on a cell
   written earlier in the same frame in some frames only (Meeting_94: the
@@ -364,6 +377,55 @@ fixture, so no trace-model debt is involved:
 - **A_Mind_Is_Born** (5.834): generative player, non-reset (handler) driver;
   whole-frame residual grows ~5.5 tokens/frame. This is the transcription
   rung's (ladder rung 2) designated target, not yet implemented.
+
+### Per-stream factoring (step 8) — measured diagnosis and re-verdict
+
+The standing #62/#63 hypothesis — whole-frame behaviors grow as the *product*
+of per-voice behaviors that individually saturate — was tested on the walk
+model before designing (Vacuole at 1600/4800 frames, Super_Goatron and
+Vi_drar at half/full horizons), by partitioning every recorded store and walk
+event by the state cells / SID registers it touches (evaluated read sets over
+the recording) and re-building per-stream sub-walks:
+
+- **Partitions derive cleanly.** Value dataflow separates the voices on all
+  three fixtures (e.g. Vacuole: 135 written units — 24/24/23 per voice, 10
+  global, 16 shared-spine (song cursor + clock), 38 unread scratch/stack); no
+  store expr reads another voice's cells (zero value couplings).
+- **Whole-frame records do recombine** (Vacuole 638 → 1651 distinct records
+  over 1600 → 4800 frames while per-stream vocabularies saturate), **but the
+  walk model's storage already amortizes most of it**: contributions are
+  per-segment (splitting them per stream moved Vacuole's 772 contribution
+  entries by +49) and context tries split only where outcomes diverge
+  (an elision-quotient control on the recorded tries: 6161 → 6157 tokens).
+  The residual product in `cfg` is real but bounded: maximal factoring
+  measured −17 % (Vi_drar) to −54 % (Super_Goatron) of `cfg` with `prog` and
+  `guards` unchanged — not the dominant growth.
+- **The genuine couplings are control threading.** 14–24 edges per fixture
+  have outcomes discriminated by another voice's items with no dataflow
+  trace: Vacuole's shared-cursor sequencer (one `$1186` song cursor drives
+  all voices' pattern columns; per-voice sequencer events read only spine
+  state), Super_Goatron/Vi_drar's shared subroutines and stack-case events
+  whose successors thread voice-dependently. These merge the streams and the
+  eight over-budget fixtures reject factoring (`coupled:...` — honest
+  fallback, comp identical to the plain walk; measured tok/f unchanged up to
+  the recorder delta, rows above).
+- **What still grows is within-stream arrangement consumption**: composed
+  store exprs, node identities and contribution variants minted per new song
+  position (`prog`/`guards`/`cfg` on new positions; e.g. Vacuole's 42
+  composed-lhs variants at one sequencer site — one per orderlist step).
+  Retiring it needs pattern-relative normalization (recognizing a repeated
+  pattern at a new absolute position), i.e. the sequencer layer — not stream
+  factoring.
+
+The prototype mechanism (per-stream sub-walks over a shared spine, gated
+byte-exact per frame, honest coupled/no-recombination rejects) was built and
+verified on branch `walk-voice-factoring` but is **not merged**: the authored
+two-voice synthetic factors into union-sized structure and saturates, while
+every one of the 32 driver-analyzable HVSC fixtures rejects with the measured
+reason above (control coupling on 29; whole-frame records not exceeding the
+per-stream union on Klemens, Superkid_in_Space, 202212220942). A mechanism no
+real fixture exercises stays out of the tree; the diagnosis stands and the
+sequencer layer (pattern-relative normalization) is the retirement path.
 
 Per-fixture worker cost at full horizons (single sequential recording per
 tune; the tool runs fixtures in parallel): 20/32 exceed the 60 s single-script
