@@ -128,6 +128,8 @@ def _simp(e):
     b = kids[1] if len(kids) > 1 else None
     if mn == "INT_ADD":
         return _add_terms(kids, sz)
+    if mn == "INT_SUB" and b is not None and b[0] == "const":
+        return _add_terms((a, ("const", -b[1] & ((1 << (8 * sz)) - 1))), sz)
     if mn == "INT_AND":
         full = (1 << (8 * sz)) - 1
         if b == ("const", full):
@@ -212,9 +214,10 @@ def _mem(addr_str, sz):
 
 
 def pretty(e):
-    if e[0] == "mem":
+    if e[0] in ("mem", "cur"):
         ae = e[1]
-        return _mem(f"${ae[1]:04X}" if ae[0] == "const" else pretty(ae), e[2])
+        s = _mem(f"${ae[1]:04X}" if ae[0] == "const" else pretty(ae), e[2])
+        return s if e[0] == "mem" else "~" + s
     if e[0] != "op":
         return leaf(e)
     return fmt(e[1], [pretty(k) for k in e[2]])
@@ -245,7 +248,7 @@ def _has_uni(e):
     t = e[0]
     if t == "uni":
         return True
-    if t == "mem":
+    if t in ("mem", "cur"):
         return _has_uni(e[1])
     if t == "op":
         return any(_has_uni(k) for k in e[2])
@@ -290,8 +293,11 @@ class SymVM(PcodeVM):
     def __init__(self, mem):
         super().__init__(mem)
         self.sreg = [("reg", i) for i in range(16)]
+        self.mreg = [("reg", i) for i in range(16)]
         self.suni = {}
+        self.muni = {}
         self.sdefs = {}
+        self.ver = {}
         self.F = {}
         self.Fsz = {}
         self.frame_writes = {}
@@ -325,8 +331,11 @@ class SymVM(PcodeVM):
     def begin_frame(self):
         _SIMP_MEMO.clear()
         self.sreg = [("reg", i) for i in range(16)]
+        self.mreg = [("reg", i) for i in range(16)]
         self.suni = {}
+        self.muni = {}
         self.sdefs = {}
+        self.ver = {}
         self.F = {}
         self.Fsz = {}
         self.frame_writes = {}
@@ -343,13 +352,29 @@ class SymVM(PcodeVM):
             return self.sreg[off]
         return self.suni.get(off, ("uni", off))
 
+    def _mread(self, vn):
+        sp, off, _sz = vn
+        if sp == "c":
+            return ("const", off)
+        if sp == "r":
+            return self.mreg[off]
+        return self.muni.get(off, ("uni", off))
+
     def _sread_op(self, ins, k, oi):
         subs = self._op_subs
         if subs is not None:
             e = subs.get((oi, k))
             if e is not None:
-                return e
+                return e[0]
         return self._sread(ins[k])
+
+    def _mread_op(self, ins, k, oi):
+        subs = self._op_subs
+        if subs is not None:
+            e = subs.get((oi, k))
+            if e is not None:
+                return e[1]
+        return self._mread(ins[k])
 
     def _cells_expr(self, addrs):
         """Frame-entry-pure little-endian word expr over memory cells (sdefs-composed)."""
@@ -364,6 +389,47 @@ class SymVM(PcodeVM):
             expr = simplify(("op", "INT_OR", (expr, sh), sz))
         return expr
 
+    def _cur(self, addr_expr, addr, sz):
+        """Evolved-state read leaf: cell versions pin the load placement."""
+        deps = tuple((a, self.ver.get(a, 0)) for a in ((addr + i) & 0xFFFF for i in range(sz)))
+        return ("cur", addr_expr, sz, deps)
+
+    def _cur_cells(self, addrs):
+        """Evolved-state little-endian word expr over memory cells."""
+        sz = len(addrs)
+        if all(a == (addrs[0] + i) & 0xFFFF for i, a in enumerate(addrs)):
+            return self._cur(("const", addrs[0]), addrs[0], sz)
+        expr = self._cur(("const", addrs[0]), addrs[0], 1)
+        for i in range(1, sz):
+            part = self._cur(("const", addrs[i]), addrs[i], 1)
+            sh = ("op", "INT_LEFT", (part, ("const", 8 * i)), sz)
+            expr = simplify(("op", "INT_OR", (expr, sh), sz))
+        return expr
+
+    def _mid_out(self, e):
+        """Emission form of an evolved-state expr: deps validated then stripped.
+
+        ``None`` when any ``cur`` leaf's cells were re-stored between the load
+        and this emission point (the leaf would no longer read the loaded value).
+        """
+        t = e[0]
+        if t == "cur":
+            if any(self.ver.get(a, 0) != v for a, v in e[3]):
+                return None
+            ae = self._mid_out(e[1])
+            return None if ae is None else ("cur", ae, e[2])
+        if t == "op":
+            kids = []
+            for k in e[2]:
+                k2 = self._mid_out(k)
+                if k2 is None:
+                    return None
+                kids.append(k2)
+            return ("op", e[1], tuple(kids), e[3])
+        if t == "mem":
+            return None
+        return e
+
     def _set_operand(self, rec, pc):
         """A self-modified instruction operand is state: substitute M[addr] at its const slots."""
         self._op_subs = None
@@ -377,14 +443,21 @@ class SymVM(PcodeVM):
         slots = _operand_slots(self.mem, pc, rec)
         if not slots:
             return
-        expr = self._cells_expr([(a0 + i) & 0xFFFF for i in range(sz)])
-        self._op_subs = dict.fromkeys(slots, expr)
+        cells = [(a0 + i) & 0xFFFF for i in range(sz)]
+        pair = (self._cells_expr(cells), self._cur_cells(cells))
+        self._op_subs = dict.fromkeys(slots, pair)
 
     def _swrite(self, vn, expr):
         if vn[0] == "r":
             self.sreg[vn[1]] = expr
         else:
             self.suni[vn[1]] = expr
+
+    def _mwrite(self, vn, expr):
+        if vn[0] == "r":
+            self.mreg[vn[1]] = expr
+        else:
+            self.muni[vn[1]] = expr
 
     def _interp(self, rec, pc):
         reg, uniq = self.reg, self.uniq
@@ -409,10 +482,14 @@ class SymVM(PcodeVM):
                 self._wr(addr, rv(ins[1]), sz)
                 if sym:
                     expr = simplify(self._sread_op(ins, 1, oi))
+                    mexp = self._mid_out(simplify(self._mread_op(ins, 1, oi)))
                     self.sdefs[addr] = expr
                     self.F[addr] = expr
                     self.Fsz[addr] = sz
-                    self.slog.append((len(self.guards), addr, expr, sz))
+                    self.slog.append((len(self.guards), addr, expr if mexp is None else mexp, sz))
+                    for i in range(sz):
+                        a = (addr + i) & 0xFFFF
+                        self.ver[a] = self.ver.get(a, 0) + 1
                 if SID <= addr <= 0xD418:
                     self.frame_writes[addr] = rv(ins[1]) & 0xFF
                     if sym:
@@ -423,16 +500,22 @@ class SymVM(PcodeVM):
                 wv(out, self._rd(addr, sz))
                 if sym:
                     if (pc, oi) in self.alias:
-                        self._record_alias(pc, self._sread_op(ins, 0, oi), addr)
+                        self._record_alias(
+                            pc, self._sread_op(ins, 0, oi), self._mread_op(ins, 0, oi), addr
+                        )
                     if self.volatile and any(
                         (addr + i) & 0xFFFF in VOLATILE_READS for i in range(sz)
                     ):
                         self.vol_seq -= 1
                         self._swrite(out, ("uni", self.vol_seq))
-                    elif addr in self.sdefs:
-                        self._swrite(out, self.sdefs[addr])
+                        self._mwrite(out, ("uni", self.vol_seq))
                     else:
-                        self._swrite(out, ("mem", simplify(self._sread_op(ins, 0, oi)), sz))
+                        if addr in self.sdefs:
+                            self._swrite(out, self.sdefs[addr])
+                        else:
+                            self._swrite(out, ("mem", simplify(self._sread_op(ins, 0, oi)), sz))
+                        maddr = simplify(self._mread_op(ins, 0, oi))
+                        self._mwrite(out, self._cur(maddr, addr, sz))
                 elif addr in self.frame_written:
                     self.alias_sites.add((pc, oi))
                 continue
@@ -440,6 +523,7 @@ class SymVM(PcodeVM):
                 wv(out, rv(ins[0]))
                 if sym:
                     self._swrite(out, self._sread_op(ins, 0, oi))
+                    self._mwrite(out, self._mread_op(ins, 0, oi))
                 continue
             a, b = rv(ins[0]), rv(ins[1])
             if mn == "INT_CARRY":
@@ -450,6 +534,8 @@ class SymVM(PcodeVM):
             if sym:
                 s = (self._sread_op(ins, 0, oi), self._sread_op(ins, 1, oi))
                 self._swrite(out, simplify(("op", mn, s, out[2])))
+                m = (self._mread_op(ins, 0, oi), self._mread_op(ins, 1, oi))
+                self._mwrite(out, simplify(("op", mn, m, out[2])))
 
     def stack_write(self, addr, byte):
         """A VM-internal stack push is a recorded store (visible to F/slog/loads)."""
@@ -458,9 +544,11 @@ class SymVM(PcodeVM):
         self.F[addr] = expr
         self.Fsz[addr] = 1
         self.slog.append((len(self.guards), addr, expr, 1))
+        self.ver[addr] = self.ver.get(addr, 0) + 1
 
     def _sp_delta(self, d):
         self.sreg[3] = simplify(("op", "INT_ADD", (self.sreg[3], ("const", d & 0xFF)), 1))
+        self.mreg[3] = simplify(("op", "INT_ADD", (self.mreg[3], ("const", d & 0xFF)), 1))
 
     def step(self, pc, cache, lifter):
         """Track the stack bytes/pointer that ctrl ops move outside p-code."""
@@ -480,26 +568,41 @@ class SymVM(PcodeVM):
         self._sp_delta(-pushes)
         return nxt
 
-    def _record_branch(self, pc, flag_expr, pol, taken):
-        """Record one ordered branch event ``(site, predicate, taken)``.
+    def _mid_pred(self, mlhs, k):
+        """Evolved-state twin ``lhs == k`` of a recorded predicate, else ``None``.
+
+        The lhs keeps loads as ``cur`` reads of the walk-evolved state instead
+        of inlining same-frame producer chains, so one predicate template covers
+        every song position; stale placements (``_mid_out``) fall back to the
+        frame-entry form.
+        """
+        m = self._mid_out(simplify(mlhs))
+        if m is None or _has_uni(m):
+            return None
+        pred = simplify(("op", "INT_EQUAL", (m, ("const", k)), 1))
+        return None if pred[0] == "const" else pred
+
+    def _record_branch(self, pc, flag_expr, mflag_expr, pol, taken):
+        """Record one ordered branch event ``(site, predicate, taken, mid)``.
 
         The predicate ``flag == pol`` is frame-entry-pure (mem/entry-reg exprs,
         including table loads), so it evaluates to the concrete ``taken`` on the
         frame-entry state and selection can be re-derived at replay. Constant
         predicates decide identically on every entry state and are skipped;
         volatile (``uni``-dependent) predicates are recorded opaque
-        (predicate ``None``) so path alignment is preserved.
+        (predicate ``None``) so path alignment is preserved. ``mid`` is the
+        evolved-state twin used by the walk rung.
         """
         fe = simplify(flag_expr)
         if fe[0] == "const":
             return
         if _has_uni(fe):
-            self.guards.append((pc, None, int(taken)))
+            self.guards.append((pc, None, int(taken), None))
             return
         pred = simplify(("op", "INT_EQUAL", (fe, ("const", pol & 0xFF)), 1))
         if pred[0] == "const":
             return
-        self.guards.append((pc, pred, int(taken)))
+        self.guards.append((pc, pred, int(taken), self._mid_pred(mflag_expr, pol & 0xFF)))
 
     def _record_target(self, rec, pc):
         """Record executed-target identity where a control transfer's target is state.
@@ -529,9 +632,12 @@ class SymVM(PcodeVM):
         pred = simplify(("op", "INT_EQUAL", (expr, ("const", val)), 1))
         if pred[0] == "const":
             return
-        self.guards.append((pc, None if _has_uni(pred) else pred, 1))
+        if _has_uni(pred):
+            self.guards.append((pc, None, 1, None))
+            return
+        self.guards.append((pc, pred, 1, self._mid_pred(self._cur_cells(cells), val)))
 
-    def _record_alias(self, pc, addr_expr, addr):
+    def _record_alias(self, pc, addr_expr, maddr_expr, addr):
         """Record read-placement identity where a computed load can read same-frame stores.
 
         At an alias site (prepass: load read a cell written earlier the same
@@ -546,7 +652,10 @@ class SymVM(PcodeVM):
         pred = simplify(("op", "INT_EQUAL", (ae, ("const", addr)), 1))
         if pred[0] == "const":
             return
-        self.guards.append((pc, None if _has_uni(pred) else pred, 1))
+        if _has_uni(pred):
+            self.guards.append((pc, None, 1, None))
+            return
+        self.guards.append((pc, pred, 1, self._mid_pred(maddr_expr, addr)))
 
     def _record_code(self, pc):
         """Record executed-instruction identity at a play-written code cell.
@@ -559,7 +668,11 @@ class SymVM(PcodeVM):
         pred = simplify(("op", "INT_EQUAL", (cell, ("const", self.mem[pc])), 1))
         if pred[0] == "const":
             return
-        self.guards.append((pc, None if _has_uni(pred) else pred, 1))
+        if _has_uni(pred):
+            self.guards.append((pc, None, 1, None))
+            return
+        mid = self._mid_pred(self._cur(("const", pc), pc, 1), self.mem[pc])
+        self.guards.append((pc, pred, 1, mid))
 
     def run_record(self, rec, pc):
         if not self.concrete_only:
@@ -572,7 +685,7 @@ class SymVM(PcodeVM):
             _k, flag, pol, tgt, ft = ctrl
             taken = self.reg[flag[1]] == pol
             if not self.concrete_only:
-                self._record_branch(pc, self.sreg[flag[1]], pol, taken)
+                self._record_branch(pc, self.sreg[flag[1]], self.mreg[flag[1]], pol, taken)
             if taken:
                 cyc += 1 + (1 if (ft & 0xFF00) != (tgt & 0xFF00) else 0)
                 nxt = tgt

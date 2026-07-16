@@ -29,8 +29,8 @@ def _intern(e, pool, index):
     tag = e[0]
     if tag == "op":
         node = ("op", e[1], tuple(_intern(k, pool, index) for k in e[2]), e[3])
-    elif tag == "mem":
-        node = ("mem", _intern(e[1], pool, index), e[2])
+    elif tag in ("mem", "cur"):
+        node = (tag, _intern(e[1], pool, index), e[2])
     else:
         node = tuple(e)
     nid = index.get(node)
@@ -39,8 +39,8 @@ def _intern(e, pool, index):
         index[node] = nid
         if tag == "op":
             pool.append(["op", node[1], list(node[2]), node[3]])
-        elif tag == "mem":
-            pool.append(["mem", node[1], node[2]])
+        elif tag in ("mem", "cur"):
+            pool.append([tag, node[1], node[2]])
         else:
             pool.append(list(node))
     return nid
@@ -54,12 +54,35 @@ def _expand(nid, pool, memo):
     tag = node[0]
     if tag == "op":
         out = ["op", node[1], [_expand(k, pool, memo) for k in node[2]], node[3]]
-    elif tag == "mem":
-        out = ["mem", _expand(node[1], pool, memo), node[2]]
+    elif tag in ("mem", "cur"):
+        out = [tag, _expand(node[1], pool, memo), node[2]]
     else:
         out = list(node)
     memo[nid] = out
     return out
+
+
+def _eval(e, snap, mem, regs):
+    """Evaluate an expr: ``mem`` leaves read the frame-entry snapshot, ``cur``
+    leaves read the walk-evolved memory at the evaluation point."""
+    t = e[0]
+    if t == "const":
+        return e[1]
+    if t == "reg":
+        return regs[e[1]]
+    if t == "uni":
+        return 0
+    if t in ("mem", "cur"):
+        addr = _eval(e[1], snap, mem, regs) & 0xFFFF
+        src = snap if t == "mem" else mem
+        r = 0
+        for i in range(e[2]):
+            r |= src[(addr + i) & 0xFFFF] << (8 * i)
+        return r
+    kids = e[2]
+    a = _eval(kids[0], snap, mem, regs)
+    b = _eval(kids[1], snap, mem, regs) if len(kids) > 1 else 0
+    return irvm._apply(e[1], a, b, e[3])  # pylint: disable=protected-access
 
 
 def _context_trie(occ, d0):
@@ -102,7 +125,9 @@ def build(ir):
     if ir.get("paths") is None or "segs" not in ir:
         return None, "no-record"
     rpaths = irvm._frame_paths(ir)  # pylint: disable=protected-access
-    parts = [_eq_parts(g) for g in ir.get("guards", [])]
+    guards = ir.get("guards", [])
+    mids = ir.get("guards_mid") or [None] * len(guards)
+    parts = [_eq_parts(g if m is None else m) for g, m in zip(guards, mids)]
     segs = [ir["seg_pool"][i] for i in ir["segs"]]
 
     nodes, nindex = [], {}
@@ -218,7 +243,9 @@ def _trie_get(trie, hist):
 
 
 def _walk_frames(comp, evalf):
-    """Yield per-frame ``(ordered SID writes, memory)``, evolved segment by segment."""
+    """Yield per-frame ``(ordered SID writes, memory)`` in machine order:
+    each segment's stores apply one by one, then the segment-end predicate
+    evaluates — so ``cur`` leaves read exactly the state the player saw."""
     lhs, kinds, kvals, contribs, table = _runtime(comp)
     mem = irvm._load_image(comp["init_mem"])  # pylint: disable=protected-access
     regs = list(comp["init_regs"])
@@ -229,18 +256,16 @@ def _walk_frames(comp, evalf):
         nid = comp["entry"]
         hist = []
         while True:
-            vals = [(a, evalf(e, snap, regs), sz) for a, e, sz in pending]
-            label = None
-            if nid != -1:
-                v = evalf(lhs[nid], snap, regs)
-                label = v if kinds[nid] == CASE else (1 if v == kvals[nid] else 0)
-            for a, v, sz in vals:
+            for a, e, sz in pending:
+                v = evalf(e, snap, mem, regs)
                 for i in range(sz):
                     mem[(a + i) & 0xFFFF] = (v >> (8 * i)) & 0xFF
                 if SID_LO <= a <= SID_HI:
                     writes.append((a - SID_LO, v & 0xFF))
             if nid == -1:
                 break
+            v = evalf(lhs[nid], snap, mem, regs)
+            label = v if kinds[nid] == CASE else (1 if v == kvals[nid] else 0)
             trie = table.get((nid, label))
             got = _trie_get(trie, hist) if trie is not None else None
             if got is None:
@@ -258,7 +283,7 @@ def _verify(ir, comp):
     programs, trace = ir["programs"], ir["trace"]
     eval_ = irvm._eval  # pylint: disable=protected-access
     try:
-        for f, (writes, mem) in enumerate(_walk_frames(comp, eval_)):
+        for f, (writes, mem) in enumerate(_walk_frames(comp, _eval)):
             pr = programs[trace[f]]
             snap = bytes(gm)
             for addr, e, sz in pr["trans"]:
@@ -277,8 +302,7 @@ def _verify(ir, comp):
 def replay_frames(comp):
     """Per-frame ordered writes; leading group is the INIT-time SID writes."""
     out = [[(r, v & 0xFF) for r, v in comp.get("init_sid", [])]]
-    eval_ = irvm._eval  # pylint: disable=protected-access
-    out.extend(writes for writes, _mem in _walk_frames(comp, eval_))
+    out.extend(writes for writes, _mem in _walk_frames(comp, _eval))
     return out
 
 
@@ -291,7 +315,7 @@ def collect_reads(comp):
     """Every memory address the walk replay reads (for dead-init elimination)."""
     reads = set()
 
-    def evalf(e, mem, regs):
+    def evalf(e, snap, mem, regs):
         t = e[0]
         if t == "const":
             return e[1]
@@ -299,17 +323,18 @@ def collect_reads(comp):
             return regs[e[1]]
         if t == "uni":
             return 0
-        if t == "mem":
-            addr = evalf(e[1], mem, regs) & 0xFFFF
+        if t in ("mem", "cur"):
+            addr = evalf(e[1], snap, mem, regs) & 0xFFFF
+            src = snap if t == "mem" else mem
             r = 0
             for i in range(e[2]):
                 a = (addr + i) & 0xFFFF
                 reads.add(a)
-                r |= mem[a] << (8 * i)
+                r |= src[a] << (8 * i)
             return r
         kids = e[2]
-        a = evalf(kids[0], mem, regs)
-        b = evalf(kids[1], mem, regs) if len(kids) > 1 else 0
+        a = evalf(kids[0], snap, mem, regs)
+        b = evalf(kids[1], snap, mem, regs) if len(kids) > 1 else 0
         return irvm._apply(e[1], a, b, e[3])  # pylint: disable=protected-access
 
     for _ in _walk_frames(comp, evalf):

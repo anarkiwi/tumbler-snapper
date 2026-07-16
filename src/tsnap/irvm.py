@@ -97,8 +97,8 @@ def _ser(e):
     """Expression tuple tree -> JSON-able nested list."""
     if e[0] == "op":
         return ["op", e[1], [_ser(k) for k in e[2]], e[3]]
-    if e[0] == "mem":
-        return ["mem", _ser(e[1]), e[2]]
+    if e[0] in ("mem", "cur"):
+        return [e[0], _ser(e[1]), e[2]]
     return list(e)
 
 
@@ -116,7 +116,7 @@ def _run_capture(path, song, frames):
     init_regs = play_entry_reg(vm.idle_reg) if reset_regs else list(vm.reg)
     programs, index, trace = [], {}, []
     reg_key = (lambda _sreg: ()) if reset_regs else tuple
-    guards_ser, guard_index = [], {}
+    guards_ser, guard_index, guards_mid = [], {}, []
     path_pool, path_index, path_ids = [], {}, []
     seg_pool, seg_index, seg_ids = [], {}, []
     ground = [[tuple(rv) for rv in init_sid]]
@@ -137,15 +137,16 @@ def _run_capture(path, song, frames):
             programs.append(key)
         trace.append(pi)
         fpath = []
-        for site, pred, taken in vm.guards:
+        for site, pred, taken, mid in vm.guards:
             if pred is None:
                 fpath.append((site, -1, taken))
                 continue
-            gi = guard_index.get(pred)
+            gi = guard_index.get((pred, mid))
             if gi is None:
                 gi = len(guards_ser)
-                guard_index[pred] = gi
+                guard_index[(pred, mid)] = gi
                 guards_ser.append(_ser(pred))
+                guards_mid.append(mid)
             fpath.append((site, gi, taken))
         fpath = tuple(fpath)
         pid = path_index.get(fpath)
@@ -179,6 +180,7 @@ def _run_capture(path, song, frames):
         ],
         "trace": trace,
         "guards": guards_ser,
+        "guards_mid": [None if m is None else _ser(m) for m in guards_mid],
         "path_pool": path_pool,
         "paths": path_ids,
         "seg_pool": seg_pool,
