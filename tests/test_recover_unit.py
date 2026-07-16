@@ -276,3 +276,51 @@ def test_operand_slots_absolute_address():
     rec = lift(mem, 0x1000)
     slots = R._operand_slots(mem, 0x1000, rec)
     assert any(rec["ops"][oi][2][ii][1] == 0x1234 for oi, ii in slots)
+
+
+def test_simplify_sub_const_folds_into_add_chain():
+    """Constant subtraction canonicalizes to a two's-complement add term."""
+    assert R.simplify(OP("INT_SUB", ("reg", 3), C(3))) == OP("INT_ADD", ("reg", 3), C(253))
+    tower = OP("INT_ADD", OP("INT_SUB", OP("INT_SUB", ("reg", 3), C(1)), C(1)), C(1))
+    assert R.simplify(tower) == OP("INT_ADD", ("reg", 3), C(255))
+    wide = OP("INT_SUB", ("reg", 0), C(1), sz=2)
+    assert R.simplify(wide) == OP("INT_ADD", ("reg", 0), C(0xFFFF), sz=2)
+
+
+def _sym_vm():
+    return R.SymVM(bytearray(0x10000))
+
+
+def test_mid_out_strips_current_deps():
+    vm = _sym_vm()
+    vm.ver = {0x1000: 2}
+    e = ("cur", ("const", 0x1000), 1, ((0x1000, 2),))
+    assert vm._mid_out(e) == ("cur", ("const", 0x1000), 1)
+
+
+def test_mid_out_stale_dep_falls_back():
+    vm = _sym_vm()
+    vm.ver = {0x1000: 3}
+    stale = ("cur", ("const", 0x1000), 1, ((0x1000, 2),))
+    assert vm._mid_out(stale) is None
+    nested = OP("INT_ADD", stale, C(1))
+    assert vm._mid_out(nested) is None
+    assert vm._mid_out(OP("INT_ADD", ("reg", 0), C(1))) == OP("INT_ADD", ("reg", 0), C(1))
+    assert vm._mid_out(M(0x2000)) is None
+
+
+def test_cur_cells_contiguous_and_split():
+    vm = _sym_vm()
+    vm.ver = {0x10: 1}
+    assert vm._cur_cells([0x10, 0x11]) == ("cur", ("const", 0x10), 2, ((0x10, 1), (0x11, 0)))
+    split = vm._cur_cells([0x10, 0x20])
+    assert split[0] == "op" and split[1] == "INT_OR"
+
+
+def test_has_uni_descends_cur():
+    assert R._has_uni(("cur", ("uni", -1), 1))
+    assert not R._has_uni(("cur", ("const", 5), 1))
+
+
+def test_pretty_marks_cur_reads():
+    assert R.pretty(("cur", ("const", 0x1234), 1)) == "~M[$1234]"

@@ -502,6 +502,148 @@ def orderlist_sid(tmp_path):
     return _write(tmp_path, "orderlist.sid", data)
 
 
+# Arrangement pin: two voices, orderlists -> zp pattern ptrs -> shared row fetch.
+
+_N_LOAD = 0x9000
+_N_INIT = 0x9000
+_N_PLAY = 0x9040
+_N_FETCH = 0x9100
+_N_TIM = 0x9200
+_N_ROW = 0x9204
+_N_OPOS = 0x9208
+_N_FREQ = 0x920C
+_N_OLA = 0x9280
+_N_OLB = 0x92C0
+_N_PAT = 0x9310
+N_SPEEDS = (3, 5)
+N_PAT_DATA = bytes((0x81, 0x30, 0x05, 0x82, 0x40, 0x06, 0xFF))
+
+
+def _n_voice_block(voice, olist):
+    tlo, thi = _lohi(_N_TIM + 2 * voice)
+    rlo, rhi = _lohi(_N_ROW + 2 * voice)
+    olo, ohi = _lohi(_N_OPOS + 2 * voice)
+    llo, lhi = _lohi(olist)
+    flo, fhi = _lohi(_N_FETCH)
+    zp = 0xFB + 2 * voice
+    adv = _asm(
+        [0xAE, olo, ohi],  # LDX opos
+        [0xE8],
+        [0xBD, llo, lhi],  # LDA olist,X
+        [0xC9, 0xFF],
+        [0xD0, 0x05],  # BNE set
+        [0xA2, 0x00],
+        [0xAD, llo, lhi],  # wrap: LDA olist
+        [0x8E, olo, ohi],  # set: STX opos
+        [0x85, zp],  # STA ptr lo
+        [0xA9, 0x00],
+        [0x8D, rlo, rhi],  # row = 0
+    )
+    call = _asm(
+        [0xA5, zp],
+        [0x85, 0xF8],
+        [0xA5, zp + 1],
+        [0x85, 0xF9],  # shared fetch ptr = voice ptr
+        [0xA2, 2 * voice],  # X = voice stride
+        [0x20, flo, fhi],  # JSR fetch
+    )
+    seq = _asm(
+        [0xA9, N_SPEEDS[voice]],
+        [0x8D, tlo, thi],  # timer = speed
+        [0xAC, rlo, rhi],  # LDY row
+        [0xB1, zp],  # LDA (ptr),Y
+        [0xC9, 0xFF],
+        [0xD0, len(adv)],  # BNE fetch (skip orderlist advance)
+    )
+    return _asm([0xCE, tlo, thi], [0xD0, len(seq) + len(adv) + len(call)]) + seq + adv + call
+
+
+def _n_fetch_block():
+    rlo, rhi = _lohi(_N_ROW)
+    flo, fhi = _lohi(_N_FREQ)
+    return _asm(
+        [0xBD, rlo, rhi],  # LDA row,X
+        [0xA8],
+        [0xB1, 0xF8],  # LDA ($F8),Y (control byte)
+        [0x85, 0xF7],
+        [0x29, 0x7F],
+        [0x9D, flo, fhi],  # freq,X = ctrl & $7F
+        [0xA5, 0xF7],
+        [0x29, 0x80],
+        [0xF0, 0x06],  # BEQ one-byte record
+        [0xC8],
+        [0xB1, 0xF8],  # LDA ($F8),Y (note byte)
+        [0x9D, flo, fhi],
+        [0xC8],  # one: INY
+        [0x98],
+        [0x9D, rlo, rhi],  # row += record length
+        [0x60],
+    )
+
+
+def _n_arrangement_image(n):
+    tlo, thi = _lohi(_N_TIM)
+    rlo, rhi = _lohi(_N_ROW)
+    olo, ohi = _lohi(_N_OPOS)
+    flo, fhi = _lohi(_N_FREQ)
+    ala, aha = _lohi(_N_OLA)
+    alb, ahb = _lohi(_N_OLB)
+    init = _asm(
+        [0xA9, 0x01],
+        [0x8D, tlo, thi],
+        [0x8D, (_N_TIM + 2) & 0xFF, thi],  # timers = 1
+        [0xA9, 0x00],
+        [0x8D, rlo, rhi],
+        [0x8D, (_N_ROW + 2) & 0xFF, rhi],
+        [0x8D, olo, ohi],
+        [0x8D, (_N_OPOS + 2) & 0xFF, ohi],
+        [0x8D, flo, fhi],
+        [0x8D, (_N_FREQ + 2) & 0xFF, fhi],
+        [0xAD, ala, aha],
+        [0x85, 0xFB],  # A ptr = olistA[0]
+        [0xAD, alb, ahb],
+        [0x85, 0xFD],  # B ptr = olistB[0]
+        [0xA9, _N_PAT >> 8],
+        [0x85, 0xFC],
+        [0x85, 0xFE],
+        [0x60],
+    )
+    emit = _asm(
+        [0xAD, flo, fhi],
+        [0x8D, 0x00, 0xD4],
+        [0xA9, 0x11],
+        [0x8D, 0x04, 0xD4],
+        [0xAD, (_N_FREQ + 2) & 0xFF, fhi],
+        [0x8D, 0x07, 0xD4],
+        [0xA9, 0x21],
+        [0x8D, 0x0B, 0xD4],
+        [0xA9, 0x0F],
+        [0x8D, 0x18, 0xD4],
+        [0x60],
+    )
+    play = _n_voice_block(0, _N_OLA) + _n_voice_block(1, _N_OLB) + emit
+    pat_lo = _N_PAT & 0xFF
+    return {
+        _N_INIT: init,
+        _N_PLAY: play,
+        _N_FETCH: _n_fetch_block(),
+        _N_OLA: bytes([pat_lo] * n + [0xFF]),
+        _N_OLB: bytes([pat_lo, 0xFF]),
+        _N_PAT: N_PAT_DATA,
+    }
+
+
+@pytest.fixture
+def arrangement_builder(tmp_path):
+    """Builder ``fn(n) -> path``: the same pattern arranged at ``n`` positions."""
+
+    def build(n):
+        data = assemble(_n_arrangement_image(n), load=_N_LOAD, init=_N_INIT, play=_N_PLAY)
+        return _write(tmp_path, f"arrangement{n}.sid", data)
+
+    return build
+
+
 # Volatile-read control: gate selected by a branch on the noise oscillator.
 
 _V_LOAD = 0x7600

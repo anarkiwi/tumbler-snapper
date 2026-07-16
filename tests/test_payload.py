@@ -72,21 +72,43 @@ def test_orderlist_walk_saturates_across_repeat(orderlist_sid):
 
 
 def test_alias_load_lands_walk_rung(alias_sid, monkeypatch):
-    """Read placement of a computed load over a same-frame store is guarded.
+    """A computed load over a same-frame store is placement-independent.
 
-    Without the placement guard the two read variants (forwarded store vs
-    frame-entry memory) share one recorded history and the walk rejects —
-    the diagnosed Meeting_94/Sc00ter class.
+    Evolved-state (``cur``) templates read the cell at the load's walk
+    position, so the forwarded-store vs frame-entry fork (the diagnosed
+    Meeting_94/Sc00ter class) is gone even without the prepass guard.
     """
     bare = irvm.prepass
     with monkeypatch.context() as m:
         m.setattr(irvm, "prepass", lambda p, s, f: (bare(p, s, f)[0], frozenset()))
         ir0 = irvm.serialize(alias_sid, 0, 64)
-    assert payload.build(ir0)[1] == "nondeterministic-context"
+    comp0, reason0 = payload.build(ir0)
+    assert reason0 is None and comp0["mode"] == "walk"
+    assert payload.replay(comp0) == irvm.replay(ir0)
     ir = irvm.serialize(alias_sid, 0, 64)
     comp, reason = payload.build(ir)
     assert reason is None and comp["mode"] == "walk"
     assert payload.replay(comp) == irvm.replay(ir)
+
+
+def test_arrangement_vocabulary_position_independent(arrangement_builder):
+    """A pattern repeated at N orderlist positions stores one vocabulary.
+
+    Evolved-state templates make the stored model independent of the
+    arrangement length: token counts are identical for N=2 and N=8 (the
+    position -> pattern mapping stays in ``init_mem``), byte-exact both.
+    """
+    counts = {}
+    for n, frames in ((2, 280), (8, 1000)):
+        path = arrangement_builder(n)
+        ir = irvm.serialize(path, 0, frames)
+        comp = json.loads(json.dumps(tokens.compress(ir)))
+        assert comp["mode"] == "walk"
+        assert tokens.replay_comp(comp) == irvm.replay(ir)
+        counts[n] = tokens.count_tokens(comp)
+    assert counts[2] == counts[8]
+    assert counts[2]["debt"] == 0
+    assert counts[2]["tokens"] < 279  # the pre-fix recorder's composed-variant vocabulary
 
 
 def test_nonreset_falls_back(handler_sid):
