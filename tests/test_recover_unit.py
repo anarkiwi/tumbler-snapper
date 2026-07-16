@@ -85,6 +85,22 @@ def test_add_terms_zero_collapses():
     assert R._add_terms((C(0), C(0)), 1) == C(0)
 
 
+def test_simplify_keeps_narrower_add_wrap():
+    """A 1-byte add wraps mod 256; flattening it into a 2-byte sum is unsound."""
+    inner = OP("INT_ADD", M(0x50), C(1))
+    outer = R.simplify(OP("INT_ADD", C(0xE9CB), inner, sz=2))
+    assert outer == OP("INT_ADD", inner, C(0xE9CB), sz=2)
+    mem = bytearray(0x10000)
+    mem[0x50] = 0xFF
+    assert R.eval_expr(outer, mem, [0] * 16) == 0xE9CB
+
+
+def test_simplify_flattens_same_width_add():
+    inner = OP("INT_ADD", M(0x50, 2), C(1), sz=2)
+    outer = R.simplify(OP("INT_ADD", C(0x100), inner, sz=2))
+    assert outer == OP("INT_ADD", M(0x50, 2), C(0x101), sz=2)
+
+
 def test_eval_expr_const_reg_op():
     assert R.eval_expr(C(9), b"", [0] * 16) == 9
     assert R.eval_expr(("reg", 2), b"", [0, 0, 77]) == 77
