@@ -46,11 +46,26 @@ keep the **dispatch rung** (the Phase-4 pipeline below). Rung assignment is
 per-tune, derived, and reported (`metric_ir()["mode"]`, the stated reject
 reason in `comp["walk_reject"]`, `tools/token_report.py`); it is a property
 of the recorded horizon — a tune can hold the walk rung at 400 frames and
-fall back once a longer recording exercises a rejecting fact (Sc00ter,
-Meeting_94 at full horizons).
+fall back once a longer recording exercises a rejecting fact (as Sc00ter and
+Meeting_94 did before the read-placement guard below retired their reject
+class).
 Both rungs are gated byte-exact: `tokens.replay_comp(comp) == irvm.replay(ir)`
 over all 33 fixtures (`test_hvsc_tokens_lossless`), on top of the trace and
 guarded roundtrips vs the deity write log.
+
+Two recorder facts feed the walk model beyond branch events. **Read
+placement**: where the prepass observed a load reading a cell written earlier
+in the same frame (`recover.prepass` alias sites), the recorder emits the
+case `addr_expr == addr` (`_record_alias`) — whether the recorded value
+forwards a same-frame store or reads frame-entry memory is selected by the
+evaluated address, state no branch tests (the retired
+`nondeterministic-context` class: Meeting_94's `LDA $A916,Y` over a note-slot
+store, Sc00ter's `LDA $16A7+M[$1014],Y` over its `DEC $1718` row timer).
+**VM-internal stack writes**: JSR/BRK pushes and the driver's synthetic
+pushes are recorded stores (`stack_write` into `F`/`slog`/`sdefs`) and
+RTS/RTI pointer moves update the symbolic SP, so stack-reading players
+(Meeting_94 `TSX; LDA $0101,X`) get frame-entry-pure exprs — closing the #65
+latent unrecorded-stack-write class.
 
 ### Structural payload rung (`mode: "walk"`) — no stored per-frame dispatch
 
@@ -60,10 +75,10 @@ synthetic stack pushes), and every recorded predicate is an equality
 `lhs == K` over frame-entry-pure state. `payload.build` lowers these facts to:
 
 - **nodes** `(site, lhs)` — predicate instances; a node whose events are all
-  `taken=1` is a **case** node (self-modified opcode / control-target
-  families: the edge label is the evaluated `lhs` value, so a whole `== K`
-  family is one value-dispatched switch); otherwise a **branch** node
-  (label = `eval(lhs) == K`);
+  `taken=1` is a **case** node (self-modified opcode / control-target /
+  read-placement families: the edge label is the evaluated `lhs` value, so a
+  whole `== K` family is one value-dispatched switch); otherwise a **branch**
+  node (label = `eval(lhs) == K`);
 - **edges** `(node, label)` with a **context trie**: occurrences are split by
   history items backwards from the present, only where recorded
   `(successor, contribution)` outcomes diverge — the depth is dictated by the
@@ -180,8 +195,8 @@ Superkid_in_Space                  walk   369.0   50.12  18496    ok    ok    ok
 Degree                             walk   117.0   50.12   5865    ok    ok    ok    1411   0.241     -1     -1    -1       -   yes
 Klemens                            walk   136.0   50.12   6817    ok    ok    ok    1868   0.274     -1     -1    -1       -   yes
 Boompah                            walk   189.9   50.12   9520    ok    ok    ok    2778   0.292     -1     -1    -1       -   yes
+Sc00ter                            walk   182.0  200.50  36491    ok    ok    ok   10625   0.291     -1     -1    -1       -   yes
 Randy_the_Great                    walk   178.0   50.12   8922    ok    ok    ok    3508   0.393     -1     -1    -1       -   yes
-Sc00ter                        dispatch   182.0  200.50  36491    ok    ok    ok   14456   0.396     -1     -1    -1       -   yes
 8_Bit-Maerchenland_V2              walk   209.2   59.21  12388    ok    ok    ok    5007   0.404     -1     -1    -1       -   yes
 Fizz_Extended                      walk    92.0   50.12   4610    ok    ok    ok    2072   0.449     -1     -1    -1       -   yes
 Fatale                             walk   169.0   50.12   8471    ok    ok    ok    4156   0.491     45   8400     0   0.491   yes
@@ -194,6 +209,7 @@ Massacre_on_Stage                  walk    54.0   50.12   2707    ok    ok    ok
 Megapetscii                        walk    88.0   50.12   4411    ok    ok    ok    3374   0.765     -1     -1    -1       -   yes
 Formal_Axiomatic_Theories          walk   111.1   50.12   5569    ok    ok    ok    4307   0.773     -1     -1    -1       -   yes
 202212220942                       walk   102.7   60.00   6162    ok    ok    ok    4998   0.811      2   6144     0   0.811   yes
+Meeting_94                         walk   110.1   50.12   5519    ok    ok    ok    4509   0.817     -1     -1    -1       -   yes
 Into_Hinterland_World              walk    38.3   50.12   1920    ok    ok    ok    1734   0.903     -1     -1    -1       -   yes
 Old_Times                          walk    97.0   50.12   4862    ok    ok    ok    4644   0.955     -1     -1    -1       -   yes
 Smutta                             walk    34.0   50.12   1704    ok    ok    ok    1685   0.989     -1     -1    -1       -   yes
@@ -205,21 +221,20 @@ Vacuole                            walk   232.0   50.12  11629    ok    ok    ok
 Space_Ache_Preview                 walk    30.6   50.12   1536    ok    ok    ok    2213   1.441     -1     -1    -1       -    NO
 Super_Goatron                      walk    63.2   50.12   3170    ok    ok    ok    4655   1.468     -1     -1    -1       -    NO
 Vi_drar_till_tune_1                walk    57.5   50.12   2880    ok    ok    ok    4259   1.479     -1     -1    -1       -    NO
-Meeting_94                     dispatch   110.1   50.12   5519    ok    ok    ok   10476   1.898     -1     -1    -1       -    NO
 A_Mind_Is_Born                 dispatch   136.5   50.12   6843    ok    ok  FAIL   39902   5.831     -1     -1    -1       -    NO
 ```
 
-(Re-measured after the recorder width-soundness fix below; token counts moved
-by a few tokens per tune because narrower adds now stay nested. Oracle gates
-for unchanged-stream fixtures carry over from the prior measurement — their
-trace/comp gates prove the replayed stream is byte-identical to the same
-deity log; Starfleet, Meeting_94 and Sc00ter were re-measured against fresh
-full-length sidtrace renders.)
+(Meeting_94 and Sc00ter are re-verdicted on the read-placement/stack-recording
+recorder below — both moved dispatch → walk, shedding all debt (previously
+`Sc00ter dispatch 14456 tokens, 0.396, 10845 gtable` and `Meeting_94 dispatch
+10476 tokens, 1.898, 7833 gtable`) — with fresh full-length oracle gates. The
+other rows carry the prior measurement: recorded stack stores add a few
+structure tokens per tune, as re-measured in the 400-frame table below.)
 
-**Verdict: 22/32 measured fixtures meet `< 1.0` tokens/frame at their full
+**Verdict: 23/32 measured fixtures meet `< 1.0` tokens/frame at their full
 horizon** (up from 1/33 at 400 frames — amortization is real, but not yet
 universal). All trace/comp gates pass on 32/32; the one oracle gate failure
-and the ten budget failures are diagnosed below (diagnosis only; encoder
+and the nine budget failures are diagnosed below (diagnosis only; encoder
 freeze applies).
 
 Component split at the full horizon (`struct` = prog + guards + cfg + init,
@@ -233,8 +248,8 @@ Superkid_in_Space                 3276   2493    298    434     51      0  progr
 Degree                            1411    640     85    167    519      0  programs
 Klemens                           1868   1264    125    372    107      0  programs
 Boompah                           2778   1699    179    756    144      0  programs
+Sc00ter                          10625   3881    346   6347     51      0       cfg
 Randy_the_Great                   3508   2261    207    924    116      0  programs
-Sc00ter                           3611   2822    731      0     58  10845 guard_table  walk-reject=nondeterministic-context
 8_Bit-Maerchenland_V2             5007   3410    167    442    988      0  programs
 Fizz_Extended                     2072   1436    160    442     34      0  programs
 Fatale                            4156   2722    193    910    331      0  programs
@@ -247,6 +262,7 @@ Massacre_on_Stage                 2022   1290    172    356    204      0  progr
 Megapetscii                       3374   2229    215    856     74      0  programs
 Formal_Axiomatic_Theories         4307   2547    235   1143    382      0  programs
 202212220942                      4998   3138    509   1162    189      0  programs
+Meeting_94                        4509   2697    401   1345     66      0  programs
 Into_Hinterland_World             1734   1188    143    363     40      0  programs
 Old_Times                         4644   2945    355   1282     62      0  programs
 Smutta                            1685   1192    168    266     59      0  programs
@@ -258,7 +274,6 @@ Vacuole                          15660   3653    704  10850    453      0       
 Space_Ache_Preview                2213   1501    158    493     61      0  programs
 Super_Goatron                     4655   2977    357   1030    291      0  programs
 Vi_drar_till_tune_1               4259   2747    216   1208     88      0  programs
-Meeting_94                        2643   2048    524      0     71   7833 guard_table  walk-reject=nondeterministic-context
 A_Mind_Is_Born                    2193   2146     38      0      9  37709   residual  walk-reject=non-reset-regs
 ```
 
@@ -305,20 +320,20 @@ DB horizon *is* the full playback and the raw figure is the honest one.
   capture-environment fidelity limit (deity vs libsidplayfp), not an
   IR/compression fault; the 32/32 deity-vs-sidtrace claim was measured at
   3000 frames and expires beyond it (doctrine #5: limit claims expire).
-- **Latent (no gate fails)** — JSR/BRK return-address pushes and RTI flag
-  pulls happen inside `PcodeVM.step`, not as p-code STOREs/LOADs, so they
-  are invisible to `F`/`slog`: on Sc00ter, Heat_Remix, Let_it_out and
-  202212220942 the 3200-frame sweep found stack cells whose recorded (PHA)
-  transition differs from the machine's end-of-frame byte because a later
-  JSR overwrote the cell unrecorded. Every gate is byte-exact — no recorded
-  expr reads those cells across frames — but this is the remaining class of
-  unrecorded machine-state writes in the driver model.
+- **Latent (no gate fails) — closed.** JSR/BRK return-address pushes and
+  RTS/RTI pointer moves happen inside `PcodeVM.step`, not as p-code
+  STOREs/LOADs, and were invisible to `F`/`slog` (stack cells on Sc00ter,
+  Heat_Remix, Let_it_out, 202212220942 whose recorded transition differed
+  from the machine's end-of-frame byte). The recorder now records those
+  pushes as stores and tracks the symbolic stack pointer through ctrl ops
+  and driver pushes (`SymVM.step`/`stack_write`), so stack state is modeled
+  like any other memory.
 
 ### `< 1.0` failures at full horizon (mechanistic notes)
 
-All ten failures are recovered-structure vocabulary still being *consumed*
-when the songlength DB horizon ends — debt is 0 on every walk fixture, so no
-trace-model debt is involved:
+All nine remaining failures are recovered-structure vocabulary still being
+*consumed* when the songlength DB horizon ends — debt is 0 on every walk
+fixture, so no trace-model debt is involved:
 
 - **Short-horizon walk fixtures** (Space_Ache_Preview 31 s, Vi_drar 57 s,
   Aviator_Arcade_II 61 s, Super_Goatron 63 s, Ninja_Carnage 87 s,
@@ -331,73 +346,83 @@ trace-model debt is involved:
 - **Vacuole** (232 s, 1.347): `cfg` 10850 dominates — context-trie entries
   keep minting because voices driven by the same song clock keep composing
   new history contexts; vocabulary had not saturated by the fade-out.
-- **Meeting_94 / Sc00ter** (dispatch fallback, `nondeterministic-context`):
-  one recorded edge (Meeting_94: branch site `$A397`, taken) has two
-  occurrences with an *identical* 25-event in-frame history but different
-  store contributions — the walk model's context (event labels only) cannot
-  express dispatch that depends on state invisible to the recorded label
-  alphabet. On the dispatch rung their whole-frame `gtable` grows with new
-  behavior combinations (Meeting_94 7833 debt → 1.896). Sc00ter still passes
-  `< 1.0` (0.397) purely because 36 k multispeed ticks amortize the debt —
-  its 10845 `gtable` tokens remain un-recovered structure (doctrine #4).
+- **Meeting_94 / Sc00ter — resolved** (formerly `nondeterministic-context`
+  dispatch fallbacks). Diagnosed mechanism: a computed load lands on a cell
+  written earlier in the same frame in some frames only (Meeting_94: the
+  portamento `LDA $A916,Y` at `$A38E` reads note slot `$A9D4` the frame also
+  zeroes when `M[$AA0A]=$5F`, plain table bytes otherwise; Sc00ter: the
+  `$16A7+M[$1014]+tbl[..]` read lands on its frame-start `DEC $1718` row
+  timer when `M[$1014]=$40`). The recorded store exprs then fork (forwarded
+  store vs frame-entry read) on state — the evaluated load address — that no
+  recorded branch tests, so identical event histories yielded divergent
+  contributions. The read-placement case guard (`_record_alias`) records that
+  address as a case event; Meeting_94 additionally needed the VM-internal
+  stack writes recorded (its `TSX; LDA $0101,X` reads the driver-pushed
+  return address). Both hold the walk rung at full horizon with debt 0
+  (rows above); the reject remains the honest fallback for anything the
+  recorded facts cannot resolve.
 - **A_Mind_Is_Born** (5.834): generative player, non-reset (handler) driver;
   whole-frame residual grows ~5.5 tokens/frame. This is the transcription
   rung's (ladder rung 2) designated target, not yet implemented.
 
 Per-fixture worker cost at full horizons (single sequential recording per
 tune; the tool runs fixtures in parallel): 20/32 exceed the 60 s single-script
-CPU budget, Sc00ter worst at ~1037 s CPU for 36491 ticks. Recording cost is
-linear in frames and inherently sequential (each frame's state feeds the
-next), so the full-horizon run is a reported, operator-invoked measurement —
-CI keeps the 400-frame advisory mode.
+CPU budget, Sc00ter worst at ~845 s CPU recording + ~220 s verdict for 36491
+ticks (read-placement/stack recording added ~10-20% to recording). Recording
+cost is linear in frames and inherently sequential (each frame's state feeds
+the next), so the full-horizon run is a reported, operator-invoked
+measurement — CI keeps the 400-frame advisory mode.
 
-### Secondary: 400-frame advisory table (unchanged, re-measured)
+### Secondary: 400-frame advisory table (re-measured post read-placement/stack recording)
 
 400 frames per tune, HVSC fixture manifest (33 fixtures), sorted by
 `tokens/frame`. `rung` is the derived per-tune assignment; `struct` = prog +
 guards + cfg + init (recovered structure); `debt` = gtable + resid (trace
 model). **31/32 driver-analyzable fixtures land the structural walk rung with
-debt 0 at 400 frames** (at full horizons Sc00ter and Meeting_94
-fall back as diagnosed above); A_Mind_Is_Born is handler-driven (non-reset
-registers) and keeps the dispatch rung (debt 37 = its whole `gtable`);
-Goldberg has no per-frame play driver. Aggregate debt at 400 frames: 41973
-(dispatch-only baseline) → **37**.
+debt 0 at 400 frames, and hold it at every measured horizon** (the former
+full-horizon fallbacks Sc00ter and Meeting_94 are resolved above);
+A_Mind_Is_Born is handler-driven (non-reset registers) and keeps the dispatch
+rung (debt 37 = its whole `gtable`); Goldberg has no per-frame play driver.
+Aggregate debt at 400 frames: 41973 (dispatch-only baseline) → **37**.
+Recorded stack stores and read-placement guards add a few structure tokens
+per tune vs the prior measurement (most on the JSR-heavy 202212220942,
+7.447 → 10.408 at 400 frames; horizon amortizes them like all vocabulary).
 
 | tune | rung | tok/f | struct | prog | guards | cfg | init | debt | gtable | resid |
 |------|------|------:|-------:|-----:|-------:|----:|-----:|-----:|-------:|------:|
 | Goldberg_Variations_parts_1-7 | dispatch | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| A_Mind_Is_Born | dispatch | 1.042 | 380 | 354 | 20 | 0 | 6 | 37 | 37 | 0 |
+| A_Mind_Is_Born | dispatch | 1.028 | 374 | 349 | 20 | 0 | 5 | 37 | 37 | 0 |
 | Degree | walk | 2.100 | 840 | 556 | 70 | 120 | 94 | 0 | 0 | 0 |
-| Mystifiable_Intro_2 | walk | 2.538 | 1015 | 777 | 80 | 124 | 34 | 0 | 0 | 0 |
-| Massacre_on_Stage | walk | 2.665 | 1066 | 730 | 111 | 179 | 46 | 0 | 0 | 0 |
-| Into_Hinterland_World | walk | 3.413 | 1365 | 943 | 129 | 264 | 29 | 0 | 0 | 0 |
-| Boompah | walk | 3.725 | 1490 | 1033 | 146 | 287 | 24 | 0 | 0 | 0 |
-| Old_Cracktro_Tune | walk | 3.732 | 1493 | 1020 | 146 | 247 | 80 | 0 | 0 | 0 |
-| Smutta | walk | 3.772 | 1509 | 1087 | 151 | 226 | 45 | 0 | 0 | 0 |
-| Klemens | walk | 3.800 | 1520 | 1108 | 114 | 242 | 56 | 0 | 0 | 0 |
-| Kate_and_Martin | walk | 3.913 | 1565 | 1114 | 146 | 279 | 26 | 0 | 0 | 0 |
-| Fizz_Extended | walk | 4.355 | 1742 | 1234 | 148 | 334 | 26 | 0 | 0 | 0 |
-| Let_it_out | walk | 4.412 | 1765 | 1341 | 150 | 261 | 13 | 0 | 0 | 0 |
-| Superkid_in_Space | walk | 4.532 | 1813 | 1378 | 166 | 225 | 44 | 0 | 0 | 0 |
-| Heat_Remix | walk | 4.685 | 1874 | 1464 | 159 | 231 | 20 | 0 | 0 | 0 |
-| Space_Ache_Preview | walk | 4.732 | 1893 | 1305 | 153 | 382 | 53 | 0 | 0 | 0 |
-| Sc00ter | walk | 5.255 | 2102 | 1605 | 172 | 309 | 16 | 0 | 0 | 0 |
-| Fatale | walk | 5.440 | 2176 | 1617 | 146 | 356 | 57 | 0 | 0 | 0 |
-| Randy_the_Great | walk | 5.640 | 2256 | 1523 | 179 | 526 | 28 | 0 | 0 | 0 |
-| Dancing_Donuts | walk | 6.470 | 2588 | 1781 | 173 | 595 | 39 | 0 | 0 | 0 |
-| Ninja_Carnage | walk | 6.522 | 2609 | 1882 | 199 | 498 | 30 | 0 | 0 | 0 |
-| Vi_drar_till_tune_1 | walk | 6.715 | 2686 | 1795 | 189 | 639 | 63 | 0 | 0 | 0 |
+| Mystifiable_Intro_2 | walk | 2.627 | 1051 | 813 | 80 | 124 | 34 | 0 | 0 | 0 |
+| Massacre_on_Stage | walk | 2.735 | 1094 | 730 | 121 | 197 | 46 | 0 | 0 | 0 |
+| Into_Hinterland_World | walk | 3.530 | 1412 | 990 | 129 | 264 | 29 | 0 | 0 | 0 |
+| Old_Cracktro_Tune | walk | 3.777 | 1511 | 996 | 155 | 280 | 80 | 0 | 0 | 0 |
+| Smutta | walk | 3.825 | 1530 | 1087 | 157 | 241 | 45 | 0 | 0 | 0 |
+| Boompah | walk | 3.842 | 1537 | 1080 | 146 | 287 | 24 | 0 | 0 | 0 |
+| Klemens | walk | 3.930 | 1572 | 1160 | 114 | 242 | 56 | 0 | 0 | 0 |
+| Kate_and_Martin | walk | 4.027 | 1611 | 1160 | 146 | 279 | 26 | 0 | 0 | 0 |
+| Fizz_Extended | walk | 4.503 | 1801 | 1293 | 148 | 334 | 26 | 0 | 0 | 0 |
+| Let_it_out | walk | 4.680 | 1872 | 1422 | 160 | 277 | 13 | 0 | 0 | 0 |
+| Space_Ache_Preview | walk | 4.878 | 1951 | 1363 | 153 | 382 | 53 | 0 | 0 | 0 |
+| Superkid_in_Space | walk | 4.918 | 1967 | 1530 | 166 | 227 | 44 | 0 | 0 | 0 |
+| Heat_Remix | walk | 5.022 | 2009 | 1563 | 170 | 256 | 20 | 0 | 0 | 0 |
+| Sc00ter | walk | 5.582 | 2233 | 1694 | 182 | 341 | 16 | 0 | 0 | 0 |
+| Randy_the_Great | walk | 5.817 | 2327 | 1594 | 179 | 526 | 28 | 0 | 0 | 0 |
+| Fatale | walk | 5.978 | 2391 | 1647 | 188 | 499 | 57 | 0 | 0 | 0 |
+| Dancing_Donuts | walk | 6.713 | 2685 | 1878 | 173 | 595 | 39 | 0 | 0 | 0 |
+| Ninja_Carnage | walk | 6.805 | 2722 | 1995 | 199 | 498 | 30 | 0 | 0 | 0 |
 | Aviator_Arcade_II | walk | 6.855 | 2742 | 1862 | 213 | 634 | 33 | 0 | 0 | 0 |
-| Formal_Axiomatic_Theories | walk | 6.905 | 2762 | 1822 | 209 | 658 | 73 | 0 | 0 | 0 |
-| Meeting_94 | walk | 6.978 | 2791 | 1956 | 300 | 504 | 31 | 0 | 0 | 0 |
-| Super_Goatron | walk | 7.135 | 2854 | 2008 | 278 | 497 | 71 | 0 | 0 | 0 |
-| Vacuole | walk | 7.183 | 2873 | 1643 | 307 | 833 | 90 | 0 | 0 | 0 |
-| Megapetscii | walk | 7.300 | 2920 | 1970 | 203 | 689 | 58 | 0 | 0 | 0 |
-| 202212220942 | walk | 7.447 | 2979 | 1973 | 323 | 632 | 51 | 0 | 0 | 0 |
+| Meeting_94 | walk | 6.985 | 2794 | 1955 | 302 | 506 | 31 | 0 | 0 | 0 |
+| Vi_drar_till_tune_1 | walk | 6.990 | 2796 | 1905 | 189 | 639 | 63 | 0 | 0 | 0 |
+| Formal_Axiomatic_Theories | walk | 7.115 | 2846 | 1904 | 210 | 659 | 73 | 0 | 0 | 0 |
+| Vacuole | walk | 7.242 | 2897 | 1667 | 307 | 833 | 90 | 0 | 0 | 0 |
 | Starfleet_Academy_Main_Theme | walk | 7.463 | 2985 | 2193 | 217 | 508 | 67 | 0 | 0 | 0 |
-| Take_Off | walk | 7.475 | 2990 | 2143 | 299 | 502 | 46 | 0 | 0 | 0 |
-| Old_Times | walk | 7.910 | 3164 | 2200 | 267 | 669 | 28 | 0 | 0 | 0 |
-| 8_Bit-Maerchenland_V2 | walk | 8.430 | 3372 | 2850 | 141 | 242 | 139 | 0 | 0 | 0 |
+| Megapetscii | walk | 7.675 | 3070 | 2120 | 203 | 689 | 58 | 0 | 0 | 0 |
+| Take_Off | walk | 7.798 | 3119 | 2192 | 318 | 563 | 46 | 0 | 0 | 0 |
+| Super_Goatron | walk | 7.955 | 3182 | 2161 | 299 | 651 | 71 | 0 | 0 | 0 |
+| Old_Times | walk | 8.273 | 3309 | 2330 | 272 | 679 | 28 | 0 | 0 | 0 |
+| 8_Bit-Maerchenland_V2 | walk | 9.000 | 3600 | 3078 | 141 | 242 | 139 | 0 | 0 | 0 |
+| 202212220942 | walk | 10.408 | 4163 | 2739 | 450 | 923 | 51 | 0 | 0 | 0 |
 
 History of the debt classes: the initial exact-path landing (#55) surfaced
 the debt ID3 induction had hidden; #56–#58 retired the SMC divergence class
@@ -408,7 +433,10 @@ exprs from program identity and proved closure/prediction total, measuring
 that the remaining `gtable` growth is the arrangement itself. The payload
 emission branch retires that class structurally: the walk rung stores no
 per-frame dispatch at all, so `gtable` and `resid` are 0 by construction
-wherever it applies.
+wherever it applies. The read-placement case guard plus recorded
+VM-internal stack writes (this branch) retired the walk model's
+`nondeterministic-context` reject class, returning Meeting_94 and Sc00ter
+to the walk rung at their full horizons.
 
 What still grows pre-loop is recovered-structure vocabulary being *consumed*:
 `prog` (composed store exprs at new song positions), `cfg` (context-trie

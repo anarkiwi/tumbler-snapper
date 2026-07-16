@@ -104,6 +104,26 @@ def test_smc_operands_reports_written_image_cells(direct_sid):
     assert 0x1100 in writes
 
 
+def test_prepass_flags_alias_load_site(alias_sid):
+    """The load reading a same-frame-written table cell is an alias site."""
+    writes, alias = R.prepass(alias_sid, 0, 8)
+    assert 0x4602 in writes
+    assert 0x441E in {pc for pc, _oi in alias}
+
+
+def test_driver_pushes_recorded_and_sp_balanced(direct_sid):
+    vm, _variants, _faithful, _shadow = R.run(direct_sid, 0, 8)
+    stack = {a: e for a, e in vm.F.items() if 0x100 <= a <= 0x1FF}
+    assert set(stack) == {0x1FE, 0x1FF} and all(e[0] == "const" for e in stack.values())
+    assert vm.sreg[3] == ("reg", 3)  # driver pushes and balancing RTS cancel
+
+
+def test_jsr_return_pushes_recorded(jsrmod_sid):
+    vm, _variants, _faithful, _shadow = R.run(jsrmod_sid, 0, 4)
+    assert {0x1FC, 0x1FD} <= set(vm.F)
+    assert vm.sreg[3] == ("reg", 3)
+
+
 def test_recover_main_text_output(direct_sid):
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):

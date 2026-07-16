@@ -71,6 +71,24 @@ def test_orderlist_walk_saturates_across_repeat(orderlist_sid):
     assert c1["contribs"] == c2["contribs"] and c1["init_mem"] == c2["init_mem"]
 
 
+def test_alias_load_lands_walk_rung(alias_sid, monkeypatch):
+    """Read placement of a computed load over a same-frame store is guarded.
+
+    Without the placement guard the two read variants (forwarded store vs
+    frame-entry memory) share one recorded history and the walk rejects —
+    the diagnosed Meeting_94/Sc00ter class.
+    """
+    bare = irvm.prepass
+    with monkeypatch.context() as m:
+        m.setattr(irvm, "prepass", lambda p, s, f: (bare(p, s, f)[0], frozenset()))
+        ir0 = irvm.serialize(alias_sid, 0, 64)
+    assert payload.build(ir0)[1] == "nondeterministic-context"
+    ir = irvm.serialize(alias_sid, 0, 64)
+    comp, reason = payload.build(ir)
+    assert reason is None and comp["mode"] == "walk"
+    assert payload.replay(comp) == irvm.replay(ir)
+
+
 def test_nonreset_falls_back(handler_sid):
     ir = irvm.serialize(handler_sid, 0, 64)
     assert payload.build(ir)[1] == "non-reset-regs"
