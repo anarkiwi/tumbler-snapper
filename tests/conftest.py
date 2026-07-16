@@ -547,6 +547,38 @@ def digi_sid(tmp_path):
     return _write(tmp_path, "digi.sid", data)
 
 
+# Index-wrap tune: 8-bit INY wraps 0xFF->0 before a 16-bit table address.
+
+_W_LOAD = 0x4000
+_W_INIT = 0x4000
+_W_PLAY = 0x4010
+_W_IDX = 0x4100
+_W_TABLE = 0x4200
+
+
+def _wrap_image():
+    xlo, xhi = _lohi(_W_IDX)
+    tlo, thi = _lohi(_W_TABLE)
+    tbl = bytes((i * 7 + 3) & 0xFF for i in range(256)) + b"\xaa"
+    init_code = _asm([0xA9, 0xFC], [0x8D, xlo, xhi], [0x60])  # idx = $FC
+    play_code = _asm(
+        [0xAC, xlo, xhi],  # LDY idx
+        [0xC8],  # INY (wraps at idx=$FF)
+        [0xB9, tlo, thi],  # LDA table,Y
+        [0x8D, 0x00, 0xD4],  # STA $D400
+        [0x8C, xlo, xhi],  # STY idx
+        [0x60],
+    )
+    return {_W_INIT: init_code, _W_PLAY: play_code, _W_TABLE: tbl}
+
+
+@pytest.fixture
+def wrap_sid(tmp_path):
+    """Play routine whose 1-byte index add wraps inside a 2-byte table address."""
+    data = assemble(_wrap_image(), load=_W_LOAD, init=_W_INIT, play=_W_PLAY)
+    return _write(tmp_path, "wrap.sid", data)
+
+
 # Cadence probes: init writes different interrupt hardware.
 
 _C_LOAD = 0x3000

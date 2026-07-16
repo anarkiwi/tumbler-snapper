@@ -89,9 +89,10 @@ def apply_op(mn, a, b, sz):
 
 
 def _add_terms(kids, sz):
+    """Flatten nested adds; a narrower add wraps at its own width, so it stays opaque."""
     terms, c = [], 0
     for k in kids:
-        if k[0] == "op" and k[1] == "INT_ADD":
+        if k[0] == "op" and k[1] == "INT_ADD" and k[3] >= sz:
             for t in k[2]:
                 if t[0] == "const":
                     c += t[1]

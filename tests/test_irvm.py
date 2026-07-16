@@ -126,6 +126,11 @@ def test_roundtrip_handler(handler_sid):
     _assert_exact(handler_sid, 0, 120)
 
 
+def test_roundtrip_index_wrap(wrap_sid):
+    """A 1-byte index add wrapping inside a 2-byte table address replays exactly."""
+    _assert_exact(wrap_sid, 0, 8)
+
+
 def test_roundtrip_intraframe_multiwrite(digi_sid):
     """Eight $D418 writes per frame are reproduced in order (not last-write)."""
     r = _assert_exact(digi_sid, 0, 40)
@@ -525,6 +530,22 @@ def test_hvsc_roundtrip_byte_exact(fx):
         pytest.skip(f"offline: {fx['relpath']} unavailable")
     r = irvm.roundtrip(str(path), fx["song"], _HVSC_FRAMES)
     assert r["match"], f"{fx['relpath']} diverged at {r['diverge'][0] if r['diverge'] else '?'}"
+
+
+_WRAP_REGRESSION = "MUSICIANS/S/Slyspy/Starfleet_Academy_Main_Theme.sid"
+
+
+@pytest.mark.hvsc
+def test_hvsc_index_wrap_regression():
+    """Byte-exact past frame 4192, where a filter-table index first wraps 8-bit.
+
+    4200 frames is the largest horizon fitting the 60 s CPU budget (~59 s).
+    """
+    path = _resolve(_WRAP_REGRESSION)
+    if path is None:
+        pytest.skip(f"offline: {_WRAP_REGRESSION} unavailable")
+    r = irvm.roundtrip(str(path), 0, 4200)
+    assert r["match"], f"diverged at {r['diverge'][0] if r['diverge'] else '?'}"
 
 
 @pytest.mark.hvsc

@@ -65,8 +65,10 @@ compound `addr_expr`.
   - `hw[addr]` — last write to watched interrupt/timer/vector registers (cadence).
   - `run_record` replicates the base VM's control-flow/cycle tail.
 - **`simplify` / `_simp` / `_add_terms`** — constant folding, add-flattening,
-  identity elimination. id-memoized (`_SIMP_MEMO`, cleared per frame) with an
-  identity guard against freed-then-reused tuple ids.
+  identity elimination. Only same-or-wider adds flatten: a narrower add (an
+  8-bit index increment zext-ed into a 16-bit address sum) wraps at its own
+  width, so it stays a nested term. id-memoized (`_SIMP_MEMO`, cleared per
+  frame) with an identity guard against freed-then-reused tuple ids.
 - **`eval_expr`** — evaluates an expression against a memory snapshot (indexed
   loads resolve their address first); id-memoized within a call.
 - **Self-modified operands as state** (`_set_operand` / `_smc_operands`) — some
