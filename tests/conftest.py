@@ -422,6 +422,86 @@ def reloc_sid(tmp_path):
     return _write(tmp_path, "reloc.sid", data)
 
 
+# Orderlist-driven tune: orderlist -> pattern pointer -> rows, row timer, wrap.
+
+_O_LOAD = 0x8000
+_O_INIT = 0x8000
+_O_PLAY = 0x8030
+_O_TIMER = 0x8100
+_O_PPOS = 0x8101
+_O_OPOS = 0x8102
+_O_OLIST = 0x8140
+_O_PAT0 = 0x8200
+_O_PAT1 = 0x8210
+O_SPEED = 4
+O_OLIST_DATA = bytes((_O_PAT0 & 0xFF, _O_PAT1 & 0xFF, _O_PAT0 & 0xFF, 0xFF))
+O_PAT0_DATA = bytes((36, 38, 40, 41, 43, 45, 47, 48, 0xFF))
+O_PAT1_DATA = bytes((48, 47, 45, 43, 41, 40, 38, 36, 0xFF))
+
+
+def _orderlist_image():
+    tlo, thi = _lohi(_O_TIMER)
+    plo, phi = _lohi(_O_PPOS)
+    olo, ohi = _lohi(_O_OPOS)
+    llo, lhi = _lohi(_O_OLIST)
+    init_code = _asm(
+        [0xA9, 0x01],
+        [0x8D, tlo, thi],  # timer = 1
+        [0xA9, 0x00],
+        [0x8D, plo, phi],  # ppos = 0
+        [0x8D, olo, ohi],  # opos = 0
+        [0xAD, llo, lhi],  # LDA olist
+        [0x85, 0xFB],  # STA ptr lo
+        [0xA9, _O_PAT0 >> 8],
+        [0x85, 0xFC],  # STA ptr hi
+        [0x60],
+    )
+    play_code = _asm(
+        [0xCE, tlo, thi],  # DEC timer
+        [0xD0, 0x3A],  # BNE cont
+        [0xA9, O_SPEED],
+        [0x8D, tlo, thi],  # timer = speed
+        [0xAC, plo, phi],  # LDY ppos
+        [0xB1, 0xFB],  # LDA (ptr),Y  (pattern byte)
+        [0xC9, 0xFF],
+        [0xD0, 0x21],  # BNE note
+        [0xA9, 0x00],
+        [0x8D, plo, phi],  # ppos = 0
+        [0xEE, olo, ohi],  # INC opos
+        [0xAE, olo, ohi],  # LDX opos
+        [0xBD, llo, lhi],  # LDA olist,X
+        [0xC9, 0xFF],
+        [0xD0, 0x08],  # BNE setp
+        [0xA2, 0x00],
+        [0x8E, olo, ohi],  # opos = 0
+        [0xAD, llo, lhi],  # LDA olist
+        [0x85, 0xFB],  # setp: STA ptr lo
+        [0xAC, plo, phi],  # LDY ppos
+        [0xB1, 0xFB],  # LDA (ptr),Y
+        [0x8D, 0x00, 0xD4],  # note: STA $D400
+        [0xA9, 0x11],
+        [0x8D, 0x04, 0xD4],  # STA $D404
+        [0xEE, plo, phi],  # INC ppos
+        [0xA9, 0x0F],  # cont:
+        [0x8D, 0x18, 0xD4],  # STA $D418
+        [0x60],
+    )
+    return {
+        _O_INIT: init_code,
+        _O_PLAY: play_code,
+        _O_OLIST: O_OLIST_DATA,
+        _O_PAT0: O_PAT0_DATA,
+        _O_PAT1: O_PAT1_DATA,
+    }
+
+
+@pytest.fixture
+def orderlist_sid(tmp_path):
+    """Authored orderlist -> pattern-pointer -> row tune with wrap (walk rung)."""
+    data = assemble(_orderlist_image(), load=_O_LOAD, init=_O_INIT, play=_O_PLAY)
+    return _write(tmp_path, "orderlist.sid", data)
+
+
 # Volatile-read control: gate selected by a branch on the noise oscillator.
 
 _V_LOAD = 0x7600

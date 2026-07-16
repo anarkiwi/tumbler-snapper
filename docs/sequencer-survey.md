@@ -240,12 +240,13 @@ measurement-horizon fact, not a method limit.
    reload) are data-indexed — the deciding byte constant-folds per frame —
    transcription scope.
 2. ~~Widen `smc_operands` coverage~~ **done** (#61: all play-written memory).
-3. Emit the tracker-IR view (orderlist/patterns/rows) from the recovered
-   chains: pattern payload runs are the patterns; the pattern-pointer reload
-   read is the orderlist; row timers give frames-per-row. Gate byte-exact via
-   the sequence ladder. This payload emission is the open work and the only
-   mechanism that retires pre-loop `gtable` growth (docs/tokens.md,
-   closed-model dispatch section).
+3. ~~Emit the tracker-IR view (orderlist/patterns/rows) from the recovered
+   chains~~ **done** (payload-emission branch): `sequencer.tracker_view`
+   labels pattern nodes (pointer-indexed reads + payload runs + sentinels),
+   orderlist nodes (reads feeding another node's pointer cells) and row
+   timers (`-1`-step counters; reload values = frames-per-row); the
+   structural walk rung (`tsnap.payload`, docs/tokens.md) retires stored
+   per-frame dispatch on 31/32 driver-analyzable fixtures, gated byte-exact.
 4. Longer horizons per tune (full playback) so orderlist-level accessors fire;
    the analysis cost is linear in frames (survey: 21 s / 79 s wall for
    400 / 1600 frames over 33 fixtures on 8 workers).

@@ -295,6 +295,7 @@ class SymVM(PcodeVM):
         self.Fsz = {}
         self.frame_writes = {}
         self.sid_seq = []
+        self.slog = []
         self.guards = []
         self.init_sid = []
         self.idle_reg = []
@@ -324,6 +325,7 @@ class SymVM(PcodeVM):
         self.Fsz = {}
         self.frame_writes = {}
         self.sid_seq = []
+        self.slog = []
         self.guards = []
         self.vol_seq = 0
 
@@ -404,6 +406,7 @@ class SymVM(PcodeVM):
                     self.sdefs[addr] = expr
                     self.F[addr] = expr
                     self.Fsz[addr] = sz
+                    self.slog.append((len(self.guards), addr, expr, sz))
                 if SID <= addr <= 0xD418:
                     self.frame_writes[addr] = rv(ins[1]) & 0xFF
                     if sym:
@@ -536,13 +539,19 @@ class SymVM(PcodeVM):
         return ctrl, nxt
 
 
+def _push(vm, byte):
+    """Driver-synthesized stack push, visible to replay as a recorded store."""
+    addr = 0x100 + vm.reg[3]
+    vm.mem[addr] = byte & 0xFF
+    vm.reg[3] = (vm.reg[3] - 1) & 0xFF
+    vm.slog.append((len(vm.guards), addr, ("const", byte & 0xFF), 1))
+
+
 def _drive(vm, entry, cache):
     reg = vm.reg
     start = reg[3]
-    vm.mem[0x100 + reg[3]] = 0
-    reg[3] = (reg[3] - 1) & 0xFF
-    vm.mem[0x100 + reg[3]] = 1
-    reg[3] = (reg[3] - 1) & 0xFF
+    _push(vm, 0)
+    _push(vm, 1)
     pc = entry
     guard = 0
     while reg[3] < start:
@@ -589,12 +598,10 @@ def _drive_handler(vm, cache, handler, kernal):
     # deity-informant owns the processor-status ABI; reach its private packer.
     status = vm._status()  # pylint: disable=protected-access
     for byte in (0x00, 0x00, status):
-        vm.mem[0x100 + reg[3]] = byte
-        reg[3] = (reg[3] - 1) & 0xFF
+        _push(vm, byte)
     if kernal:
         for r in (reg[0], reg[1], reg[2]):
-            vm.mem[0x100 + reg[3]] = r & 0xFF
-            reg[3] = (reg[3] - 1) & 0xFF
+            _push(vm, r)
     reg[10] = 1
     pc = handler
     guard = 0
