@@ -1,12 +1,11 @@
 # Token metric: `tokens / frames` over the generator-IR (`tsnap.tokens`)
 
 A principled, reproducible tokenization of the Phase-1 generator-IR
-(`tsnap.irvm`), lossless compression passes (interned generator DAG, dead-init
-elimination, and per-cell slot factoring with exact CFG-path dispatch —
-Phase-4 Steps 1–2 plus the doctrine-#3 course correction), and the
-`total_IR_tokens / total_frames` metric (HARD CONSTRAINT #4). The metric
-quantifies how much song structure is still un-recovered; it is never fitted
-to output and never fudged toward `< 1.0`.
+(`tsnap.irvm`), the sequence-ladder rung selection (structural walk rung in
+`tsnap.payload`, dispatch rung as fallback), the lossless compression passes,
+and the `total_IR_tokens / total_frames` metric (HARD CONSTRAINT #4). The
+metric quantifies how much song structure is still un-recovered; it is never
+fitted to output and never fudged toward `< 1.0`.
 
 ## Token definition
 
@@ -15,36 +14,76 @@ over the *compressed* IR (below), in these categories:
 
 | category | token | rationale |
 |----------|-------|-----------|
-| `programs` | each node of the interned generator DAG (`const`/`reg`/`mem`/`op`), each **slot** — one `(cell, generator-ref)` pair per cell-alphabet entry — plus each struct entry (ordered SID cell ref) and each group-membership entry | the generator vocabulary + how cells wire to it |
+| `programs` | walk rung: each interned expr-DAG node plus each contribution entry `(addr, expr-ref, sz)`; dispatch rung: each generator-DAG node, each slot, each struct/group entry | the generator vocabulary + how writes wire to it |
 | `init_mem` | each contiguous post-init memory run that survives dead-data elimination | the raw data the generators still index |
-| `guards` | each node of the interned DAG of **load-bearing** guard predicates (those at decision nodes) | the branch path conditions stream selection is derived from |
-| `guard_table` | each decision node `(guard-ref, lo-ref, hi-ref)` of the shared (cross-stream hash-consed) decision-node table, plus one root ref per derived stream | the derivable part of the control flow |
-| `residual` | each `(combo-index, repeat-count)` pair of the RLE'd whole-frame residual plus each entry of each combo (one symbol per ever-ambiguous stream) | the still-undecomposed control flow (data-indexed divergence) |
+| `guards` | walk rung: each predicate node `(site, lhs-ref, kind, K)`; dispatch rung: each node of the interned load-bearing guard-predicate DAG | the branch conditions selection is derived from |
+| `cfg` | walk rung only: each context-trie node/leaf of the per-edge successor+contribution tables | the player's recovered control-flow wiring |
+| `guard_table` | dispatch rung only: each decision node of the shared discrimination trees plus stream roots | the derivable part of the control flow |
+| `residual` | dispatch rung only: each RLE run + combo entry of the whole-frame residual | the still-undecomposed control flow |
 
-`tokens = programs + init_mem + guards + guard_table + residual`. The
+`tokens = programs + init_mem + guards + cfg + guard_table + residual`. The
 categories split into two classes (doctrine #4, encoder freeze):
-**recovered-structure** tokens (`programs`, `init_mem`, `guards` — the player
-model plus the song data it indexes; O(1) in playback horizon once saturated)
-and **trace-model** tokens (`guard_table`, `residual` — encodings of the
-composition's unfolding). Trace-model tokens are **debt**: they stand in for
-sequencer structure (orderlist/pattern repetition) not yet recovered, and any
-component whose count grows with horizon is un-recovered structure whatever
-its absolute size. Debt is retired by recovering mechanism (dereferencing
-sequencer data from `init_mem`), never by encoding the same data more
-cleverly. The count is
+**recovered-structure** tokens (`programs`, `init_mem`, `guards`, `cfg` — the
+player model plus the song data it indexes; bounded by code paths and song
+data, not by playback horizon) and **trace-model** tokens (`guard_table`,
+`residual` — encodings of the composition's unfolding). Trace-model tokens are
+**debt**: they stand in for sequencer structure (orderlist/pattern repetition)
+not yet recovered, and any component whose count grows with horizon is
+un-recovered structure whatever its absolute size. Debt is retired by
+recovering mechanism (dereferencing sequencer data from `init_mem`), never by
+encoding the same data more cleverly. The count is
 **deterministic** and not gameable: DAG interning cannot fall below the number of
 distinct sub-generators or guards, cell alphabets cannot fall below the number of
 distinct `(cell, generator)` pairs the tune exhibits, RLE cannot fall below the
 number of residual transitions, and dead-data elimination removes only
 provably-unread bytes.
 
-## Lossless compression passes
+## Sequence-ladder rung selection
 
-`compress(ir)` applies three passes; `decompress` rebuilds a replay-equivalent
-`irvm` IR — bit-identical `programs` and `trace`, proven by
+`compress(ir)` first tries the **structural payload rung** (`tsnap.payload`,
+the walk model below); tunes it rejects — for a stated mechanical reason —
+keep the **dispatch rung** (the Phase-4 pipeline below). Rung assignment is
+per-tune, derived, and reported (`metric_ir()["mode"]`, `tools/token_report.py`).
+Both rungs are gated byte-exact: `tokens.replay_comp(comp) == irvm.replay(ir)`
+over all 33 fixtures (`test_hvsc_tokens_lossless`), on top of the trace and
+guarded roundtrips vs the deity write log.
+
+### Structural payload rung (`mode: "walk"`) — no stored per-frame dispatch
+
+The recorder attributes every store to the branch interval that produced it
+(`SymVM.slog`: `(events-so-far, addr, expr, sz)`, including the driver's
+synthetic stack pushes), and every recorded predicate is an equality
+`lhs == K` over frame-entry-pure state. `payload.build` lowers these facts to:
+
+- **nodes** `(site, lhs)` — predicate instances; a node whose events are all
+  `taken=1` is a **case** node (self-modified opcode / control-target
+  families: the edge label is the evaluated `lhs` value, so a whole `== K`
+  family is one value-dispatched switch); otherwise a **branch** node
+  (label = `eval(lhs) == K`);
+- **edges** `(node, label)` with a **context trie**: occurrences are split by
+  history items backwards from the present, only where recorded
+  `(successor, contribution)` outcomes diverge — the depth is dictated by the
+  data (a bisimulation-style refinement, no induction, no tuned depth); each
+  resolved entry names the next node and the segment contribution;
+- **contributions** — the ordered `(addr, expr, sz)` stores of the segment
+  the edge executes (SID stores emit stream writes in order).
+
+Replay = evolve memory from `init_mem`: per frame, snapshot, walk from the
+entry node evaluating each node's `lhs` on the frame-entry state, apply each
+edge's contribution, stop at the terminal edge. Nothing per-frame is stored —
+no `trace`, no `paths`, no decision-node table, no residual; the composition
+unfolds from `init_mem` through the recovered player model. Build verifies
+byte-exactness of **every frame** (ordered SID writes + end-of-frame memory
+vs the trace replay); any failure — opaque (volatile) predicate, mixed node,
+non-functional context, non-reset drivers, replay divergence — falls back to
+the dispatch rung with the reason reported.
+
+## Dispatch-rung lossless compression passes
+
+`compress(ir, walk=False)` applies three passes; `decompress` rebuilds a
+replay-equivalent `irvm` IR — bit-identical `programs` and `trace`, proven by
 `irvm.replay(decompress(compress(ir))) == irvm.replay(ir)` (round-tripped through
-JSON) in `tests/test_tokens.py`, and over all 33 HVSC fixtures by
-`test_hvsc_tokens_lossless`.
+JSON) in `tests/test_tokens.py`.
 
 1. **Interned generator DAG.** Every serialized generator sub-tree is hash-consed
    into a shared `pool`; slots reference pool ids. Identical sub-generators
@@ -114,89 +153,87 @@ over them stay opaque instead of masquerading as frame-entry-pure memory.
 ## Measured results
 
 400 frames per tune, HVSC fixture manifest (33 fixtures), sorted by
-`tokens/frame`, measured on the closed-model-dispatch branch (#55–#61 chain +
-replay-dead register elimination + nest-split quotient). `struct` = programs +
-guards + init (recovered structure); `debt` = gtable + resid (trace model);
-`prog` = pool + slots + wiring; `gtable` = shared decision nodes + stream
-roots; `resid` = residual RLE runs + combo entries. **Residual is 0 on all 33
-fixtures at this horizon** — every frame's selection is guard-derived; all
-remaining debt is `gtable`.
+`tokens/frame`, measured on the payload-emission branch. `rung` is the
+derived per-tune assignment; `struct` = prog + guards + cfg + init (recovered
+structure); `debt` = gtable + resid (trace model). **31/32 driver-analyzable
+fixtures land the structural walk rung with debt 0**; A_Mind_Is_Born is
+handler-driven (non-reset registers) and keeps the dispatch rung (debt 37 =
+its whole `gtable`); Goldberg has no per-frame play driver. Aggregate debt at
+400 frames: 41973 (dispatch-only baseline) → **37**.
 
-| tune | tok/f | struct | debt | prog | guards | gtable | resid | init |
-|------|------:|-------:|-----:|-----:|-------:|-------:|------:|-----:|
-| Goldberg_Variations_parts_1-7 | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| A_Mind_Is_Born | 1.055 | 385 | 37 | 359 | 20 | 37 | 0 | 6 |
-| Massacre_on_Stage | 2.688 | 857 | 218 | 665 | 144 | 218 | 0 | 48 |
-| Mystifiable_Intro_2 | 3.263 | 1001 | 304 | 833 | 134 | 304 | 0 | 34 |
-| Degree | 3.715 | 970 | 516 | 725 | 148 | 516 | 0 | 97 |
-| Boompah | 3.960 | 1110 | 474 | 950 | 137 | 474 | 0 | 23 |
-| Into_Hinterland_World | 4.040 | 1022 | 594 | 842 | 151 | 594 | 0 | 29 |
-| Let_it_out | 4.478 | 1399 | 392 | 1232 | 154 | 392 | 0 | 13 |
-| Heat_Remix | 4.545 | 1505 | 313 | 1391 | 95 | 313 | 0 | 19 |
-| Superkid_in_Space | 4.598 | 1564 | 275 | 1423 | 99 | 275 | 0 | 42 |
-| Kate_and_Martin | 4.640 | 1122 | 734 | 934 | 165 | 734 | 0 | 23 |
-| 202212220942 | 5.185 | 1530 | 544 | 1226 | 231 | 544 | 0 | 73 |
-| Old_Cracktro_Tune | 5.440 | 1383 | 793 | 1052 | 250 | 793 | 0 | 81 |
-| Sc00ter | 5.605 | 1671 | 571 | 1433 | 222 | 571 | 0 | 16 |
-| Klemens | 5.920 | 1400 | 968 | 1120 | 224 | 968 | 0 | 56 |
-| Smutta | 6.310 | 1623 | 901 | 1328 | 248 | 901 | 0 | 47 |
-| Take_Off | 6.430 | 1846 | 726 | 1601 | 200 | 726 | 0 | 45 |
-| Ninja_Carnage | 6.668 | 1466 | 1201 | 1225 | 211 | 1201 | 0 | 30 |
-| Fizz_Extended | 7.085 | 1532 | 1302 | 1322 | 184 | 1302 | 0 | 26 |
-| Fatale | 7.213 | 1685 | 1200 | 1409 | 218 | 1200 | 0 | 58 |
-| Vacuole | 7.450 | 1564 | 1416 | 1209 | 256 | 1416 | 0 | 99 |
-| Space_Ache_Preview | 7.827 | 1331 | 1800 | 1045 | 235 | 1800 | 0 | 51 |
-| Meeting_94 | 8.675 | 1905 | 1565 | 1536 | 338 | 1565 | 0 | 31 |
-| Old_Times | 9.040 | 2186 | 1430 | 1871 | 286 | 1430 | 0 | 29 |
-| Randy_the_Great | 9.375 | 1671 | 2079 | 1379 | 264 | 2079 | 0 | 28 |
-| Starfleet_Academy_Main_Theme | 9.402 | 2035 | 1726 | 1677 | 289 | 1726 | 0 | 69 |
-| 8_Bit-Maerchenland_V2 | 10.435 | 3297 | 877 | 3047 | 114 | 877 | 0 | 136 |
-| Dancing_Donuts | 10.627 | 1528 | 2723 | 1192 | 298 | 2723 | 0 | 38 |
-| Megapetscii | 11.352 | 1825 | 2716 | 1451 | 316 | 2716 | 0 | 58 |
-| Aviator_Arcade_II | 11.860 | 1659 | 3085 | 1421 | 205 | 3085 | 0 | 33 |
-| Formal_Axiomatic_Theories | 12.752 | 1733 | 3368 | 1335 | 325 | 3368 | 0 | 73 |
-| Super_Goatron | 13.727 | 2131 | 3360 | 1821 | 243 | 3360 | 0 | 67 |
-| Vi_drar_till_tune_1 | 13.940 | 1811 | 3765 | 1393 | 357 | 3765 | 0 | 61 |
+| tune | rung | tok/f | struct | prog | guards | cfg | init | debt | gtable | resid |
+|------|------|------:|-------:|-----:|-------:|----:|-----:|-----:|-------:|------:|
+| Goldberg_Variations_parts_1-7 | dispatch | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| A_Mind_Is_Born | dispatch | 1.055 | 385 | 359 | 20 | 0 | 6 | 37 | 37 | 0 |
+| Degree | walk | 2.100 | 840 | 556 | 70 | 120 | 94 | 0 | 0 | 0 |
+| Mystifiable_Intro_2 | walk | 2.540 | 1016 | 778 | 80 | 124 | 34 | 0 | 0 | 0 |
+| Massacre_on_Stage | walk | 2.667 | 1067 | 731 | 111 | 179 | 46 | 0 | 0 | 0 |
+| Into_Hinterland_World | walk | 3.415 | 1366 | 944 | 129 | 264 | 29 | 0 | 0 | 0 |
+| Boompah | walk | 3.715 | 1486 | 1029 | 146 | 287 | 24 | 0 | 0 | 0 |
+| Old_Cracktro_Tune | walk | 3.735 | 1494 | 1021 | 146 | 247 | 80 | 0 | 0 | 0 |
+| Smutta | walk | 3.775 | 1510 | 1088 | 151 | 226 | 45 | 0 | 0 | 0 |
+| Klemens | walk | 3.797 | 1519 | 1107 | 114 | 242 | 56 | 0 | 0 | 0 |
+| Kate_and_Martin | walk | 3.910 | 1564 | 1113 | 146 | 279 | 26 | 0 | 0 | 0 |
+| Fizz_Extended | walk | 4.360 | 1744 | 1236 | 148 | 334 | 26 | 0 | 0 | 0 |
+| Let_it_out | walk | 4.457 | 1783 | 1359 | 150 | 261 | 13 | 0 | 0 | 0 |
+| Superkid_in_Space | walk | 4.553 | 1821 | 1386 | 166 | 225 | 44 | 0 | 0 | 0 |
+| Space_Ache_Preview | walk | 4.715 | 1886 | 1298 | 153 | 382 | 53 | 0 | 0 | 0 |
+| Heat_Remix | walk | 4.730 | 1892 | 1482 | 159 | 231 | 20 | 0 | 0 | 0 |
+| Sc00ter | walk | 5.308 | 2123 | 1626 | 172 | 309 | 16 | 0 | 0 | 0 |
+| Fatale | walk | 5.440 | 2176 | 1617 | 146 | 356 | 57 | 0 | 0 | 0 |
+| Randy_the_Great | walk | 5.647 | 2259 | 1526 | 179 | 526 | 28 | 0 | 0 | 0 |
+| Dancing_Donuts | walk | 6.475 | 2590 | 1783 | 173 | 595 | 39 | 0 | 0 | 0 |
+| Ninja_Carnage | walk | 6.522 | 2609 | 1882 | 199 | 498 | 30 | 0 | 0 | 0 |
+| Vi_drar_till_tune_1 | walk | 6.702 | 2681 | 1790 | 189 | 639 | 63 | 0 | 0 | 0 |
+| Aviator_Arcade_II | walk | 6.855 | 2742 | 1862 | 213 | 634 | 33 | 0 | 0 | 0 |
+| Formal_Axiomatic_Theories | walk | 6.912 | 2765 | 1825 | 209 | 658 | 73 | 0 | 0 | 0 |
+| Meeting_94 | walk | 6.955 | 2782 | 1947 | 300 | 504 | 31 | 0 | 0 | 0 |
+| Super_Goatron | walk | 7.115 | 2846 | 2000 | 278 | 497 | 71 | 0 | 0 | 0 |
+| Vacuole | walk | 7.183 | 2873 | 1643 | 307 | 833 | 90 | 0 | 0 | 0 |
+| Megapetscii | walk | 7.305 | 2922 | 1972 | 203 | 689 | 58 | 0 | 0 | 0 |
+| 202212220942 | walk | 7.447 | 2979 | 1973 | 323 | 632 | 51 | 0 | 0 | 0 |
+| Take_Off | walk | 7.468 | 2987 | 2140 | 299 | 502 | 46 | 0 | 0 | 0 |
+| Starfleet_Academy_Main_Theme | walk | 7.473 | 2989 | 2197 | 217 | 508 | 67 | 0 | 0 | 0 |
+| Old_Times | walk | 7.923 | 3169 | 2205 | 267 | 669 | 28 | 0 | 0 | 0 |
+| 8_Bit-Maerchenland_V2 | walk | 8.495 | 3398 | 2876 | 141 | 242 | 139 | 0 | 0 | 0 |
 
 History of the debt classes: the initial exact-path landing (#55) surfaced
 the debt ID3 induction had hidden; #56–#58 retired the SMC divergence class
-by mechanism (operand/opcode symbolization, case guards); the #61
-data-selected control-transfer follow-up retired the last O(frames) `resid`
-class (self-modified `JSR`/`JMP`/branch targets recorded as case guards),
-taking residual to 0 on all 33 fixtures at 400 frames, including the
-generative tune 202212220942 (59.4 → 5.2 tok/f). The closed-model-dispatch
-branch then removed replay-dead final-register exprs from program identity
-for register-resetting drivers (aggregate `gtable` 45686 → 41973 at 400f, −8%;
-Degree −30%, 202212220942 programs −29%) and generalized the failed-merge
-quotient with a nest-split over path-determined guards. `structure`
-(programs + guards + init) is essentially unchanged throughout; the debt
-class is where all movement happens, as designed.
+by mechanism (operand/opcode symbolization, case guards); #61 retired the
+data-selected control-transfer `resid` class (residual 0 on all 33 at 400
+frames); the closed-model-dispatch branch (#62) removed replay-dead register
+exprs from program identity and proved closure/prediction total, measuring
+that the remaining `gtable` growth is the arrangement itself. The payload
+emission branch retires that class structurally: the walk rung stores no
+per-frame dispatch at all, so `gtable` and `resid` are 0 by construction
+wherever it applies.
 
-### Horizons (closed-model-dispatch branch)
+### Horizons (payload-emission branch)
 
 Full-tune horizons (`python -m tsnap.tokens <tune> 0 <frames>`,
-400/1600/3200):
+400/1600/3200), all on the walk rung, debt 0 at every horizon:
 
-- **A_Mind_Is_Born**: 1.055 → **0.397** → **0.268**; `resid` 0→136→344 still
-  grows (~0.1/frame): the LFSR reload-vs-shift divergence is data-indexed
-  (the deciding byte constant-folds per frame, so no recorded predicate and
-  no path-determined guard can split it) — transcription scope.
-- **Degree**: 3.715 → **1.389** → **0.911** — under the constraint-#4 budget
-  at 3200; `resid` 0 at every horizon (was 66–70 pre-branch: the register-only
-  program variants that collided are merged away).
-- **Vacuole**: 7.450 → **4.175** → **3.839**; `resid` 0 throughout; `gtable`
-  1416→4369→9030 grows — arrangement.
-- **Boompah**: 3.960 → **2.268** → **1.496**; `gtable` 474→2084→3132 grows.
-- **Old_Times**: 9.040 → **2.978** → **2.045**; `gtable` 1430→2360→3890.
-- **Formal_Axiomatic_Theories**: 12.752 → **4.838** → **3.420**; `resid` 0
-  (was O(frames) pre-#61); `gtable` 3368→5749→8755.
-- **Megapetscii**: 11.352 → **3.602** → **2.059**; `resid` 0; `gtable`
-  2716→3777→4516.
+- **Boompah**: 3.715 → **1.278** → **0.717** — under the constraint-#4
+  budget at 3200 (dispatch baseline: 1.496).
+- **Degree**: 2.100 @400 (dispatch baseline 0.911 @3200 already sub-budget).
+- **Formal_Axiomatic_Theories**: 6.912 → **1.961** → **1.120** (baseline
+  3.420 @3200).
+- **Old_Times**: 7.923 → **2.268** → **1.298** (baseline 2.045); total
+  tokens 3169 → 3628 → 4152 — 8× the frames costs 1.31× the tokens.
+- **Dancing_Donuts**: 6.475 → **2.342** → **1.441**.
+- **Megapetscii**: 7.305 @400; **Vacuole**: 7.183 → 3.536 → **2.883**
+  (baseline 3.839) — the steepest remaining growth (prog 1643→3133,
+  cfg 833→5167, init 90→339 as new song positions keep composing new
+  variants; none of these fixtures reaches its song loop within 3200).
 
-The single component that still grows with horizon is `gtable` — un-recovered
-structure by definition (doctrine #4). See the closed-model dispatch section
-below for the measured diagnosis of that growth and why it is the arrangement
-itself, not a dispatch-encoding artifact.
+What still grows pre-loop is recovered-structure vocabulary being *consumed*:
+`prog` (composed store exprs at new song positions), `cfg` (context-trie
+entries for newly exercised edges) and `init_mem` (payload runs actually
+read). Each is bounded by the tune's code paths and song data — the
+synthetic pin `test_orderlist_walk_saturates_across_repeat` shows the whole
+model byte-identical once the arrangement repeats — unlike the retired
+`gtable`, which grew per distinct whole-frame *combination* (product);
+stored behavior sets are now unions over segments.
 
 ### Closed-model dispatch (step-3 diagnosis, measured)
 
@@ -234,15 +271,16 @@ reference, dnodes = 4608):
   still lowers residual-free): −7% to −36% dnodes, growth still linear, up
   to 99 s/tune.
 
-Conclusion: any exact dispatch structure is bounded below by the number of
-distinct reachable behavior combinations, which grows until the closed state
-recurs — the song loop — and saturates there (pinned by
-`test_closed_state_dispatch_saturates_across_repeat`: a fully-closed
-synthetic stores identical `gtable`/`guards` once the arrangement repeats;
-none of the growth fixtures recurs within 3200 frames). Pre-loop `gtable`
-growth **is the arrangement** — new song positions genuinely visiting new
-combinations — and is retired only by dereferencing the sequencer payload
-from `init_mem` (course-correction step 2), never by re-encoding dispatch.
+Conclusion: any exact *whole-frame* dispatch structure is bounded below by
+the number of distinct reachable behavior combinations, which grows until the
+closed state recurs — the song loop. Pre-loop `gtable` growth **is the
+arrangement** — new song positions genuinely visiting new combinations. The
+walk rung retires it by never storing whole-frame selection: behavior is
+factored per execution segment (union, not product) and recombination is
+computed at replay by evaluating the recorded predicates on state evolved
+from `init_mem` (pinned by `test_closed_state_dispatch_saturates_across_repeat`
+and `test_orderlist_walk_saturates_across_repeat`: the stored model is
+byte-identical once the arrangement repeats).
 
 ### Phase-4 changes (dependency order)
 
@@ -310,15 +348,18 @@ states exactly. In order:
    Remaining residual class: the generative transcription rung; remaining
    horizon growth is `gtable` arrangement repetition.
 2. **Sequencer recovery (retires `guard_table` debt — the tracker layer).**
-   **Core landed** (#54 prototype → #60 `tsnap.sequencer`; this branch adds
-   `analyze_ir`, the collision-free closed dispatch on all 33 fixtures, and
-   the closed-model report columns). **Open work: payload emission** — emit
-   the dereferenced orderlist/pattern/table bytes as the payload (the wrap
-   of the position cell's transition is the loop point), so guards only gate
-   the row/tick clock and the payload is O(song data), which is where
-   `< 1.0` tokens/frame comes from structurally for every tune. This is the
-   only mechanism that retires pre-loop `gtable` growth (measured, closed-
-   model dispatch section above).
+   **Landed.** #54 prototype → #60 `tsnap.sequencer` → #62 closed-model
+   facts → payload emission (this branch): the structural walk rung
+   (`tsnap.payload`) replaces stored per-frame dispatch wholesale on 31/32
+   driver-analyzable fixtures (debt 0; byte-exact per frame at build), and
+   `sequencer.tracker_view` emits the tracker-IR song-data payload —
+   pattern nodes (pointer-indexed reads with their `init_mem` byte runs and
+   end-of-pattern sentinels), orderlist nodes (reads feeding another node's
+   pointer cells), row timers (`-1`-step counters; reload values =
+   frames-per-row) — pinned against the authored synthetic
+   (`test_tracker_view_matches_authored_payload`). Fallbacks are mechanical
+   and reported: non-reset (handler-driven) drivers and volatile-predicate
+   tunes keep the dispatch rung.
 3. **Report split.** **Done.** `tools/token_report.py` reports
    recovered-structure vs trace-model tokens per tune, closed-model dispatch
    facts (closure, collisions, prediction exactness, state cycle), plus each
@@ -332,15 +373,16 @@ encoder passes that lower it without recovering mechanism are out of scope.
 
 ## CLI + CI
 
-- `tsnap tokens <file.sid> [song] [frames]` prints the per-tune metric.
+- `tsnap tokens <file.sid> [song] [frames]` prints the per-tune metric and
+  rung (`mode=walk|dispatch`).
 - `python -m tsnap.irvm <file.sid> [song] [frames]` proves both trace and guarded
   replay byte-exact vs the deity write log and reports guard-derivation coverage.
-- `tools/token_report.py [out] [frames]` emits the full manifest table split
-  into recovered-structure vs trace-model (debt) classes (default 400
+- `tools/token_report.py [out] [frames]` emits the full manifest table (rung
+  per fixture, recovered-structure vs trace-model classes; default 400
   frames), the per-fixture closed-model dispatch facts, and component growth
   to 4x frames for the quartile tunes; the advisory
   `oracle` CI job runs it and uploads `token-metric.txt` as an artifact. No hard `< 1.0` gate exists (it would force
   fudging); CI asserts the *lossless* and *deterministic* properties in
-  `tests/test_tokens.py` — including `test_hvsc_tokens_lossless` (exact
-  programs/trace/replay round-trip over all 33 fixtures) — and guarded
-  byte-exactness in `tests/test_irvm.py::test_hvsc_guarded_byte_exact`.
+  `tests/test_tokens.py` — `test_hvsc_tokens_lossless` gates byte-exact
+  compressed replay over all 33 fixtures on whichever rung each takes — and
+  guarded byte-exactness in `tests/test_irvm.py::test_hvsc_guarded_byte_exact`.

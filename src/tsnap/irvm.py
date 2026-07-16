@@ -116,6 +116,7 @@ def _run_capture(path, song, frames):
     reg_key = (lambda _sreg: ()) if reset_regs else tuple
     guards_ser, guard_index = [], {}
     path_pool, path_index, path_ids = [], {}, []
+    seg_pool, seg_index, seg_ids = [], {}, []
     ground = [[tuple(rv) for rv in init_sid]]
     played = 0
     for _f in range(frames):
@@ -151,6 +152,13 @@ def _run_capture(path, song, frames):
             path_index[fpath] = pid
             path_pool.append([list(ev) for ev in fpath])
         path_ids.append(pid)
+        skey = tuple(vm.slog)
+        sgi = seg_index.get(skey)
+        if sgi is None:
+            sgi = len(seg_pool)
+            seg_index[skey] = sgi
+            seg_pool.append([[pos, a, _ser(e), s] for pos, a, e, s in vm.slog])
+        seg_ids.append(sgi)
         ground.append([(r, v) for _c, r, v in vm.wlog[wstart:]])
         played += 1
     ir = {
@@ -171,6 +179,8 @@ def _run_capture(path, song, frames):
         "guards": guards_ser,
         "path_pool": path_pool,
         "paths": path_ids,
+        "seg_pool": seg_pool,
+        "segs": seg_ids,
     }
     return ir, ground
 

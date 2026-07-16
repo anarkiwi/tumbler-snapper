@@ -79,7 +79,7 @@ def test_intern_shares_subtrees():
 def _lossless(path, song, frames):
     ir = irvm.serialize(path, song, frames)
     comp = json.loads(json.dumps(tokens.compress(ir)))  # survives JSON
-    assert irvm.replay(tokens.decompress(comp)) == irvm.replay(ir)
+    assert tokens.replay_comp(comp) == irvm.replay(ir)
     return ir, comp
 
 
@@ -94,39 +94,42 @@ def test_dead_init_elimination_drops_code(direct_sid):
     ir = irvm.serialize(direct_sid, 0, 80)
     comp = tokens.compress(ir)
     assert len(comp["init_mem"]) < len(ir["init_mem"])  # player code dropped
-    assert irvm.replay(tokens.decompress(comp)) == irvm.replay(ir)
+    assert tokens.replay_comp(comp) == irvm.replay(ir)
 
 
 def test_decompress_rebuilds_programs_and_trace(indexed_sid):
     """Stream derivation reproduces the exact program vocabulary and trace."""
     ir = irvm.serialize(indexed_sid, 0, 200)
-    out = tokens.decompress(tokens.compress(ir))
+    out = tokens.decompress(tokens.compress(ir, walk=False))
     assert out["programs"] == ir["programs"] and out["trace"] == ir["trace"]
 
 
 def test_cell_factoring_shrinks_slots(branch_sid):
     """Per-cell alphabets hold fewer slots than the whole-frame program bundles."""
     ir = irvm.serialize(branch_sid, 0, 120)
-    comp = tokens.compress(ir)
+    comp = tokens.compress(ir, walk=False)
     bundled = sum(len(p["trans"]) + len(p["regs"]) + len(p["sid"]) for p in ir["programs"])
     assert len(ir["programs"]) > 1
     assert sum(len(a) for a in comp["alphabets"]) < bundled
 
 
 def test_closed_state_dispatch_saturates_across_repeat(branch_sid):
-    """A tune whose state fully closes stores no per-frame dispatch: guard_table
-    and guards are unchanged once the arrangement repeats (state cycle 256)."""
-    c1 = tokens.count_tokens(tokens.compress(irvm.serialize(branch_sid, 0, 320)))
-    c2 = tokens.count_tokens(tokens.compress(irvm.serialize(branch_sid, 0, 640)))
-    assert c1["residual"] == c2["residual"] == 0
-    assert c1["guard_table"] > 0
-    assert c2["guard_table"] == c1["guard_table"] and c2["guards"] == c1["guards"]
+    """A tune whose state fully closes stores no per-frame dispatch: the walk
+    model is unchanged once the arrangement repeats (state cycle 256)."""
+    c1 = tokens.compress(irvm.serialize(branch_sid, 0, 320))
+    c2 = tokens.compress(irvm.serialize(branch_sid, 0, 640))
+    assert c1["mode"] == c2["mode"] == "walk"
+    t1, t2 = tokens.count_tokens(c1), tokens.count_tokens(c2)
+    assert t1["debt"] == t2["debt"] == 0
+    assert t1["cfg"] > 0
+    assert t2 == t1
 
 
 def test_volatile_fallback_residual_is_lossless(volatile_sid):
     """Non-closing (volatile-driven) selection falls back to stored residual."""
     ir = irvm.serialize(volatile_sid, 0, 64)
     comp = tokens.compress(ir)
+    assert comp["mode"] == "dispatch"
     assert tokens.count_tokens(comp)["residual"] > 0
     dec = tokens.decompress(comp)
     assert dec["trace"] == ir["trace"] and irvm.replay(dec) == irvm.replay(ir)
@@ -134,7 +137,7 @@ def test_volatile_fallback_residual_is_lossless(volatile_sid):
 
 def test_covarying_cells_share_a_group(branch_sid):
     ir = irvm.serialize(branch_sid, 0, 120)
-    comp = tokens.compress(ir)
+    comp = tokens.compress(ir, walk=False)
     assert any(len(g) > 1 for g in comp["groups"])
 
 
@@ -176,7 +179,7 @@ def test_metric_fields(indexed_sid):
     m = tokens.metric(indexed_sid, 0, 200)
     assert m["frames"] == 200
     assert m["tokens"] == (
-        m["programs"] + m["guards"] + m["guard_table"] + m["residual"] + m["init_mem"]
+        m["programs"] + m["guards"] + m["cfg"] + m["guard_table"] + m["residual"] + m["init_mem"]
     )
     assert m["tokens_per_frame"] == pytest.approx(m["tokens"] / m["frames"])
     assert m["dominant"] in ("programs", "guards", "guard_table", "residual", "init_mem")
@@ -206,9 +209,11 @@ def test_hvsc_tokens_lossless(fx):
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")
     ir = irvm.serialize(str(path), fx["song"], _HVSC_FRAMES)
-    out = tokens.decompress(json.loads(json.dumps(tokens.compress(ir))))
-    assert out["programs"] == ir["programs"] and out["trace"] == ir["trace"]
-    assert irvm.replay(out) == irvm.replay(ir)
+    comp = json.loads(json.dumps(tokens.compress(ir)))
+    assert tokens.replay_comp(comp) == irvm.replay(ir)
+    if comp["mode"] == "dispatch":
+        out = tokens.decompress(comp)
+        assert out["programs"] == ir["programs"] and out["trace"] == ir["trace"]
 
 
 def test_main_prints_metric(indexed_sid):

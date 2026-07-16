@@ -631,6 +631,55 @@ def _addr_runs(addrs):
     return [tuple(r) for r in runs]
 
 
+def tracker_view(res):
+    """Tracker-IR view over the recovered accessor chains (song-data payload).
+
+    Structural roles: pointer-indexed nodes are pattern data; nodes feeding
+    another node's pointer cells are orderlists; ``-1``-step counters reloaded
+    from cells/consts are row timers (reload values = frames-per-row).
+    """
+    if "error" in res:
+        return {"error": res["error"]}
+    tables = res["tables"]
+    ptr_cells = {a for t in tables for a, role in t["icells"] if role == "ptr"}
+    cells = res["cells"]
+
+    def voices(t):
+        return sorted({x[1] // 7 for x in t["feeds"] if x[0] == "sid" and x[1] < 21})
+
+    def entry(t):
+        return {
+            "base": t["base"],
+            "runs": t["runs"],
+            "payload": t["payload"],
+            "sentinel": t["sentinel"],
+            "index_cells": t["icells"],
+            "voices": voices(t),
+        }
+
+    patterns = [entry(t) for t in tables if any(r == "ptr" for _a, r in t["icells"])]
+    orderlists = [
+        entry(t) for t in tables if any(k == "cell" and a in ptr_cells for k, a, *_ in t["feeds"])
+    ]
+    timers = []
+    for (a, sz), info in cells.items():
+        if info["cls"] == "counter" and info["steps"] == {(1 << (8 * sz)) - 1}:
+            timers.append(
+                {
+                    "cell": a,
+                    "reload_consts": sorted(info["consts"]),
+                    "reload_cells": sorted(info["copies"]),
+                    "bound": res["bounds"].get((a, sz), []),
+                }
+            )
+    return {
+        "patterns": patterns,
+        "orderlists": orderlists,
+        "row_timers": timers,
+        "chain_depth": res["max_chain"],
+    }
+
+
 def verdict(res):
     """Structural verdict string (no thresholds)."""
     if "error" in res:

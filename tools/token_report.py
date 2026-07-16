@@ -22,7 +22,7 @@ from tsnap import irvm, sequencer, tokens  # noqa: E402  pylint: disable=wrong-i
 
 FRAMES = 400
 CACHE = Path(".oracle-cache/hvsc")
-COMPONENTS = ("programs", "guards", "init_mem", "guard_table", "residual")
+COMPONENTS = ("programs", "guards", "cfg", "init_mem", "guard_table", "residual")
 
 
 def _closed_facts(ir, path):
@@ -63,16 +63,18 @@ def main():
     with ProcessPoolExecutor(max_workers=8) as ex:
         rows = [r for r in ex.map(_one, tasks) if r[1]]
     rows.sort(key=lambda r: r[1]["tokens_per_frame"])
-    cols = ("tune", "tok/frm", "tokens", "frm", "struct", "prog", "guards", "init")
-    hdr = "{:32s} {:>9s} {:>7s} {:>4s} | {:>7s} {:>6s} {:>6s} {:>5s}".format(*cols)
+    cols = ("tune", "rung", "tok/frm", "tokens", "frm", "struct", "prog", "guards", "cfg", "init")
+    hdr = "{:32s} {:>8s} {:>9s} {:>7s} {:>4s} | {:>7s} {:>6s} {:>6s} {:>5s} {:>5s}".format(*cols)
     hdr += " | {:>6s} {:>6s} {:>6s}".format("debt", "gtable", "resid")
     lines = [hdr]
     below = 0
     for name, m, _facts in rows:
         below += m["tokens_per_frame"] < 1.0
         lines.append(
-            f"{name:32s} {m['tokens_per_frame']:9.3f} {m['tokens']:7d} {m['frames']:4d} | "
-            f"{m['structure']:7d} {m['programs']:6d} {m['guards']:6d} {m['init_mem']:5d} | "
+            f"{name:32s} {m['mode']:>8s} {m['tokens_per_frame']:9.3f} "
+            f"{m['tokens']:7d} {m['frames']:4d} | "
+            f"{m['structure']:7d} {m['programs']:6d} {m['guards']:6d} {m['cfg']:5d} "
+            f"{m['init_mem']:5d} | "
             f"{m['debt']:6d} {m['guard_table']:6d} {m['residual']:6d}"
         )
     lines.append(f"\n< 1.0 tok/frame: {below}/{len(rows)} fixtures")

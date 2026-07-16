@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from tsnap import irvm
+from tsnap import irvm, payload
 
 # pylint: disable=protected-access
 
@@ -171,13 +171,19 @@ def _group_streams(streams):
     return groups, gseqs
 
 
-def compress(ir):
+def compress(ir, walk=True):
     """Apply the lossless passes, returning a compressed IR dict.
 
-    Programs factor into per-cell slot alphabets, a SID-order struct stream and
-    co-varying cell-group streams, each lowered from the recorded ordered branch
-    paths; ambiguous frames fall to one whole-frame combo residual.
+    The structural rung (``payload.build`` walk model, no per-frame dispatch,
+    gated byte-exact) is tried first; tunes it rejects keep the dispatch
+    pipeline (slot alphabets + path-derived streams + combo residual).
     """
+    if walk:
+        comp, _reason = payload.build(ir)
+        if comp is not None:
+            walk_reads = payload.collect_reads(comp)
+            comp["init_mem"] = [run for run in ir["init_mem"] if _run_is_read(run, walk_reads)]
+            return comp
     pool, index = [], {}
     programs = [
         {
@@ -219,6 +225,7 @@ def compress(ir):
     gpool, gindex = [], {}
     guard_roots = [_intern(guards[gid], gpool, gindex) for gid in used]
     return {
+        "mode": "dispatch",
         "frames": ir["frames"],
         "init_mem": [run for run in ir["init_mem"] if _run_is_read(run, reads)],
         "init_regs": ir["init_regs"],
@@ -359,6 +366,8 @@ def decompress(comp):
 def count_tokens(comp):
     """Per-category token breakdown of a compressed IR, split into
     recovered-structure vs trace-model (debt) classes."""
+    if comp.get("mode") == "walk":
+        return payload.count_tokens(comp)
     slots = sum(len(a) for a in comp["alphabets"])
     wiring = sum(len(s) for s in comp["structs"]) + sum(len(g) for g in comp["groups"])
     programs = len(comp["pool"]) + slots + wiring
@@ -379,6 +388,13 @@ def count_tokens(comp):
     }
 
 
+def replay_comp(comp):
+    """Flat ordered write stream from a compressed IR, whichever rung it took."""
+    if comp.get("mode") == "walk":
+        return payload.replay(comp)
+    return irvm.replay(decompress(comp))
+
+
 def token_count(ir):
     """Total token count of an (uncompressed) generator-IR after compression."""
     return count_tokens(compress(ir))["tokens"]
@@ -397,6 +413,7 @@ def metric_ir(ir):
     cats = {k: c[k] for k in ("programs", "guards", "guard_table", "residual", "init_mem")}
     dominant = max(cats, key=cats.get)
     return {
+        "mode": comp.get("mode", "dispatch"),
         "tokens": c["tokens"],
         "frames": played,
         "tokens_per_frame": c["tokens"] / played if played else 0.0,
@@ -404,6 +421,7 @@ def metric_ir(ir):
         "guards": c["guards"],
         "guard_table": c["guard_table"],
         "residual": c["residual"],
+        "cfg": c.get("cfg", 0),
         "init_mem": c["init_mem"],
         "structure": c["structure"],
         "debt": c["debt"],
@@ -420,8 +438,9 @@ def main(argv=None):
     m = metric(path, song, frames)
     print(
         f"{m['tokens_per_frame']:.4f} tok/frame  "
-        f"tokens={m['tokens']} frames={m['frames']}  "
-        f"(programs={m['programs']} guards={m['guards']} guard_table={m['guard_table']} "
+        f"tokens={m['tokens']} frames={m['frames']} mode={m['mode']}  "
+        f"(programs={m['programs']} guards={m['guards']} cfg={m['cfg']} "
+        f"guard_table={m['guard_table']} "
         f"residual={m['residual']} init_mem={m['init_mem']}; dominant={m['dominant']}; "
         f"structure={m['structure']} debt={m['debt']})"
     )

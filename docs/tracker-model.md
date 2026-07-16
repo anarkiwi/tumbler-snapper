@@ -1,7 +1,14 @@
-# Tracker model (proposal)
+# Tracker model
 
-> Packaged as `tsnap.tracker` (`src/tsnap/tracker.py`); `prototypes/tracker.py` is the
-> frozen reference. Run via `tsnap tracker <file.sid>`. Fixture curation: `tsnap curate`.
+> **Layer roles.** The load-bearing tracker layer is the structural payload
+> rung: `tsnap.payload` (walk model, byte-exact replay with no stored
+> per-frame dispatch — docs/tokens.md) + `tsnap.sequencer.tracker_view`
+> (orderlist / pattern / row-timer / frames-per-row roles over the recovered
+> accessor chains, payload dereferenced from `init_mem`). `tsnap.tracker`
+> (`tsnap tracker <file.sid>`; frozen reference `prototypes/tracker.py`) is a
+> **display-only diagnostic view** (tuning, human-readable instrument/table
+> summaries); its trace-sampled sections must not be built upon (doctrine #1)
+> and it plays no role in the emitted IR.
 
 Target intermediate representation for the second-stage script, which consumes
 `recover.py`'s per-register generators + cadence and emits a tracker-like model.
@@ -142,7 +149,10 @@ The generator-level round-trip is implemented and proven: see
 [`docs/irvm.md`](irvm.md) (`tsnap.irvm`) — a self-contained generator-IR whose
 replay reconstructs the ordered SID write stream **byte-exact against the deity
 `PcodeVM` log on all 32 fixtures** (intra-frame multi-writes included). The
-tracker-semantics replay above is the next layer over that proven substrate.
+structural rung's walk replay (`tsnap.payload`) is the landed tracker-layer
+replay over that substrate: it stores no per-frame dispatch and is gated
+byte-exact per frame at build; `sequencer.tracker_view` labels the song-data
+payload it evolves through (orderlists / patterns / row timers).
 
 **Acceptance gate:** the tracker layer is complete only when its
 tracker-semantics replay diffs byte-exact against the generator-IR replay

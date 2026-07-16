@@ -1,8 +1,8 @@
-"""Tracker-IR builder over recover.py generators.
+"""Display-only tracker text view over recover.py generators (diagnostics).
 
-Resolves indexed generator reads into named tables (pitch/instrument records),
-binds instruments to selector rows, standardizes pitch to A440/12-TET (freqtable
-read directly from memory), and emits IR with SID model/clock from the header.
+Resolves indexed reads into named tables, binds instruments, standardizes
+pitch to A440/12-TET. Not part of the emitted IR: the load-bearing tracker
+layer is tsnap.payload (walk rung) + tsnap.sequencer.tracker_view.
 """
 
 from __future__ import annotations
