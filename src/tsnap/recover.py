@@ -305,6 +305,9 @@ class SymVM(PcodeVM):
         self.img = (0, 0)
         self.play_writes = set()
         self.smc = set()
+        self.frame_written = set()
+        self.alias_sites = set()
+        self.alias = frozenset()
         self._op_subs = None
         self.concrete_only = False
         self.vol_seq = 0
@@ -316,6 +319,8 @@ class SymVM(PcodeVM):
             if a in WATCH:
                 self.hw[a] = (val >> (8 * i)) & 0xFF
             self.play_writes.add(a)
+            if self.concrete_only:
+                self.frame_written.add(a)
 
     def begin_frame(self):
         _SIMP_MEMO.clear()
@@ -417,6 +422,8 @@ class SymVM(PcodeVM):
                 addr, sz = rv(ins[0]), out[2]
                 wv(out, self._rd(addr, sz))
                 if sym:
+                    if (pc, oi) in self.alias:
+                        self._record_alias(pc, self._sread_op(ins, 0, oi), addr)
                     if self.volatile and any(
                         (addr + i) & 0xFFFF in VOLATILE_READS for i in range(sz)
                     ):
@@ -426,6 +433,8 @@ class SymVM(PcodeVM):
                         self._swrite(out, self.sdefs[addr])
                     else:
                         self._swrite(out, ("mem", simplify(self._sread_op(ins, 0, oi)), sz))
+                elif addr in self.frame_written:
+                    self.alias_sites.add((pc, oi))
                 continue
             if mn in ("COPY", "INT_ZEXT"):
                 wv(out, rv(ins[0]))
@@ -441,6 +450,35 @@ class SymVM(PcodeVM):
             if sym:
                 s = (self._sread_op(ins, 0, oi), self._sread_op(ins, 1, oi))
                 self._swrite(out, simplify(("op", mn, s, out[2])))
+
+    def stack_write(self, addr, byte):
+        """A VM-internal stack push is a recorded store (visible to F/slog/loads)."""
+        expr = ("const", byte)
+        self.sdefs[addr] = expr
+        self.F[addr] = expr
+        self.Fsz[addr] = 1
+        self.slog.append((len(self.guards), addr, expr, 1))
+
+    def _sp_delta(self, d):
+        self.sreg[3] = simplify(("op", "INT_ADD", (self.sreg[3], ("const", d & 0xFF)), 1))
+
+    def step(self, pc, cache, lifter):
+        """Track the stack bytes/pointer that ctrl ops move outside p-code."""
+        op = self.mem[pc]
+        sp0 = self.reg[3]
+        nxt = super().step(pc, cache, lifter)
+        pushes = _CTRL_PUSH.get(op)
+        if pushes is None:
+            return nxt
+        if self.concrete_only:
+            for i in range(max(pushes, 0)):
+                self.frame_written.add(0x100 + ((sp0 - i) & 0xFF))
+            return nxt
+        for i in range(max(pushes, 0)):
+            a = 0x100 + ((sp0 - i) & 0xFF)
+            self.stack_write(a, self.mem[a])
+        self._sp_delta(-pushes)
+        return nxt
 
     def _record_branch(self, pc, flag_expr, pol, taken):
         """Record one ordered branch event ``(site, predicate, taken)``.
@@ -493,6 +531,23 @@ class SymVM(PcodeVM):
             return
         self.guards.append((pc, None if _has_uni(pred) else pred, 1))
 
+    def _record_alias(self, pc, addr_expr, addr):
+        """Record read-placement identity where a computed load can read same-frame stores.
+
+        At an alias site (prepass: load read a cell written earlier the same
+        frame) the evaluated address selects whether the recorded value forwards
+        a same-frame store or reads frame-entry memory; the frame-entry-pure
+        case ``addr_expr == addr`` splits the alternatives at replay like
+        branch guards.
+        """
+        ae = simplify(addr_expr)
+        if ae[0] == "const":
+            return
+        pred = simplify(("op", "INT_EQUAL", (ae, ("const", addr)), 1))
+        if pred[0] == "const":
+            return
+        self.guards.append((pc, None if _has_uni(pred) else pred, 1))
+
     def _record_code(self, pc):
         """Record executed-instruction identity at a play-written code cell.
 
@@ -540,12 +595,20 @@ class SymVM(PcodeVM):
         return ctrl, nxt
 
 
+# stack bytes moved by ctrl ops inside PcodeVM.step, not by p-code stores
+_CTRL_PUSH = {0x20: 2, 0x00: 3, 0x60: -2, 0x40: -3}
+
+
 def _push(vm, byte):
     """Driver-synthesized stack push, visible to replay as a recorded store."""
     addr = 0x100 + vm.reg[3]
     vm.mem[addr] = byte & 0xFF
     vm.reg[3] = (vm.reg[3] - 1) & 0xFF
-    vm.slog.append((len(vm.guards), addr, ("const", byte & 0xFF), 1))
+    if vm.concrete_only:
+        vm.frame_written.add(addr)
+    else:
+        vm.stack_write(addr, byte & 0xFF)
+        vm._sp_delta(-1)  # pylint: disable=protected-access
 
 
 def _drive(vm, entry, cache):
@@ -775,21 +838,29 @@ def setup(path, song):
     return vm, h, cache
 
 
-def smc_operands(path, song, calls):
-    """Memory addresses the play routine writes (self-modified/mutable state).
+def prepass(path, song, calls):
+    """Concrete play prepass: ``(play_writes, alias_sites)``.
 
-    Not limited to the load image: init may relocate the player, so any
-    play-written cell an executed instruction's bytes overlap is SMC state.
+    ``play_writes`` — memory the play routine writes (not limited to the load
+    image: init may relocate the player). ``alias_sites`` — ``(pc, op-index)``
+    loads observed reading a cell written earlier in the same frame.
     """
     vm, h, cache = setup(path, song)
     vm.concrete_only = True
     advance = frame_driver(vm, h, cache)
     if advance is None:
-        return set()
+        return set(), frozenset()
     vm.play_writes = set()
+    vm.alias_sites = set()
     for _ in range(calls):
+        vm.frame_written = set()
         advance()
-    return vm.play_writes
+    return vm.play_writes, frozenset(vm.alias_sites)
+
+
+def smc_operands(path, song, calls):
+    """Memory addresses the play routine writes (see ``prepass``)."""
+    return prepass(path, song, calls)[0]
 
 
 def _word(hw, pair):
@@ -913,9 +984,10 @@ def _resolve_shadows(variants):
 
 
 def run(path, song, frames):
-    smc = smc_operands(path, song, frames)
+    smc, alias = prepass(path, song, frames)
     vm, h, cache = setup(path, song)
     vm.smc = smc
+    vm.alias = alias
     advance = frame_driver(vm, h, cache)
     targets = list(SID_REGS)
     tset = set(targets)

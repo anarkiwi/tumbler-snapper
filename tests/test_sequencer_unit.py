@@ -177,11 +177,13 @@ _SEQ_HEX = "242628292b2d2f302f2d2b2928262424"
 def test_analyze_indexed_recovers_sequencer(indexed_sid):
     res = S.analyze(indexed_sid, 0, 300)
     assert S.verdict(res) == "exact+seq"
-    assert res["ncls"] == {"counter": 1, "pointer": 1, "computed": 1}
-    assert res["model_cells"] == res["total_cells"] == 9
+    assert res["ncls"] == {"counter": 1, "pointer": 1, "computed": 1, "selector": 2}
+    assert res["model_cells"] == res["total_cells"] == 11
     assert res["pred"]["exact"] == res["pred"]["frames"] == 300
     assert res["pred"]["cycle"] == (1, 256)
     assert {a: i["cls"] for (a, _sz), i in res["cells"].items() if not i["sid"]} == {
+        0x1FE: "selector",  # driver stack pushes (recorded machine state)
+        0x1FF: "selector",
         0x2200: "counter",
         0x2201: "pointer",
         0x2202: "computed",
@@ -198,8 +200,8 @@ def test_analyze_indexed_recovers_sequencer(indexed_sid):
 def test_analyze_direct(direct_sid):
     res = S.analyze(direct_sid, 0, 64)
     assert S.verdict(res) == "exact"
-    assert res["ncls"] == {"counter": 1}
-    assert res["model_cells"] == res["total_cells"] == 26
+    assert res["ncls"] == {"counter": 1, "selector": 2}
+    assert res["model_cells"] == res["total_cells"] == 28
     assert not res["tables"]
 
 
@@ -252,10 +254,10 @@ def test_analyze_degree_gate1_pins():
         "computed": 5,
         "counter": 7,
         "pointer": 19,
-        "selector": 8,
+        "selector": 10,
         "toggle": 1,
     }
-    assert res["model_cells"] == res["total_cells"] == 66
+    assert res["model_cells"] == res["total_cells"] == 68
     assert res["guards_closed"] == res["guards_total"] == 72
     assert res["rprogs"] == 72
     assert res["dispatch_keys"] == 184 and res["collisions"] == 0

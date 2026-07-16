@@ -579,6 +579,48 @@ def wrap_sid(tmp_path):
     return _write(tmp_path, "wrap.sid", data)
 
 
+# Alias tune: an indexed load reads a cell the same frame already stored.
+
+_AL_LOAD = 0x4400
+_AL_INIT = 0x4400
+_AL_PLAY = 0x4410
+_AL_IDX = 0x4500
+_AL_ZERO = 0x4501
+_AL_TABLE = 0x4600
+
+
+def _alias_image():
+    ilo, ihi = _lohi(_AL_IDX)
+    zlo, zhi = _lohi(_AL_ZERO)
+    tlo, thi = _lohi(_AL_TABLE)
+    t2lo, t2hi = _lohi(_AL_TABLE + 2)
+    init_code = _asm([0xA9, 0x00], [0x8D, ilo, ihi], [0x8D, zlo, zhi], [0x60])
+    play_code = _asm(
+        [0xAD, zlo, zhi],  # LDA zero (recorded branch predicate)
+        [0xD0, 0x01],  # BNE +1 (never taken)
+        [0xEA],  # NOP
+        [0xA9, 0x00],  # LDA #0
+        [0x8D, t2lo, t2hi],  # STA table+2 (same-frame store into the table)
+        [0xAC, ilo, ihi],  # LDY idx
+        [0xB9, tlo, thi],  # LDA table,Y (aliases table+2 when idx=2)
+        [0x8D, 0x01, 0xD4],  # STA $D401
+        [0xAD, ilo, ihi],  # LDA idx
+        [0x18],
+        [0x69, 0x01],  # CLC; ADC #1
+        [0x29, 0x03],  # AND #3
+        [0x8D, ilo, ihi],  # STA idx
+        [0x60],
+    )
+    return {_AL_INIT: init_code, _AL_PLAY: play_code, _AL_TABLE: bytes((0x10, 0x20, 0x30, 0x40))}
+
+
+@pytest.fixture
+def alias_sid(tmp_path):
+    """Indexed load whose placement decides same-frame-store vs frame-entry read."""
+    data = assemble(_alias_image(), load=_AL_LOAD, init=_AL_INIT, play=_AL_PLAY)
+    return _write(tmp_path, "alias.sid", data)
+
+
 # Cadence probes: init writes different interrupt hardware.
 
 _C_LOAD = 0x3000

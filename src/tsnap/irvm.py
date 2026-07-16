@@ -14,7 +14,7 @@ from tsnap.recover import (
     setup,
     frame_driver,
     play_entry_reg,
-    smc_operands,
+    prepass,
 )
 
 _MASK = [(1 << (8 * s)) - 1 for s in range(9)]
@@ -104,10 +104,11 @@ def _ser(e):
 
 def _run_capture(path, song, frames):
     """Drive recover's SymVM, capturing the IR and the deity ordered write log."""
-    smc = smc_operands(path, song, frames)
+    smc, alias = prepass(path, song, frames)
     vm, h, cache = setup(path, song)
     init_sid = [[r, v & 0xFF] for r, v in vm.init_sid]
     vm.smc = smc
+    vm.alias = alias
     vm.wlog = []
     advance = frame_driver(vm, h, cache)
     init_mem = _nonzero_runs(vm.mem)
