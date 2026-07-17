@@ -12,7 +12,7 @@ import os
 import sys
 from collections import Counter
 import pysidtracker as p
-from deity_informant import lift
+from deity_informant import lift, c64
 from deity_informant import expr as E
 from deity_informant.expr import ExprTooComplex
 from deity_informant.vm import PcodeVM
@@ -59,7 +59,6 @@ WATCH = {
     0xFFFF,
 }
 MIN_CIA_LATCH = 256
-VOLATILE_READS = frozenset((0xD011, 0xD012, 0xD019, 0xD41B, 0xD41C, 0xDC0D))
 
 
 def apply_op(mn, a, b, sz):
@@ -149,18 +148,26 @@ def _simp(e):
 
 
 def simplify(e):
+    """Canonicalise ``e``, memoised **structurally** (value-keyed).
+
+    Identical nodes built at different sites/frames dedup; a canonical result is
+    its own fixpoint, so the memo persists across frames within one ``record``
+    run (cleared at the record boundary). Working set is the tune's vocabulary.
+    """
     if e[0] != "op":
         return e
-    ent = _SIMP_MEMO.get(id(e))
-    if ent is not None and ent[0] is e:
-        return ent[1]
+    r = _SIMP_MEMO.get(e)
+    if r is not None:
+        return r
     r = _simp(e)
-    _SIMP_MEMO[id(e)] = (e, r)
+    _SIMP_MEMO[e] = r
+    if r[0] == "op":
+        _SIMP_MEMO[r] = r
     return r
 
 
 def clear_simplify_memo():
-    """Drop the id-keyed ``simplify`` memo (per frame, bounding its growth)."""
+    """Drop the structural ``simplify`` memo (once per ``record`` run)."""
     _SIMP_MEMO.clear()
 
 
@@ -377,26 +384,13 @@ def _drive(vm, entry, cache):
             raise RuntimeError(f"runaway routine at ${pc:04X}")
 
 
-# KERNAL IRQ-return stub for CINV handlers (no ROM): $EA31->$EA81 pulls Y/X/A, RTI.
-_EA31 = (0xEA31, bytes((0x4C, 0x81, 0xEA)))
-_EA81 = (0xEA81, bytes((0x68, 0xA8, 0x68, 0xAA, 0x68, 0x40)))
-
-
-def _install_kernal_stubs(vm):
-    for addr, code in (_EA31, _EA81):
-        vm.mem[addr : addr + len(code)] = code
-
-
 def _handler_info(vm):
-    """Installed interrupt handler and whether it uses the KERNAL (CINV) ABI."""
-    for pair, kernal in ((IRQ_VEC, True), (HW_IRQ_VEC, False), (NMI_VEC, False)):
-        if pair[0] in vm.hw or pair[1] in vm.hw:
-            return (vm.mem[pair[0]] | (vm.mem[pair[1]] << 8), kernal)
-    lo, hi = vm.img
-    if lo <= IRQ_VEC[0] < hi and lo <= IRQ_VEC[1] < hi:
-        civ = vm.mem[IRQ_VEC[0]] | (vm.mem[IRQ_VEC[1]] << 8)
-        return (civ, True) if civ else (None, False)
-    return (None, False)
+    """Installed interrupt handler ``(addr, uses_kernal_cinv)`` via deity ``c64``.
+
+    ``(None, False)`` when no handler; the observed WATCHed writes and load-image
+    bounds are the discovery inputs deity ``installed_handler`` takes.
+    """
+    return c64.installed_handler(vm.mem, vm.hw, vm.img) or (None, False)
 
 
 def _drive_handler(vm, cache, handler, kernal):
@@ -453,7 +447,7 @@ def frame_driver(vm, h, cache):
     """
     handler, kernal = _handler_info(vm)
     if handler is not None:
-        _install_kernal_stubs(vm)
+        c64.install_kernal_irq_stubs(vm)
         return lambda: _drive_handler(vm, cache, handler, kernal)
     if h.play_address:
         return lambda: _drive_play(vm, h.play_address, cache)
@@ -553,25 +547,7 @@ def _value_cells_of(e):
     return out
 
 
-def _poweron_ram():
-    """C64 power-on RAM fill (libsidplayfp ``SystemRAMBank::reset``).
-
-    Each 16 KiB block alternates 0x00/0xFF, with 4-byte stripes of the opposite
-    value every 8 bytes from offset 2. Tunes that read RAM they never wrote see
-    these values on real hardware; a zero fill diverges from the sidplayfp oracle.
-    """
-    ram = bytearray(0x10000)
-    byte = 0x00
-    for j in range(0, 0x10000, 0x4000):
-        ram[j : j + 0x4000] = bytes((byte,)) * 0x4000
-        byte ^= 0xFF
-        stripe = bytes((byte,)) * 4
-        for i in range(0x02, 0x4000, 0x08):
-            ram[j + i : j + i + 4] = stripe
-    return bytes(ram)
-
-
-_POWERON_RAM = _poweron_ram()
+_POWERON_RAM = c64.poweron_ram()
 
 
 def setup(path, song):
@@ -740,7 +716,7 @@ def record(path, song, frames):
     if reset and not h.play_address:
         return vm, h, []
     if not reset:
-        _install_kernal_stubs(vm)
+        c64.install_kernal_irq_stubs(vm)
     try:
         frs = symrec.record_frames(vm, entry, maker, frames, assertion=False)
     except (RuntimeError, ExprTooComplex):
