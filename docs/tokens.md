@@ -267,6 +267,13 @@ under, Smutta crossed just over). All trace/comp gates pass on 32/32; the one
 oracle gate failure and the budget failures are diagnosed below (diagnosis
 only; encoder freeze applies).
 
+This full-horizon table predates deity 0.3.2; its oracle column needs the
+Docker sidtrace render to regenerate (CI). deity 0.3.2's placement guards
+shift walk vocabulary a few percent bidirectionally with mode/debt unchanged
+and byte-exactness preserved (see the 400-frame advisory table below), so the
+`< 1.0` verdict character is unchanged — the two over-budget walk fixtures
+(Space_Ache_Preview, Smutta) are the same pre-existing borderline cases.
+
 Component split at the full horizon (`struct` = prog + guards + cfg + init,
 recovered structure; `debt` = gtable + resid, trace model; `walk-reject` =
 the stated mechanical reason a tune left the walk rung):
@@ -522,7 +529,7 @@ cost is linear in frames and inherently sequential (each frame's state feeds
 the next), so the full-horizon run is a reported, operator-invoked
 measurement — CI keeps the 400-frame advisory mode.
 
-### Secondary: 400-frame advisory table (re-measured post read-placement/stack recording)
+### Secondary: 400-frame advisory table (re-measured on deity-informant 0.3.2)
 
 400 frames per tune, HVSC fixture manifest (33 fixtures), sorted by
 `tokens/frame`. `rung` is the derived per-tune assignment; `struct` = prog +
@@ -531,49 +538,50 @@ model). **31/32 driver-analyzable fixtures land the structural walk rung with
 debt 0 at 400 frames, and hold it at every measured horizon** (the former
 full-horizon fallbacks Sc00ter and Meeting_94 are resolved above);
 A_Mind_Is_Born is handler-driven (non-reset registers) and keeps the dispatch
-rung (debt 37 = its whole `gtable`); Goldberg has no per-frame play driver.
-Aggregate debt at 400 frames: 41973 (dispatch-only baseline) → **37**.
-The step-9 evolved-state templates shrink every walk fixture's vocabulary vs
-the prior measurement (largest on the JSR-heavy 202212220942, 10.408 → 4.553
-at 400 frames — the #66 stack/read-placement vocabulary re-canonicalized),
-with closed-model facts unchanged (all closures total, 0 collisions,
-prediction exact on 400/400 everywhere).
+rung (debt 30 = its whole `gtable`); Goldberg has no per-frame play driver.
+Aggregate debt at 400 frames: 41973 (dispatch-only baseline) → **30**.
+deity 0.3.2's unconditional placement guards shift walk-fixture vocabulary a
+few percent in both directions vs the 0.3.1 measurement (e.g. Degree 2.305 →
+2.107, Kate_and_Martin 3.645 → 3.940), with mode, debt and closure facts
+unchanged (all closures total, 0 collisions, prediction exact on 400/400
+everywhere) and byte-exactness preserved; the dispatch fixture's `gtable`
+shrinks 37 → 30 (placement facts subsume alias cases).
 
 | tune | rung | tok/f | struct | prog | guards | cfg | init | debt | gtable | resid |
 |------|------|------:|-------:|-----:|-------:|----:|-----:|-----:|-------:|------:|
 | Goldberg_Variations_parts_1-7 | dispatch | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| A_Mind_Is_Born | dispatch | 1.000 | 363 | 338 | 20 | 0 | 5 | 37 | 37 | 0 |
-| Degree | walk | 2.305 | 922 | 638 | 70 | 120 | 94 | 0 | 0 | 0 |
-| Mystifiable_Intro_2 | walk | 2.515 | 1006 | 794 | 62 | 116 | 34 | 0 | 0 | 0 |
-| Massacre_on_Stage | walk | 2.880 | 1152 | 788 | 126 | 191 | 47 | 0 | 0 | 0 |
-| Into_Hinterland_World | walk | 3.080 | 1232 | 901 | 116 | 185 | 30 | 0 | 0 | 0 |
-| Let_it_out | walk | 3.447 | 1379 | 1117 | 99 | 148 | 15 | 0 | 0 | 0 |
-| Boompah | walk | 3.538 | 1415 | 1052 | 128 | 210 | 25 | 0 | 0 | 0 |
-| Klemens | walk | 3.562 | 1425 | 1078 | 93 | 198 | 56 | 0 | 0 | 0 |
-| Kate_and_Martin | walk | 3.645 | 1458 | 1099 | 134 | 198 | 27 | 0 | 0 | 0 |
-| Old_Cracktro_Tune | walk | 3.800 | 1520 | 1054 | 152 | 233 | 81 | 0 | 0 | 0 |
-| Fizz_Extended | walk | 3.830 | 1532 | 1161 | 130 | 215 | 26 | 0 | 0 | 0 |
-| Space_Ache_Preview | walk | 3.850 | 1540 | 1127 | 134 | 225 | 54 | 0 | 0 | 0 |
-| Heat_Remix | walk | 3.897 | 1559 | 1271 | 108 | 158 | 22 | 0 | 0 | 0 |
-| Sc00ter | walk | 3.985 | 1594 | 1288 | 110 | 178 | 18 | 0 | 0 | 0 |
-| 202212220942 | walk | 4.110 | 1644 | 1026 | 101 | 465 | 52 | 0 | 0 | 0 |
-| Smutta | walk | 4.202 | 1681 | 1203 | 162 | 270 | 46 | 0 | 0 | 0 |
-| Fatale | walk | 4.503 | 1801 | 1345 | 108 | 290 | 58 | 0 | 0 | 0 |
-| Randy_the_Great | walk | 4.567 | 1827 | 1366 | 157 | 275 | 29 | 0 | 0 | 0 |
-| Superkid_in_Space | walk | 4.588 | 1835 | 1451 | 119 | 220 | 45 | 0 | 0 | 0 |
-| Dancing_Donuts | walk | 4.718 | 1887 | 1416 | 153 | 278 | 40 | 0 | 0 | 0 |
-| Take_Off | walk | 4.808 | 1923 | 1436 | 151 | 288 | 48 | 0 | 0 | 0 |
-| Vi_drar_till_tune_1 | walk | 4.912 | 1965 | 1432 | 171 | 299 | 63 | 0 | 0 | 0 |
-| Ninja_Carnage | walk | 4.938 | 1975 | 1455 | 179 | 310 | 31 | 0 | 0 | 0 |
-| Formal_Axiomatic_Theories | walk | 5.105 | 2042 | 1422 | 189 | 356 | 75 | 0 | 0 | 0 |
-| Megapetscii | walk | 5.173 | 2069 | 1496 | 186 | 329 | 58 | 0 | 0 | 0 |
-| Vacuole | walk | 5.220 | 2088 | 1196 | 132 | 669 | 91 | 0 | 0 | 0 |
-| Aviator_Arcade_II | walk | 5.310 | 2124 | 1548 | 169 | 373 | 34 | 0 | 0 | 0 |
-| Super_Goatron | walk | 5.397 | 2159 | 1543 | 209 | 333 | 74 | 0 | 0 | 0 |
-| Meeting_94 | walk | 6.048 | 2419 | 1717 | 287 | 383 | 32 | 0 | 0 | 0 |
-| Old_Times | walk | 6.290 | 2516 | 1773 | 199 | 515 | 29 | 0 | 0 | 0 |
-| Starfleet_Academy_Main_Theme | walk | 6.487 | 2595 | 1937 | 187 | 402 | 69 | 0 | 0 | 0 |
-| 8_Bit-Maerchenland_V2 | walk | 7.888 | 3155 | 2707 | 99 | 202 | 147 | 0 | 0 | 0 |
+| A_Mind_Is_Born | dispatch | 0.810 | 294 | 269 | 20 | 0 | 5 | 30 | 30 | 0 |
+| Degree | walk | 2.107 | 843 | 559 | 70 | 120 | 94 | 0 | 0 | 0 |
+| Mystifiable_Intro_2 | walk | 2.700 | 1080 | 783 | 87 | 176 | 34 | 0 | 0 | 0 |
+| Massacre_on_Stage | walk | 2.828 | 1131 | 696 | 134 | 254 | 47 | 0 | 0 | 0 |
+| Into_Hinterland_World | walk | 3.388 | 1355 | 980 | 116 | 229 | 30 | 0 | 0 | 0 |
+| Boompah | walk | 3.700 | 1480 | 1077 | 131 | 247 | 25 | 0 | 0 | 0 |
+| Klemens | walk | 3.780 | 1512 | 1050 | 121 | 285 | 56 | 0 | 0 | 0 |
+| Kate_and_Martin | walk | 3.940 | 1576 | 1181 | 134 | 234 | 27 | 0 | 0 | 0 |
+| Old_Cracktro_Tune | walk | 4.045 | 1618 | 942 | 193 | 402 | 81 | 0 | 0 | 0 |
+| Let_it_out | walk | 4.098 | 1639 | 1224 | 142 | 258 | 15 | 0 | 0 | 0 |
+| 202212220942 | walk | 4.125 | 1650 | 938 | 125 | 533 | 54 | 0 | 0 | 0 |
+| Fizz_Extended | walk | 4.130 | 1652 | 1225 | 133 | 268 | 26 | 0 | 0 | 0 |
+| Smutta | walk | 4.180 | 1672 | 1017 | 194 | 415 | 46 | 0 | 0 | 0 |
+| Space_Ache_Preview | walk | 4.537 | 1815 | 1292 | 137 | 332 | 54 | 0 | 0 | 0 |
+| Heat_Remix | walk | 4.635 | 1854 | 1423 | 151 | 258 | 22 | 0 | 0 | 0 |
+| Sc00ter | walk | 4.688 | 1875 | 1405 | 156 | 296 | 18 | 0 | 0 | 0 |
+| Superkid_in_Space | walk | 4.793 | 1917 | 1516 | 133 | 223 | 45 | 0 | 0 | 0 |
+| Fatale | walk | 4.935 | 1974 | 1408 | 132 | 375 | 59 | 0 | 0 | 0 |
+| Randy_the_Great | walk | 5.048 | 2019 | 1437 | 162 | 391 | 29 | 0 | 0 | 0 |
+| Vacuole | walk | 5.218 | 2087 | 1141 | 140 | 715 | 91 | 0 | 0 | 0 |
+| Vi_drar_till_tune_1 | walk | 5.803 | 2321 | 1587 | 174 | 497 | 63 | 0 | 0 | 0 |
+| Megapetscii | walk | 5.960 | 2384 | 1638 | 188 | 500 | 58 | 0 | 0 | 0 |
+| Take_Off | walk | 5.995 | 2398 | 1589 | 201 | 560 | 48 | 0 | 0 | 0 |
+| Ninja_Carnage | walk | 6.000 | 2400 | 1775 | 182 | 412 | 31 | 0 | 0 | 0 |
+| Formal_Axiomatic_Theories | walk | 6.093 | 2437 | 1633 | 191 | 538 | 75 | 0 | 0 | 0 |
+| Dancing_Donuts | walk | 6.190 | 2476 | 1766 | 158 | 512 | 40 | 0 | 0 | 0 |
+| Super_Goatron | walk | 6.285 | 2514 | 1772 | 228 | 440 | 74 | 0 | 0 | 0 |
+| Aviator_Arcade_II | walk | 6.378 | 2551 | 1644 | 210 | 662 | 35 | 0 | 0 | 0 |
+| Meeting_94 | walk | 6.867 | 2747 | 1849 | 321 | 544 | 33 | 0 | 0 | 0 |
+| Starfleet_Academy_Main_Theme | walk | 7.015 | 2806 | 1867 | 230 | 640 | 69 | 0 | 0 | 0 |
+| Old_Times | walk | 7.407 | 2963 | 1776 | 236 | 922 | 29 | 0 | 0 | 0 |
+| 8_Bit-Maerchenland_V2 | walk | 8.422 | 3369 | 2877 | 105 | 240 | 147 | 0 | 0 | 0 |
 
 History of the debt classes: the initial exact-path landing (#55) surfaced
 the debt ID3 induction had hidden; #56–#58 retired the SMC divergence class
