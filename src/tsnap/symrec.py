@@ -86,9 +86,17 @@ def to_tsnap(e):
     return r
 
 
+_EF = {}
+
+
 def entry_form(e):
-    """Entry-pure tsnap form of a (possibly evolved) deity expr."""
-    return to_tsnap(E.simplify(E.to_entry(e)))
+    """Entry-pure tsnap form of a (possibly evolved) deity expr (memoised)."""
+    hit = _EF.get(id(e))
+    if hit is not None and hit[0] is e:
+        return hit[1]
+    r = to_tsnap(E.simplify(E.to_entry(e)))
+    _EF[id(e)] = (e, r)
+    return r
 
 
 def _has_uni(e):
@@ -169,6 +177,7 @@ def _translate(rec, sregs, i, end):
     from tsnap import recover
 
     _XLATE.clear()
+    _EF.clear()
     recover.clear_simplify_memo()
     fr = Frame()
     fr.entry_mem, fr.entry_reg = rec.entry[i]
@@ -177,8 +186,9 @@ def _translate(rec, sregs, i, end):
     fr.sreg = sregs[i] if i < len(sregs) else ()
     fr.guards, fr.slog = _walk_positions(rec.facts[i], rec.slog[i])
     fr.sid_seq = [(a, entry_form(ev)) for a, ev in rec.out_seq[i]]
-    fr.writes = [(a - SID, v) for a, v in rec.replay(i)]
-    fr.frame_writes = {a: v & 0xFF for a, v in rec.replay(i)}
+    replayed = rec.replay(i)
+    fr.writes = [(a - SID, v) for a, v in replayed]
+    fr.frame_writes = {a: v & 0xFF for a, v in replayed}
     fr.end_mem = rec.entry[end][0] if end is not None else None
     return fr
 
