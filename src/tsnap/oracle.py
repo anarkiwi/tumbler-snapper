@@ -49,13 +49,22 @@ def sidtrace_change_stream(csv_path, *, chip=0, reg_count=32):
     return out
 
 
-def _docker(args, docker="docker"):
+_DOCKER_TIMEOUT = 180
+
+
+def _docker(args, docker="docker", timeout=_DOCKER_TIMEOUT):
     try:
         return subprocess.run(
-            [docker, *args], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            [docker, *args],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
         )
     except FileNotFoundError as exc:
         raise SidtraceUnavailable(f"{docker} not found: {exc}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise SidtraceUnavailable(f"docker {args[0]} timed out after {timeout}s") from exc
     except subprocess.CalledProcessError as exc:
         err = exc.stderr.decode("utf-8", "replace") if exc.stderr else ""
         raise SidtraceUnavailable(f"docker {args[0]} failed: {err.strip()}") from exc

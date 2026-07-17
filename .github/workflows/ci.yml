@@ -29,6 +29,9 @@ jobs:
     # unit CI above. HVSC .sid tunes are cached, never committed.
     runs-on: ubuntu-latest
     continue-on-error: true
+    # Hard cap: a healthy run is well under this; the bound stops a stalled
+    # docker render (see oracle._docker timeout) from burning the 6h job limit.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
