@@ -45,14 +45,13 @@ def _collapse_word(node):
     return node
 
 
-def to_tsnap(e):
-    """Translate one deity expression node to tumbler-snapper's form.
+_XLATE = {}
 
-    tsnap has no ``INT_ZEXT``/``COPY`` node (both identity), reads a contiguous
-    16-bit word as one 2-byte leaf, and uses binary ops; deity's flat n-ary
-    associative nodes re-nest left-leaning so tsnap's binary consumers are
-    unchanged (accumulators that would go deep are excluded by deity's guard).
-    """
+
+def to_tsnap(e):
+    """Translate a deity expr node to tsnap form (strip ZEXT/COPY, collapse words,
+    re-nest flat n-ary to binary). Memoised by identity so shared deity DAG
+    subtrees translate once per frame (``_XLATE`` cleared per frame)."""
     from tsnap.recover import simplify  # pylint: disable=import-outside-toplevel
 
     k = e[0]
@@ -62,22 +61,29 @@ def to_tsnap(e):
         return e
     if k == "uni":
         return ("uni", e[1])
+    hit = _XLATE.get(id(e))
+    if hit is not None and hit[0] is e:
+        return hit[1]
     if k == "mem":
-        return ("mem", to_tsnap(e[1]), e[2])
-    if k == "cur":
+        r = ("mem", to_tsnap(e[1]), e[2])
+    elif k == "cur":
         addr = e[1]
         base = addr[1] if addr[0] == "const" else None
         deps = ((base, e[3]),) if base is not None else ()
-        return ("cur", to_tsnap(addr), e[2], deps)
-    if e[1] in ("INT_ZEXT", "COPY"):
-        return to_tsnap(e[2][0])
-    kids = tuple(to_tsnap(c) for c in e[2])
-    if len(kids) > 2:
-        node = kids[0]
-        for kid in kids[1:]:
-            node = ("op", e[1], (node, kid), e[3])
-        return simplify(node)
-    return simplify(_collapse_word(("op", e[1], kids, e[3])))
+        r = ("cur", to_tsnap(addr), e[2], deps)
+    elif e[1] in ("INT_ZEXT", "COPY"):
+        r = to_tsnap(e[2][0])
+    else:
+        kids = tuple(to_tsnap(c) for c in e[2])
+        if len(kids) > 2:
+            node = kids[0]
+            for kid in kids[1:]:
+                node = ("op", e[1], (node, kid), e[3])
+            r = simplify(node)
+        else:
+            r = simplify(_collapse_word(("op", e[1], kids, e[3])))
+    _XLATE[id(e)] = (e, r)
+    return r
 
 
 def entry_form(e):
@@ -159,7 +165,11 @@ def _walk_positions(facts, slog):
 
 
 def _translate(rec, sregs, i, end):
-    # pylint: disable=attribute-defined-outside-init
+    # pylint: disable=attribute-defined-outside-init,import-outside-toplevel
+    from tsnap import recover
+
+    _XLATE.clear()
+    recover.clear_simplify_memo()
     fr = Frame()
     fr.entry_mem, fr.entry_reg = rec.entry[i]
     fr.F = {a: entry_form(fe) for a, (fe, _sz) in rec.F[i].items()}

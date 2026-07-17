@@ -159,6 +159,11 @@ def simplify(e):
     return r
 
 
+def clear_simplify_memo():
+    """Drop the id-keyed ``simplify`` memo (per frame, bounding its growth)."""
+    _SIMP_MEMO.clear()
+
+
 def eval_expr(e, mem, regs, memo=None):
     if memo is None:
         memo = {}
