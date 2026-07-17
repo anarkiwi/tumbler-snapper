@@ -117,3 +117,18 @@ Phase 0 is zero-risk and independent; it should land first regardless of
 when Phase 1 is scheduled, because the assertion immediately guards all
 current and future recorder changes. Phases 2–3 land together or not at
 all per the usual gate discipline.
+
+## Phases 2–3 landed
+
+The cutover is done. `src/tsnap/symrec.py` translates deity artifacts into
+tsnap expr forms; `recover.py` supplies `EnvVM` + P-code-derived driver
+selection (`build_driver_maker`) and `record()`/`run()`, consumed by
+`irvm._run_capture`. The retired in-tree `SymVM` recording core is gone
+(cutover on deity-informant 0.3.1, #70). Flat n-ary sum handling and
+evolved-state value templates landed with it (per-position vocabulary
+minting retired, #65/#68). deity **0.3.2** adds unconditional placement
+guards (stable load-pc site, case constant = concrete load address, on
+every frame), making the step-8 walk rung deterministic for computed-load
+aliases; byte-exact holds (placement facts distinguish which cell was read,
+not the output). See `driver-model.md` for the resolved walk-rung follow-up
+and the remaining tracker-view pattern-classification follow-up.

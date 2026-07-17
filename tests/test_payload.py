@@ -73,13 +73,6 @@ def test_orderlist_walk_saturates_across_repeat(orderlist_sid):
     assert c1["contribs"] == c2["contribs"] and c1["init_mem"] == c2["init_mem"]
 
 
-@pytest.mark.xfail(
-    reason="deity records placement facts conditionally (only on aliasing frames), "
-    "so the walk rung sees data-dependent guard presence and falls back to "
-    "dispatch (byte-exact); unconditional placement guards are a deity follow-up "
-    "(docs/driver-model.md).",
-    strict=True,
-)
 def test_alias_load_lands_walk_rung(alias_sid):
     """A computed load over a same-frame store lands in the walk rung byte-exact."""
     ir = irvm.serialize(alias_sid, 0, 64)
@@ -148,8 +141,11 @@ def _payload_bytes(entries):
 
 
 @pytest.mark.xfail(
-    reason="pattern-extent view depends on the same conditional-placement walk-rung "
-    "landing; deity follow-up (docs/driver-model.md).",
+    reason="walk rung now lands (exact+seq, guards closed) under deity 0.3.2, but the "
+    "note-read program expresses the pattern pointer as a 2-byte cell load (idx role) "
+    "rather than an OR-of-bytes word (ptr role), so the full-extent pattern node is "
+    "recovered yet tracker_view's ptr-role pattern selector misses it. tracker_view "
+    "pattern-classification follow-up (docs/driver-model.md).",
     strict=True,
 )
 def test_tracker_view_matches_authored_payload(orderlist_sid):
