@@ -149,18 +149,26 @@ def _simp(e):
 
 
 def simplify(e):
+    """Canonicalise ``e``, memoised **structurally** (value-keyed).
+
+    Identical nodes built at different sites/frames dedup; a canonical result is
+    its own fixpoint, so the memo persists across frames within one ``record``
+    run (cleared at the record boundary). Working set is the tune's vocabulary.
+    """
     if e[0] != "op":
         return e
-    ent = _SIMP_MEMO.get(id(e))
-    if ent is not None and ent[0] is e:
-        return ent[1]
+    r = _SIMP_MEMO.get(e)
+    if r is not None:
+        return r
     r = _simp(e)
-    _SIMP_MEMO[id(e)] = (e, r)
+    _SIMP_MEMO[e] = r
+    if r[0] == "op":
+        _SIMP_MEMO[r] = r
     return r
 
 
 def clear_simplify_memo():
-    """Drop the id-keyed ``simplify`` memo (per frame, bounding its growth)."""
+    """Drop the structural ``simplify`` memo (once per ``record`` run)."""
     _SIMP_MEMO.clear()
 
 

@@ -50,8 +50,8 @@ _XLATE = {}
 
 def to_tsnap(e):
     """Translate a deity expr node to tsnap form (strip ZEXT/COPY, collapse words,
-    re-nest flat n-ary to binary). Memoised by identity so shared deity DAG
-    subtrees translate once per frame (``_XLATE`` cleared per frame)."""
+    re-nest flat n-ary to binary). Memoised **structurally** (value-keyed): deity
+    nodes are canonical, so identical subtrees translate once per record run."""
     from tsnap.recover import simplify  # pylint: disable=import-outside-toplevel
 
     k = e[0]
@@ -61,9 +61,9 @@ def to_tsnap(e):
         return e
     if k == "uni":
         return ("uni", e[1])
-    hit = _XLATE.get(id(e))
-    if hit is not None and hit[0] is e:
-        return hit[1]
+    hit = _XLATE.get(e)
+    if hit is not None:
+        return hit
     if k == "mem":
         r = ("mem", to_tsnap(e[1]), e[2])
     elif k == "cur":
@@ -82,7 +82,7 @@ def to_tsnap(e):
             r = simplify(node)
         else:
             r = simplify(_collapse_word(("op", e[1], kids, e[3])))
-    _XLATE[id(e)] = (e, r)
+    _XLATE[e] = r
     return r
 
 
@@ -90,12 +90,12 @@ _EF = {}
 
 
 def entry_form(e):
-    """Entry-pure tsnap form of a (possibly evolved) deity expr (memoised)."""
-    hit = _EF.get(id(e))
-    if hit is not None and hit[0] is e:
-        return hit[1]
+    """Entry-pure tsnap form of a (possibly evolved) deity expr (value-keyed memo)."""
+    hit = _EF.get(e)
+    if hit is not None:
+        return hit
     r = to_tsnap(E.simplify(E.to_entry(e)))
-    _EF[id(e)] = (e, r)
+    _EF[e] = r
     return r
 
 
@@ -173,12 +173,7 @@ def _walk_positions(facts, slog):
 
 
 def _translate(rec, sregs, i, end):
-    # pylint: disable=attribute-defined-outside-init,import-outside-toplevel
-    from tsnap import recover
-
-    _XLATE.clear()
-    _EF.clear()
-    recover.clear_simplify_memo()
+    # pylint: disable=attribute-defined-outside-init
     fr = Frame()
     fr.entry_mem, fr.entry_reg = rec.entry[i]
     fr.F = {a: entry_form(fe) for a, (fe, _sz) in rec.F[i].items()}
@@ -200,6 +195,11 @@ def record_frames(vm, entry, driver_maker, frames, assertion=False):
     translated end-of-frame symbolic registers to ``capture`` on the non-collect
     pass, keeping register-carrying tunes' program identity.
     """
+    from tsnap import recover  # pylint: disable=import-outside-toplevel
+
+    _XLATE.clear()
+    _EF.clear()
+    recover.clear_simplify_memo()
     sregs = []
     driver = driver_maker(sregs)
     rec = record(
