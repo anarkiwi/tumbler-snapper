@@ -214,10 +214,7 @@ _OP = {
 
 def capture_trace(path, song, note_cells, frames, watch=(), sel_cells=(None, None, None)):
     """Per-frame per-voice SID state (freq/ctrl/ad/sr + note/selector cells)."""
-    smc = R.smc_operands(path, song, frames)
     vm, h, cache = R.setup(path, song)
-    vm.smc = smc
-    vm.concrete_only = True
     advance = R.frame_driver(vm, h, cache)
     if advance is None:
         return None
