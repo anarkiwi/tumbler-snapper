@@ -47,7 +47,23 @@ jobs:
       - name: Pull sidtrace oracle image
         run: docker pull anarkiwi/sidtrace:latest
       - name: Oracle test
-        run: pytest -m "oracle or hvsc" -n auto
+        timeout-minutes: 50
+        env:
+          TSNAP_FAULTHANDLER_DIR: ${{ github.workspace }}/fh-stacks
+          TSNAP_FAULTHANDLER_SECS: "900"
+        run: pytest -m "oracle or hvsc" -n auto --durations=25
+      - name: Faulthandler stacks (diagnostic; runs even on hang/timeout)
+        if: always()
+        run: |
+          shopt -s nullglob
+          for f in fh-stacks/stacks_*.txt; do echo "### $f"; cat "$f"; echo; done
+      - name: Upload faulthandler stacks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: faulthandler-stacks
+          path: fh-stacks/
+          if-no-files-found: ignore
       - name: Token metric report (informational)
         run: python tools/token_report.py token-metric.txt 400
       - name: Upload token metric

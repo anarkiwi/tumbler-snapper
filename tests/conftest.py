@@ -9,8 +9,19 @@ recover/tracker/curate stack runs against known-answer inputs.
 
 from __future__ import annotations
 
+import faulthandler
+import os
+
 import pysidtracker as p
 import pytest
+
+_FH_DIR = os.environ.get("TSNAP_FAULTHANDLER_DIR")
+if _FH_DIR:
+    os.makedirs(_FH_DIR, exist_ok=True)
+    _fh_file = open(os.path.join(_FH_DIR, f"stacks_{os.getpid()}.txt"), "w", buffering=1)
+    faulthandler.dump_traceback_later(
+        int(os.environ.get("TSNAP_FAULTHANDLER_SECS", "600")), repeat=True, file=_fh_file
+    )
 
 _SECOND_SID_POS = 122
 
