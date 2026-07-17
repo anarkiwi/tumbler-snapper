@@ -249,35 +249,6 @@ def test_cadence_cia_irq_masked_is_video(cadence_builder):
     assert c["latch"] is None
 
 
-def test_operand_slots_immediate_multi_read():
-    """ADC reads its immediate in several ops; all are operand slots, masks are not."""
-    from deity_informant import lift  # pylint: disable=import-outside-toplevel
-
-    mem = bytearray(0x10000)
-    mem[0x1000:0x1002] = bytes((0x69, 0x80))  # ADC #$80 (operand equals N-flag mask)
-    rec = lift(mem, 0x1000)
-    slots = set(R._operand_slots(mem, 0x1000, rec))
-    all80 = {
-        (oi, ii)
-        for oi, (_mn, _out, ins) in enumerate(rec["ops"])
-        for ii, vn in enumerate(ins)
-        if vn[0] == "c" and vn[1] == 0x80
-    }
-    assert len({oi for oi, _ii in slots}) >= 2
-    assert slots < all80, "lifter-internal $80 masks must not be operand slots"
-
-
-def test_operand_slots_absolute_address():
-    """An absolute-mode operand address const is an operand slot."""
-    from deity_informant import lift  # pylint: disable=import-outside-toplevel
-
-    mem = bytearray(0x10000)
-    mem[0x1000:0x1003] = bytes((0xAD, 0x34, 0x12))  # LDA $1234
-    rec = lift(mem, 0x1000)
-    slots = R._operand_slots(mem, 0x1000, rec)
-    assert any(rec["ops"][oi][2][ii][1] == 0x1234 for oi, ii in slots)
-
-
 def test_simplify_sub_const_folds_into_add_chain():
     """Constant subtraction canonicalizes to a two's-complement add term."""
     assert R.simplify(OP("INT_SUB", ("reg", 3), C(3))) == OP("INT_ADD", ("reg", 3), C(253))
@@ -285,36 +256,6 @@ def test_simplify_sub_const_folds_into_add_chain():
     assert R.simplify(tower) == OP("INT_ADD", ("reg", 3), C(255))
     wide = OP("INT_SUB", ("reg", 0), C(1), sz=2)
     assert R.simplify(wide) == OP("INT_ADD", ("reg", 0), C(0xFFFF), sz=2)
-
-
-def _sym_vm():
-    return R.SymVM(bytearray(0x10000))
-
-
-def test_mid_out_strips_current_deps():
-    vm = _sym_vm()
-    vm.ver = {0x1000: 2}
-    e = ("cur", ("const", 0x1000), 1, ((0x1000, 2),))
-    assert vm._mid_out(e) == ("cur", ("const", 0x1000), 1)
-
-
-def test_mid_out_stale_dep_falls_back():
-    vm = _sym_vm()
-    vm.ver = {0x1000: 3}
-    stale = ("cur", ("const", 0x1000), 1, ((0x1000, 2),))
-    assert vm._mid_out(stale) is None
-    nested = OP("INT_ADD", stale, C(1))
-    assert vm._mid_out(nested) is None
-    assert vm._mid_out(OP("INT_ADD", ("reg", 0), C(1))) == OP("INT_ADD", ("reg", 0), C(1))
-    assert vm._mid_out(M(0x2000)) is None
-
-
-def test_cur_cells_contiguous_and_split():
-    vm = _sym_vm()
-    vm.ver = {0x10: 1}
-    assert vm._cur_cells([0x10, 0x11]) == ("cur", ("const", 0x10), 2, ((0x10, 1), (0x11, 0)))
-    split = vm._cur_cells([0x10, 0x20])
-    assert split[0] == "op" and split[1] == "INT_OR"
 
 
 def test_has_uni_descends_cur():

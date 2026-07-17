@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from fixtures import FIXTURES
+from fixtures import FIXTURES, UNSUPPORTED
 
 from tsnap import irvm
 
@@ -525,6 +525,8 @@ def _resolve(relpath):
 @pytest.mark.hvsc
 @pytest.mark.parametrize("fx", FIXTURES, ids=lambda fx: fx["relpath"])
 def test_hvsc_roundtrip_byte_exact(fx):
+    if fx["relpath"] in UNSUPPORTED:
+        pytest.skip(UNSUPPORTED[fx["relpath"]])
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")

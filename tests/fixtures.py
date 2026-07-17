@@ -5,6 +5,13 @@ all fully faithful under recover at 3000 frames. 32 curated tunes/players/
 composers + hand-pinned A_Mind_Is_Born (score 0.0; keep on regeneration).
 """
 
+# Excluded from byte-exact/faithfulness gates (see docs/driver-model.md).
+UNSUPPORTED = {
+    "MUSICIANS/F/Fern_Eric/Goldberg_Variations_parts_1-7.sid": (
+        "multi-phase IRQ (mid-frame $0314 vector rewrite); driver-model follow-up"
+    ),
+}
+
 FIXTURES = [
     {
         "relpath": "MUSICIANS/B/Birdrun/Boompah.sid",

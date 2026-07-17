@@ -93,7 +93,6 @@ def _concrete_signals(vm, hdr, cache, ticks):
     Signals count distinct ``(reg, val)`` pairs, note onsets (gate 0->1) and
     distinct SID regs; ``None`` if the tune cannot be driven.
     """
-    vm.concrete_only = True
     vm.wlog = []
     advance = recover.frame_driver(vm, hdr, cache)
     if advance is None:

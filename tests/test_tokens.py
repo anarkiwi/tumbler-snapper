@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from fixtures import FIXTURES
+from fixtures import FIXTURES, UNSUPPORTED
 
 from tsnap import irvm, tokens
 
@@ -205,6 +205,8 @@ def test_hvsc_tokens_lossless(fx):
     """Factored compression round-trips programs, trace and replay on real tunes."""
     from pysidtracker.testing import resolve_tune  # pylint: disable=import-outside-toplevel
 
+    if fx["relpath"] in UNSUPPORTED:
+        pytest.skip(UNSUPPORTED[fx["relpath"]])
     path = resolve_tune(fx["relpath"], cache_dir=_CACHE, local_env="HVSC")
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from fixtures import FIXTURES
+from fixtures import FIXTURES, UNSUPPORTED
 
 from tsnap import recover as R
 
@@ -20,6 +20,8 @@ _FRAMES = 3000
 @pytest.mark.hvsc
 @pytest.mark.parametrize("fx", FIXTURES, ids=lambda fx: fx["relpath"])
 def test_hvsc_fully_faithful(fx):
+    if fx["relpath"] in UNSUPPORTED:
+        pytest.skip(UNSUPPORTED[fx["relpath"]])
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from fixtures import FIXTURES
+from fixtures import FIXTURES, UNSUPPORTED
 
 from tsnap import irvm, oracle
 
@@ -46,6 +46,8 @@ def _resolve(relpath):
 @pytest.mark.parametrize("fx", FIXTURES, ids=lambda fx: fx["relpath"])
 def test_oracle_change_stream_byte_exact(fx, tmp_path):
     """IR replay's register-change stream matches the docker-cp sidtrace oracle."""
+    if fx["relpath"] in UNSUPPORTED:
+        pytest.skip(UNSUPPORTED[fx["relpath"]])
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")

@@ -11,10 +11,9 @@ import sys
 
 from tsnap.recover import (
     SID,
-    setup,
-    frame_driver,
+    record,
     play_entry_reg,
-    prepass,
+    _handler_info,
 )
 
 _MASK = [(1 << (8 * s)) - 1 for s in range(9)]
@@ -103,16 +102,11 @@ def _ser(e):
 
 
 def _run_capture(path, song, frames):
-    """Drive recover's SymVM, capturing the IR and the deity ordered write log."""
-    smc, alias = prepass(path, song, frames)
-    vm, h, cache = setup(path, song)
+    """Build the IR from the deity symbolic recorder + its concrete write log."""
+    vm, _h, frs = record(path, song, frames)
     init_sid = [[r, v & 0xFF] for r, v in vm.init_sid]
-    vm.smc = smc
-    vm.alias = alias
-    vm.wlog = []
-    advance = frame_driver(vm, h, cache)
+    reset_regs = _handler_info(vm)[0] is None
     init_mem = _nonzero_runs(vm.mem)
-    reset_regs = bool(h.play_address)
     init_regs = play_entry_reg(vm.idle_reg) if reset_regs else list(vm.reg)
     programs, index, trace = [], {}, []
     reg_key = (lambda _sreg: ()) if reset_regs else tuple
@@ -121,15 +115,9 @@ def _run_capture(path, song, frames):
     seg_pool, seg_index, seg_ids = [], {}, []
     ground = [[tuple(rv) for rv in init_sid]]
     played = 0
-    for _f in range(frames):
-        vm.begin_frame()
-        wstart = len(vm.wlog)
-        try:
-            advance()
-        except RuntimeError:
-            break
-        trans = tuple(sorted((a, e, vm.Fsz[a]) for a, e in vm.F.items()))
-        key = (trans, reg_key(vm.sreg), tuple((a - SID, e) for a, e in vm.sid_seq))
+    for fr in frs:
+        trans = tuple(sorted((a, e, fr.Fsz[a]) for a, e in fr.F.items()))
+        key = (trans, reg_key(fr.sreg), tuple((a - SID, e) for a, e in fr.sid_seq))
         pi = index.get(key)
         if pi is None:
             pi = len(programs)
@@ -137,7 +125,7 @@ def _run_capture(path, song, frames):
             programs.append(key)
         trace.append(pi)
         fpath = []
-        for site, pred, taken, mid in vm.guards:
+        for site, pred, taken, mid in fr.guards:
             if pred is None:
                 fpath.append((site, -1, taken))
                 continue
@@ -155,14 +143,14 @@ def _run_capture(path, song, frames):
             path_index[fpath] = pid
             path_pool.append([list(ev) for ev in fpath])
         path_ids.append(pid)
-        skey = tuple(vm.slog)
+        skey = tuple(fr.slog)
         sgi = seg_index.get(skey)
         if sgi is None:
             sgi = len(seg_pool)
             seg_index[skey] = sgi
-            seg_pool.append([[pos, a, _ser(e), s] for pos, a, e, s in vm.slog])
+            seg_pool.append([[pos, a, _ser(e), s] for pos, a, e, s in fr.slog])
         seg_ids.append(sgi)
-        ground.append([(r, v) for _c, r, v in vm.wlog[wstart:]])
+        ground.append(list(fr.writes))
         played += 1
     ir = {
         "frames": played,
