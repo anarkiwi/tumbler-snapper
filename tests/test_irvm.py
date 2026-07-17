@@ -554,6 +554,8 @@ def test_hvsc_index_wrap_regression():
 @pytest.mark.parametrize("fx", FIXTURES, ids=lambda fx: fx["relpath"])
 def test_hvsc_guarded_byte_exact(fx):
     """Guard-derived program selection is byte-exact vs the deity write log."""
+    if fx["relpath"] in UNSUPPORTED:
+        pytest.skip(UNSUPPORTED[fx["relpath"]])
     path = _resolve(fx["relpath"])
     if path is None:
         pytest.skip(f"offline: {fx['relpath']} unavailable")

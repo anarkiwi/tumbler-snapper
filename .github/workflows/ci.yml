@@ -29,8 +29,8 @@ jobs:
     # unit CI above. HVSC .sid tunes are cached, never committed.
     runs-on: ubuntu-latest
     continue-on-error: true
-    # Hard cap: a healthy run is well under this; the bound stops a stalled
-    # docker render (see oracle._docker timeout) from burning the 6h job limit.
+    # Hard cap: a healthy run is well under this; the bound keeps any future
+    # recorder runaway or stalled docker render from burning the 6h job limit.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
@@ -47,23 +47,7 @@ jobs:
       - name: Pull sidtrace oracle image
         run: docker pull anarkiwi/sidtrace:latest
       - name: Oracle test
-        timeout-minutes: 50
-        env:
-          TSNAP_FAULTHANDLER_DIR: ${{ github.workspace }}/fh-stacks
-          TSNAP_FAULTHANDLER_SECS: "900"
-        run: pytest -m "oracle or hvsc" -n auto --durations=25
-      - name: Faulthandler stacks (diagnostic; runs even on hang/timeout)
-        if: always()
-        run: |
-          shopt -s nullglob
-          for f in fh-stacks/stacks_*.txt; do echo "### $f"; cat "$f"; echo; done
-      - name: Upload faulthandler stacks
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: faulthandler-stacks
-          path: fh-stacks/
-          if-no-files-found: ignore
+        run: pytest -m "oracle or hvsc" -n auto
       - name: Token metric report (informational)
         run: python tools/token_report.py token-metric.txt 400
       - name: Upload token metric
