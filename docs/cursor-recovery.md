@@ -5,6 +5,13 @@ replay rung (`docs/seq-replay-rung.md`). No code — plan + acceptance condition
 Doctrine (`CLAUDE.md`): P-Code-derived, algorithmic, no fitting, no per-tune
 cases, no tuned constants, byte-exact, holds survey-wide.
 
+Ground truth for every address/claim below (Vacuole shared cursor, SMC operand
+cells, the `$1715` row-reader `BEQ`): `docs/fixture-disassembly.md` + the cached
+`Vacuole-21f5dcf05b.asm` (`$16B2` packed-row reader, `$10EB` orderlist cursor,
+`$1A00/$1A80` pattern-pointer tables). That doc also shows this same
+de-specialization, applied to the **guard set** (which `analyze_ir` leaves raw),
+collapses 76% of Vacuole's `guards_closed` 385→702 growth.
+
 The problem: `sequencer.analyze_ir` recovers the accessor *shape* of each SID
 feeder but embeds the row/pattern **index as position-specific constants and
 frame-entry compositions**, so the recovered per-cell alphabet

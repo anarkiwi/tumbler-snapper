@@ -39,7 +39,17 @@ is absent for both witnesses and the residual is **~80% genuine song-data
 footprint** bounded by the orderlist loop — doctrine-fine, not un-recovered
 structure. **Revival is therefore the next step**: re-implement this engine
 against the now song-data-sized (bounded-at-loop) vocabulary and measure `<1.0`
-at full horizon. The open risk is that loop-saturation is inferred (finite
+at full horizon.
+
+**Guard-set caveat (ground truth, `docs/fixture-disassembly.md`).** The
+"song-data-sized vocabulary" holds for the cell-alphabet but **not for `gset`**:
+`analyze_ir` never de-specializes the guard set, so Vacuole `guards_closed` grows
+385→702 over 400→1600 f — un-recovered structure this rung must not carry.
+Disassembly-verified: 76% of that growth collapses under the existing cursor
+de-specialization once wired to `gset` (Vacuole raw 287→430 → 152→186; Take_Off /
+Sc00ter saturate). Wiring cursor de-specialization into `gset` is a hard
+prerequisite for this rung on the cfg-dominated tunes, alongside the cell-alphabet
+work. The open risk is that loop-saturation is inferred (finite
 looping orderlist) but not yet directly measured — reaching the `state_cycle`
 recurrence at full horizon is part of the revival's acceptance.
 

@@ -7,6 +7,13 @@ cursor/orderlist recovery design in the whole corpus instead of one or two tunes
 This is **developer understanding only** — the codec never consumes disassembly
 (doctrine #2); the sequencer recovers the same structures from P-Code dataflow.
 
+The disassemblies this taxonomy was read from are now cached and reproducible
+(`tools/disasm.py` → gitignored `.disasm-cache/`, keyed by fixture stem+sha1).
+This doc is a 150-frame idiom snapshot; for the **horizon** behaviour behind each
+idiom — why the cfg-dominated witnesses' guard vocabulary grows and whether it is
+recoverable — see `docs/fixture-disassembly.md` (grounded in those cached
+listings).
+
 Two facts are attached per fixture: the disassembled idiom, and what
 `sequencer.analyze_ir` + `tracker_view` actually recover today (measured,
 150-frame snapshot; full-horizon counts differ per doctrine #5 but the coverage
