@@ -402,6 +402,33 @@ def test_analyze_degree_gate1_pins():
     assert res["max_chain"] == 4 and res["max_depth"] == 2
 
 
+# (relpath, song, min_orderlists, min_patterns): floors above the regressed count.
+_TRACKER_VIEW_FLOORS = [
+    ("MUSICIANS/B/Birdrun/Boompah.sid", 0, 1, 6),
+    ("MUSICIANS/B/Bergstrand_Peter/Kate_and_Martin.sid", 0, 1, 6),
+    ("MUSICIANS/D/Digger/Take_Off.sid", 0, 1, 20),
+    ("MUSICIANS/I/Ilkke/Vacuole.sid", 0, 1, 20),
+    ("MUSICIANS/M/Misfit/Super_Goatron.sid", 0, 1, 30),
+]
+
+
+@pytest.mark.hvsc
+@pytest.mark.parametrize("relpath,song,min_ol,min_pat", _TRACKER_VIEW_FLOORS)
+def test_tracker_view_recovers_structure(relpath, song, min_ol, min_pat):
+    """Breadth gate: tracker_view recovers pattern/orderlist structure on real
+    tunes across both pointer-encoding idioms. Robust lower bounds, not exact
+    counts (which drift with horizon/deity)."""
+    path = _resolve(relpath)
+    if path is None:
+        pytest.skip(f"offline: {relpath} unavailable")
+    res = S.analyze(str(path), song, 400)
+    assert S.verdict(res) == "exact+seq"
+    view = S.tracker_view(res)
+    npat, nol = len(view["patterns"]), len(view["orderlists"])
+    assert npat >= min_pat, f"{relpath}: {npat} patterns < floor {min_pat}"
+    assert nol >= min_ol, f"{relpath}: {nol} orderlists < floor {min_ol}"
+
+
 def _resolve(relpath):
     from pysidtracker.testing import resolve_tune  # pylint: disable=import-outside-toplevel
 
