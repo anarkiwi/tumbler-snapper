@@ -856,15 +856,25 @@ def _has_dyn_read(e):
 def tracker_view(res):
     """Tracker-IR view over the recovered accessor chains (song-data payload).
 
-    Pointer-indexed nodes are pattern data; nodes feeding a pattern's pointer
-    (spilled cell, or nested inside its inline pointer word) are orderlists;
-    ``-1``-step counters reloaded from cells/consts are row timers.
+    A pattern is any sentinel-terminated accessor feeding a SID register indexed
+    by both a recovered pointer (role-agnostic ``ptr`` word or ``idx`` pointer
+    cell) and a row counter. Pointer-feeders are orderlists; ``-1`` counters time rows.
     """
     if "error" in res:
         return {"error": res["error"]}
     tables = res["tables"]
-    ptr_cells = {a for t in tables for a, role in t["icells"] if role == "ptr"}
     cells = res["cells"]
+
+    def cell_cls(a):
+        info = cells.get((a, 1)) or cells.get((a, 2))
+        return info["cls"] if info else None
+
+    def is_ptr_idx(a, role):
+        """Recovered-pointer index: a ptr-role word half, or a pointer-class cell."""
+        return role == "ptr" or (role == "idx" and cell_cls(a) == "pointer")
+
+    def is_row_idx(a, role):
+        return role == "idx" and cell_cls(a) == "counter"
 
     def voices(t):
         return sorted({x[1] // 7 for x in t["feeds"] if x[0] == "sid" and x[1] < 21})
@@ -879,8 +889,51 @@ def tracker_view(res):
             "voices": voices(t),
         }
 
-    pattern_tables = [t for t in tables if any(r == "ptr" for _a, r in t["icells"])]
-    patterns = [entry(t) for t in pattern_tables]
+    def is_pattern(t):
+        return (
+            bool(t["sentinel"])
+            and any(k == "sid" for k, *_ in t["feeds"])
+            and any(is_ptr_idx(a, r) for a, r in t["icells"])
+            and any(is_row_idx(a, r) for a, r in t["icells"])
+        )
+
+    def ptr_word(t):
+        """Pointer-word bytes a node dereferences (2-byte cell -> lo/hi pair)."""
+        w = set()
+        for a, r in t["icells"]:
+            if r == "ptr":
+                w.add(a)
+            elif r == "idx" and cell_cls(a) == "pointer":
+                w |= {a, a + 1}
+        return w
+
+    def frag_ptrs(t):
+        return {a for a, r in t["icells"] if is_ptr_idx(a, r)}
+
+    def merged(prim, members):
+        bmap = {}
+        for t in members:
+            for a0, hx in t["payload"]:
+                for i, b in enumerate(bytes.fromhex(hx)):
+                    bmap[a0 + i] = b
+        runs = _addr_runs(sorted(bmap))
+        return {
+            "base": prim["base"],
+            "runs": runs,
+            "payload": [(a0, bytes(bmap[a0 + i] for i in range(n)).hex()) for a0, n in runs],
+            "sentinel": prim["sentinel"],
+            "index_cells": prim["icells"],
+            "voices": sorted({v for t in members for v in voices(t)}),
+        }
+
+    sid_ptr = [t for t in tables if any(k == "sid" for k, *_ in t["feeds"]) and frag_ptrs(t)]
+    patterns, ptr_cells, pattern_tables = [], set(), []
+    for prim in [t for t in tables if is_pattern(t)]:
+        word = ptr_word(prim)
+        ptr_cells |= word
+        members = [t for t in sid_ptr if frag_ptrs(t) & word]
+        pattern_tables += members
+        patterns.append(merged(prim, members))
     inlined = set()
     for t in pattern_tables:
         for _st, sub in t["node"][2]:

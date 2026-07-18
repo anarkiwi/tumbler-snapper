@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from conftest import O_OLIST_DATA, O_PAT0_DATA, O_PAT1_DATA, O_SPEED
 
 from tsnap import irvm, payload, sequencer, tokens
@@ -140,14 +138,6 @@ def _payload_bytes(entries):
     return out
 
 
-@pytest.mark.xfail(
-    reason="walk rung now lands (exact+seq, guards closed) under deity 0.3.2, but the "
-    "note-read program expresses the pattern pointer as a 2-byte cell load (idx role) "
-    "rather than an OR-of-bytes word (ptr role), so the full-extent pattern node is "
-    "recovered yet tracker_view's ptr-role pattern selector misses it. tracker_view "
-    "pattern-classification follow-up (docs/driver-model.md).",
-    strict=True,
-)
 def test_tracker_view_matches_authored_payload(orderlist_sid):
     res = sequencer.analyze(orderlist_sid, 0, 400)
     assert sequencer.verdict(res) == "exact+seq"

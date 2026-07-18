@@ -60,8 +60,8 @@ gaps in [`driver-model.md`](driver-model.md). The highest-leverage item is #1:
    efficiency constraint durably and survey-wide. This is the structure work the
    `< 1.0` verdict now depends on.
 2. **Orderlist-role recovery** for 0-orderlist tunes (prerequisite for #1).
-3. **Non-structural rungs**: transcription rung for generative players;
-   role-agnostic pattern classifier (`tracker_view`).
+3. **Non-structural rungs**: transcription rung for generative players. (The
+   role-agnostic `tracker_view` pattern classifier landed; see docs/driver-model.md.)
 4. **Survey losslessness tail**: volatile-value reads modeled as IR inputs,
    ordered symbolic stores, driver/init gaps, multi-phase IRQ.
 5. **Measurement hygiene**: regenerate the full-horizon oracle column on deity
