@@ -57,14 +57,18 @@ data, not the horizon. Same class as the SMC-operand symbolization (#57) /
 `sequencer-survey.md` failure mode 1. Scoped in `docs/cursor-recovery.md`; this
 unblocks item 1 (and bounds the walk `cfg` term for the same tunes).
 
-**Measured outcome (cursor + orderlist landed; place-fact factoring rejected).**
-Cursor de-specialization (`cursor-recovery.md`) and orderlist recovery
-(`orderlist-recovery.md`) landed. Place-fact-keyed factoring of the remaining
-residual was then measured and **rejected** as non-viable: deity emits **0**
-`place` facts for the Vacuole idiom (SMC absolute-indexed) and Take_Off's `place`
-facts observe SID output registers, not the cursor/pattern cells — the provenance
-does not apply; the maximal *sound* collapse is ≤4–6% (`state_cycle` unreached by
-2400f, so the loop-saturation point is beyond a feasible serialize horizon).
+**Measured outcome (cursor + orderlist + consumer-linking landed; place-fact
+factoring rejected).** Cursor de-specialization (`cursor-recovery.md`), orderlist
+recovery, and Part B.3 consumer-linking (`sequencer._link_evolved`,
+`orderlist-recovery.md` Status) all landed — the last rewrites computed/accum
+consumer carry chains that hold copies/transposes of a recovered cursor to
+`cur(c)` (Take_Off cell-alpha now saturates by 1600f). Place-fact-keyed factoring
+of the remaining residual was measured and **rejected** as non-viable: deity emits
+**0** `place` facts for the Vacuole idiom (SMC absolute-indexed) and Take_Off's
+`place` facts observe SID output registers, not the cursor/pattern cells — the
+provenance does not apply; the maximal *sound* collapse is ≤4–6% (`state_cycle`
+unreached by 2400f, so the loop-saturation point is beyond a feasible serialize
+horizon), which `_link_evolved` now realizes structurally.
 Decisively, **~80% of the residual accessor-vocabulary growth is genuine
 song-data footprint** (distinct patterns × field-offsets revealed as the orderlist
 cursor walks; `patterns` 66→90→121 over 400/1600/2400) — bounded by the orderlist
@@ -77,12 +81,14 @@ Doctrine: structure work outranks encoder work; the `cfg` term is the un-recover
 structure, and its root was this cursor — now recovered, with the residual
 attributed to genuine song data.
 
-## 2. Orderlist-role recovery for 0-orderlist tunes (prerequisite for item 1)
+## 2. Orderlist-role recovery for 0-orderlist tunes (LANDED)
 
-`Take_Off` and `8_Bit-Maerchenland_V2` recover patterns but **0 orderlists** — the
-arrangement/cursor-advance isn't linked to the pattern accessors, so their sequence isn't
-bounded by the recovered structure. A sequencer improvement needed before item 1 can bound
-them.
+`Take_Off` and `8_Bit-Maerchenland_V2` recovered patterns but **0 orderlists** —
+the arrangement/cursor-advance was not linked to the pattern accessors. The Part B
+nested-read feed (`sequencer.tracker_view` `nested_orderlist`) now links the
+orderlist even when the pattern pointer is an inline `(hi<<8|lo)` word rather than
+a spilled cell: Take_Off surfaces 6 orderlists, stable across horizons. Item 1
+(seq rung) can now bound them.
 
 ## 3. deity cadence-trigger split (boundary hygiene, deferred)
 

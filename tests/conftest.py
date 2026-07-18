@@ -512,6 +512,7 @@ _N_TIM = 0x9200
 _N_ROW = 0x9204
 _N_OPOS = 0x9208
 _N_FREQ = 0x920C
+_N_ACC = 0x9210
 _N_OLA = 0x9280
 _N_OLB = 0x92C0
 _N_PAT = 0x9310
@@ -563,30 +564,36 @@ def _n_voice_block(voice, olist):
     return _asm([0xCE, tlo, thi], [0xD0, len(seq) + len(adv) + len(call)]) + seq + adv + call
 
 
-def _n_fetch_block():
+def _n_fetch_block(accum=False):
     rlo, rhi = _lohi(_N_ROW)
     flo, fhi = _lohi(_N_FREQ)
-    return _asm(
-        [0xBD, rlo, rhi],  # LDA row,X
-        [0xA8],
-        [0xB1, 0xF8],  # LDA ($F8),Y (control byte)
-        [0x85, 0xF7],
-        [0x29, 0x7F],
-        [0x9D, flo, fhi],  # freq,X = ctrl & $7F
-        [0xA5, 0xF7],
-        [0x29, 0x80],
-        [0xF0, 0x06],  # BEQ one-byte record
-        [0xC8],
-        [0xB1, 0xF8],  # LDA ($F8),Y (note byte)
-        [0x9D, flo, fhi],
-        [0xC8],  # one: INY
-        [0x98],
-        [0x9D, rlo, rhi],  # row += record length
-        [0x60],
+    clo, chi = _lohi(_N_ACC)
+    acc = (
+        _asm([0xAD, clo, chi], [0x18], [0x71, 0xF8], [0x8D, clo, chi]) if accum else b""
+    )  # accum += pattern byte at (ptr),Y
+    return (
+        _asm([0xBD, rlo, rhi], [0xA8])  # LDA row,X; TAY
+        + acc
+        + _asm(
+            [0xB1, 0xF8],  # LDA ($F8),Y (control byte)
+            [0x85, 0xF7],
+            [0x29, 0x7F],
+            [0x9D, flo, fhi],  # freq,X = ctrl & $7F
+            [0xA5, 0xF7],
+            [0x29, 0x80],
+            [0xF0, 0x06],  # BEQ one-byte record
+            [0xC8],
+            [0xB1, 0xF8],  # LDA ($F8),Y (note byte)
+            [0x9D, flo, fhi],
+            [0xC8],  # one: INY
+            [0x98],
+            [0x9D, rlo, rhi],  # row += record length
+            [0x60],
+        )
     )
 
 
-def _n_arrangement_image(n, distinct=1):
+def _n_arrangement_image(n, distinct=1, accum=False):
     tlo, thi = _lohi(_N_TIM)
     rlo, rhi = _lohi(_N_ROW)
     olo, ohi = _lohi(_N_OPOS)
@@ -604,6 +611,9 @@ def _n_arrangement_image(n, distinct=1):
         [0x8D, (_N_OPOS + 2) & 0xFF, ohi],
         [0x8D, flo, fhi],
         [0x8D, (_N_FREQ + 2) & 0xFF, fhi],
+    )
+    init += _asm([0x8D, _N_ACC & 0xFF, fhi]) if accum else b""  # accum = 0
+    init += _asm(
         [0xAD, ala, aha],
         [0x85, 0xFB],  # A ptr = olistA[0]
         [0xAD, alb, ahb],
@@ -630,7 +640,7 @@ def _n_arrangement_image(n, distinct=1):
     img = {
         _N_INIT: init,
         _N_PLAY: play,
-        _N_FETCH: _n_fetch_block(),
+        _N_FETCH: _n_fetch_block(accum),
         _N_OLB: bytes([_N_PAT & 0xFF, 0xFF]),
     }
     lows = []
@@ -643,12 +653,13 @@ def _n_arrangement_image(n, distinct=1):
 
 @pytest.fixture
 def arrangement_builder(tmp_path):
-    """Builder ``fn(n, distinct=1) -> path``: ``distinct`` patterns over ``n`` positions."""
+    """Builder ``fn(n, distinct=1, accum=False) -> path``: ``distinct`` patterns
+    over ``n`` positions; ``accum`` adds a pattern-byte accumulator consumer."""
 
-    def build(n, distinct=1):
-        img = _n_arrangement_image(n, distinct)
+    def build(n, distinct=1, accum=False):
+        img = _n_arrangement_image(n, distinct, accum)
         data = assemble(img, load=_N_LOAD, init=_N_INIT, play=_N_PLAY)
-        return _write(tmp_path, f"arrangement{n}_{distinct}.sid", data)
+        return _write(tmp_path, f"arrangement{n}_{distinct}_{int(accum)}.sid", data)
 
     return build
 
