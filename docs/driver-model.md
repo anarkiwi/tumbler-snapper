@@ -38,15 +38,20 @@ constant = that frame's concrete load address, on **every** frame. Its `taken`
 distinguishes the aliasing frames, so the step-8 walk rung (`payload.build`) is now
 deterministic for computed-load aliases. `test_alias_load_lands_walk_rung` passes.
 
-### Tracker-view pattern classification — follow-up
+### Tracker-view pattern classification — resolved
 
-`test_tracker_view_matches_authored_payload` still `xfail`s, for a **distinct**
-reason. Under 0.3.2 the note-read program expresses the pattern pointer as a
-2-byte cell load (`mem[$FB]:2`, `idx` role) rather than an OR-of-bytes word
-(`ptr` role). The full pattern extent is recovered correctly (an `idx`-role node
-with the `0xFF` sentinel feeding the SID note register), and the verdict is
-`exact+seq` byte-exact — but `tracker_view`'s pattern selector keys on the `ptr`
-role and so surfaces the single-byte pointer-check reads instead of the full
-extent. Generalising the pattern classifier to a role-agnostic structural
-signature (row-counter-indexed, sentinel-terminated, feeds note register) needs
-HVSC-breadth validation, so it is deferred.
+`test_tracker_view_matches_authored_payload` passes. `tracker_view`'s pattern
+selector is role-agnostic: a **primary pattern node** is any sentinel-terminated
+accessor feeding a SID register that is indexed by both a recovered pointer and a
+row counter — where the pointer is recognised whether it arrives as a `ptr`-role
+OR-of-bytes word or an `idx`-role pointer-class cell load (`mem[$FB]:2`). Cell
+class comes from `res["cells"]` (`pointer` vs `counter`), so neither role encoding
+is privileged.
+
+Deity expresses the same `LDA (ptr),Y` in more than one encoding across frames:
+steady rows read via the 2-byte-cell form, while the first row after a
+pointer store (wrap/sentinel frame) reads via the word form. The pattern extent
+is therefore the **union** of reads over every SID-feeding node whose pointer
+overlaps the primary's pointer word (`[P, P+1]`), merged into one entry. This is
+read off the recovered accessor registry, not fitted to output, and holds across
+the HVSC-marked suite with no roundtrip/token regression.
