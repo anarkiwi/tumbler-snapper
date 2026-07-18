@@ -72,6 +72,36 @@ def test_cli_curate(hvsc_tree, tmp_path):
     assert "wrote" in text
 
 
+def test_cli_corpus(hvsc_tree, tmp_path):
+    root, _meta = hvsc_tree
+    out = tmp_path / "cli_corpus.json"
+    text = _run(
+        [
+            "corpus",
+            "--hvsc",
+            root,
+            "--out",
+            str(out),
+            "--target",
+            "3",
+            "--ticks",
+            "30",
+            "--per-composer-cap",
+            "4",
+            "--cand-cap",
+            "50",
+            "--player-cap",
+            "4",
+            "--composer-cap",
+            "4",
+            "--jobs",
+            "1",
+        ]
+    )
+    assert out.exists()
+    assert "wrote" in text
+
+
 def test_cli_help_exits():
     with pytest.raises(SystemExit):
         cli.main(["--help"])
