@@ -86,7 +86,12 @@ Every `< 1.0` and growth-rate figure is in tokens; the `.sid` ground truth is in
 ## Corpus summary
 
 - ground-truth per-song footprint (reached code+data) / frame `< 1.0`: **27/31** measured tunes.
-  - NOT < 1.0 -- genuinely short tunes whose own stored data does not amortize below 1 byte/frame (honest edge, not a recovery failure): Old_Cracktro_Tune(1.02), Smutta(1.91), Super_Goatron(1.03), Space_Ache_Preview(1.37)
+  - `.sid` **byte**-footprint/frame `>= 1.0` for Old_Cracktro_Tune(1.02B), Super_Goatron(1.03B), Space_Ache_Preview(1.37B), Smutta(1.91B). This is bytes/frame; constraint #4 is **tokens**/frame (tokens are coarser than bytes, so a byte-footprint over 1.0 is NOT a tokens/frame floor). Recovered token tpf (measured at full horizon) and its growing-`cfg`-stripped static-only tpf:
+    - Old_Cracktro_Tune: 0.78 tok/frm, static-only 0.56 -- **already < 1.0**.
+    - Smutta: 1.10 tok/frm, static-only 0.81 -- `> 1.0` only via the un-recovered growing cfg term.
+    - Super_Goatron: 1.14 tok/frm, static-only 0.89 -- `> 1.0` only via the un-recovered growing cfg term.
+    - Space_Ache_Preview: 1.28 tok/frm, static-only 1.01 -- `> 1.0` via cfg + pattern-indexing bloat (`static/reach` 1.4x), both recoverable.
+    None is a ground-truth floor: recovering the cfg (row-cursor) term brings the static-footprint tunes under 1.0 -- **doctrine #4 stands**.
 - raw whole-image / frame `>= 1.0` for 14 tunes -- artifact of multi-song files (other songs' data) and in-load scratch RAM; the per-song reached footprint above removes it.
 
 ### Recoverable gap ranked by mechanism (dominant growing term)
