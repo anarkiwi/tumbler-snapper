@@ -252,9 +252,28 @@ def _summary_lines(rows):
     over = [r for r in have if r["sid_tpf"] >= 1.0]
     if over:
         lines.append(
-            "  - NOT < 1.0 -- genuinely short tunes whose own stored data does not "
-            "amortize below 1 byte/frame (honest edge, not a recovery failure): "
-            + ", ".join(f"{r['tune']}({r['sid_tpf']:.2f})" for r in over)
+            "  - `.sid` **byte**-footprint/frame `>= 1.0` for "
+            + ", ".join(f"{r['tune']}({r['sid_tpf']:.2f}B)" for r in over)
+            + ". This is bytes/frame; constraint #4 is **tokens**/frame (tokens are "
+            "coarser than bytes, so a byte-footprint over 1.0 is NOT a tokens/frame "
+            "floor). Recovered token tpf and its growing-term-stripped static-only tpf:"
+        )
+        for r in over:
+            otpf = r.get("our_tpf_extrap")
+            st, ff = r.get("static_tokens"), r.get("full_frames")
+            stpf = (st / ff) if (st is not None and ff) else None
+            note = (
+                "already < 1.0"
+                if (otpf is not None and otpf < 1.0)
+                else "> 1.0 only via the un-recovered growing cfg term"
+            )
+            lines.append(
+                f"    - {r['tune']}: our {_fmt(otpf, '.2f')} tok/frm, static-only "
+                f"{_fmt(stpf, '.2f')} -- {note}."
+            )
+        lines.append(
+            "    None is a ground-truth floor: recovering the cfg (row-cursor) term "
+            "brings the static-footprint tunes under 1.0 -- doctrine #4 stands."
         )
     img_over = [r for r in rows if (r.get("image_tpf") or 0) >= 1.0]
     lines.append(

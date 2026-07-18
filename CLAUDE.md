@@ -113,7 +113,11 @@ tiny. Discover these structures from the P-Code; do not assume any one layout.
    representative sample of `/scratch/hvsc` (many players/packers/eras), not one
    tune. Validate breadth before claiming generality.
 6. **References.** Consult only: `deity-informant`, `pygoattracker`, `pydefmon`,
-   `/scratch/hvsc`, and the `sidplayfp`/`sidtrace` oracle. No other references.
+   `/scratch/hvsc`, and the `sidplayfp`/`sidtrace` oracle. `pysidwizard`
+   (`../pysidwizard`) may be consulted as **developer-only ground truth** to
+   cross-check SIDwizard-authored tunes (same status as a disassembly) — never
+   consumed by the codec (doctrine #2), only to verify recovery. No other
+   references.
 7. **No copyrighted material in the repo.** HVSC `.sid` tunes are fetched and
    cached as test fixtures, never committed/redistributed.
 
