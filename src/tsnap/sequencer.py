@@ -370,15 +370,17 @@ def _rewrite_evolved(it, e, uniq, owner, memo):
     return r
 
 
-def _link_evolved(it, cells):
+def _link_evolved(it, cells, guards=()):
     """Transitive value-numbering into consumer carry chains: rewrite a sub-node
     that is a unique recovered cursor's evolved value to its reference, to
-    fixpoint; ambiguous provenance keeps the composition (alphabet only)."""
+    fixpoint. ``guards`` ride along as pure consumers (owner ``None``, never
+    claim-owners) and are returned rewritten; ambiguous provenance keeps forms."""
+    guards = list(guards)
     for _ in range(len(cells) + 1):
         claims = _evolved_claims(cells)
         uniq = {e: next(iter(cs)) for e, cs in claims.items() if len(cs) == 1}
         if not uniq:
-            return
+            return guards
         changed = False
         for k, info in cells.items():
             owner = None if info["sid"] else k
@@ -387,29 +389,42 @@ def _link_evolved(it, cells):
             if new != info["exprs"]:
                 info["exprs"] = new
                 changed = True
+        if guards:
+            memo = {}
+            newg = [_rewrite_evolved(it, g, uniq, None, memo) for g in guards]
+            if newg != guards:
+                guards = newg
+                changed = True
         if not changed:
-            return
+            return guards
+    return guards
 
 
-def despecialize_cursors(it, cells):
+def despecialize_cursors(it, cells, guards=()):
     """Collapse position-specific accessor vocabulary to recovered cursor
-    references: rewrite each store-forwarded index sub-expression of a unique
-    counter/pointer to its cursor reference, then link evolved values into
-    consumer carry chains (reported alphabet only; prediction unchanged)."""
+    references, then link evolved values into consumer carry chains. ``guards``
+    ride along as pure consumers, collapsed by the same maps; the rewritten
+    guard list is returned."""
     claims = _forwarded_claims(it, cells)
     cursors = {v: next(iter(cs)) for v, cs in claims.items() if len(cs) == 1}
+    guards = list(guards)
     if not cursors:
-        _link_evolved(it, cells)
-        return
+        return _link_evolved(it, cells, guards)
     for (a, sz), info in cells.items():
         owner = None if info["sid"] else (a, sz)
         memo = {}
         info["exprs"] = {_rewrite_cursors(it, e, cursors, owner, memo) for e in info["exprs"]}
+    if guards:
+        memo = {}
+        guards = [_rewrite_cursors(it, g, cursors, None, memo) for g in guards]
     ptr_cells = {k for k, i in cells.items() if not i["sid"] and i["cls"] == "pointer"}
     for info in cells.values():
         memo = {}
         info["exprs"] = {_canon_pointer_word(it, e, claims, ptr_cells, memo) for e in info["exprs"]}
-    _link_evolved(it, cells)
+    if guards:
+        memo = {}
+        guards = [_canon_pointer_word(it, g, claims, ptr_cells, memo) for g in guards]
+    return _link_evolved(it, cells, guards)
 
 
 def guard_facts(it, guards):
@@ -726,7 +741,10 @@ def analyze_ir(ir, path=""):
         cells[(a, sz)] = info
     ok_cells, ok_regs, dropped = close_model(it, cellmap, regmap, wset, reset)
     model_bytes = {(a + i) & 0xFFFF for a, sz in ok_cells for i in range(sz)}
+    registry = build_registry(it, ir, cells, model_bytes, wset)  # before de-specialization
+    depths = chain_depth(registry)
     gset = [g for g in guards if expr_closed(it, g, model_bytes, ok_regs, wset, reset)]
+    gdespec = list(dict.fromkeys(despecialize_cursors(it, cells, gset)))
     rprogs, rid_of = restrict_programs(it, ir, ok_cells, ok_regs, model_bytes, wset)
     snaps = observed_states(ir)
     dmap, collide = build_dispatch(ir, gset, snaps, rid_of)
@@ -741,8 +759,6 @@ def analyze_ir(ir, path=""):
         "wset": wset,
     }
     pred = predict(it, ir, ctx, snaps)
-    registry = build_registry(it, ir, cells, model_bytes, wset)
-    depths = chain_depth(registry)
     bounds, sentinels = guard_facts(it, guards)
     init_mem = irvm._load_image(ir["init_mem"])  # pylint: disable=protected-access
     tables = []
@@ -770,7 +786,6 @@ def analyze_ir(ir, path=""):
     for (a, _sz), info in cells.items():
         if not info["sid"]:
             ncls[info["cls"]] += 1
-    despecialize_cursors(it, cells)  # after predict/registry: reported alphabet only
     return {
         "path": path,
         "frames": ir["frames"],
@@ -782,7 +797,8 @@ def analyze_ir(ir, path=""):
         "total_cells": len(cellmap),
         "dropped": {k: sorted(v, key=str) for k, v in dropped.items() if v},
         "guards_total": len(guards),
-        "guards_closed": len(gset),
+        "guards_closed": len(gdespec),
+        "guards_raw": len(gset),
         "rprogs": len(rprogs),
         "dispatch_keys": len(dmap),
         "collisions": len(collide),

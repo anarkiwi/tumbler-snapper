@@ -77,25 +77,34 @@ structure**. So the seq rung's prerequisite is effectively met: the remaining wo
 is to **revive the seq rung** (item 1) against the song-data-sized vocabulary and
 measure `<1.0` at full horizon, not to chase the residual with more factoring.
 
-**Correction (ground truth, `docs/fixture-disassembly.md`).** The "~80% genuine
-song data / prerequisite effectively met" claim above holds for the **cell-alphabet**
-(which the landed pass de-specializes) but **not for the guard set**. `gset` is built
-in `analyze_ir` from raw `ir["guards"]` and is **never** passed through
-`despecialize_cursors`/`_link_evolved`, so its vocabulary carries the same
-inlined-cursor pattern-deref compositions and grows: Vacuole `guards_closed` 385→702
-over 400→1600 f. Measured against the Vacuole disassembly (`$16B2` row reader,
-`$1715` sentinel), **76% of that guard growth collapses under the very pass the codec
-already runs on cells** (raw distinct closed guards 287→430 → de-specialized 152→186;
-Take_Off/Sc00ter saturate). It is therefore un-recovered (un-wired) structure, not
-genuine song data. Prerequisite status is **partially met**: met for cell transitions,
-**not met for the guard set on the flagship**. Bounding Vacuole = wire the existing
-cursor de-specialization maps into `gset` (then the +34 residual needs the place-fact
-ambiguous collapse / asymmetric pointer-word canonicalization scoped in
-`orderlist-recovery.md` Part A.2/B.3).
+**Guard-set de-specialization — LANDED** (`gset-despecialize` PR;
+`docs/fixture-disassembly.md` ground truth, `docs/seq-coverage-survey.md` §(c)).
+The earlier "~80% genuine song data" held for the **cell-alphabet** but not the
+**guard set**: `gset` grew with the same inlined-cursor pattern-deref compositions
+(Vacuole `guards_closed` 385→702 over 400→1600 f). `analyze_ir` now routes `gset`
+through the same `despecialize_cursors`/`_link_evolved` maps as the cells (one
+generalized pass, `guards=` consumer arg), and reports the de-specialized distinct
+vocabulary as `guards_closed` (pre-collapse list as `guards_raw`). Measured:
+Vacuole distinct closed-guard growth **+143 → +38** (−73%; list basis +317 → +38,
+−88%); Take_Off/Sc00ter saturate (+6/+3), Old_Times −68%; `raw≠` counts match the
+disassembly §2 exactly. The residual +38 is the ~23 ambiguous multi-cursor EV keys
+the conservative unique-membership guard leaves specialized (byte-safety) plus a
+genuine song-data offset tail (place-fact / asymmetric-word collapse scoped in
+`orderlist-recovery.md` Part A.2/B.3). Prerequisite status: **met** for both the
+cell-alphabet and the guard set on all RISK-1 witnesses.
+
+**Caveat (eval semantics).** The de-specialized guards are the reported/token
+vocabulary only; `analyze_ir`'s exactness proof keeps the *original* guards.
+Feeding `cur(c)` guards to the frame-entry dispatch is unsound (measured Vacuole
+`coll 0→25`, `resid 0→140`) — `cur(c)` at frame-entry reads the current cursor, so
+N fixed-position reads collapse to one, a coarser partition. Exact dispatch on the
+bounded vocabulary needs intra-frame cursor ordering (`cursor-recovery.md` §5), a
+seq-rung model change (item 1), not an `analyze_ir` change. Mirrors the cells pass
+("reported alphabet only; prediction unchanged").
 
 Doctrine: structure work outranks encoder work; the `cfg` term is the un-recovered
-structure, and its root was this cursor — now recovered, with the residual
-attributed to genuine song data.
+structure, and its root was this cursor — now recovered (cells and guards), with the
+residual attributed to genuine song data.
 
 ## 2. Orderlist-role recovery for 0-orderlist tunes (LANDED)
 
