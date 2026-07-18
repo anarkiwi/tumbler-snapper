@@ -227,6 +227,23 @@ def test_despecialize_collapses_reload_vocabulary(it):
     assert any(e[0] == "mem" and "cur" in repr(e) for e in f2)
 
 
+def test_despecialize_rewrites_guard_operand(it):
+    """A closed guard whose operand inlines a recovered cursor value is
+    de-specialized to that cursor's ``cur(c)`` reference by the same maps as the
+    cells; analyze_ir wires ``gset`` through this so the guard vocabulary is
+    bounded by song data, not horizon. A guard touching no cursor is untouched."""
+    cells = _reload_cells(it, 3)
+    src = ["mem", _op("INT_ADD", [["mem", ["const", 0x20], 2], _c(1)]), 1]
+    guard = it.tup(_op("INT_LESS", [src, _c(8)]))
+    assert "cur" not in repr(guard)
+    (out,) = S.despecialize_cursors(it, cells, [guard])
+    assert "cur" in repr(out)
+    assert S.R.pretty(out) == "(~M[$0010] < 0x8)"
+    plain = it.tup(_op("INT_LESS", [_mem(0x10), _c(8)]))
+    (same,) = S.despecialize_cursors(it, _reload_cells(it, 3), [plain])
+    assert same is plain
+
+
 def _masked_consumer_cells(it):
     """A pointer cursor with masked (non-bare) reload transitions plus an accum
     consumer dereferencing that cursor: only evolved-value linking collapses the

@@ -41,17 +41,22 @@ structure. **Revival is therefore the next step**: re-implement this engine
 against the now song-data-sized (bounded-at-loop) vocabulary and measure `<1.0`
 at full horizon.
 
-**Guard-set caveat (ground truth, `docs/fixture-disassembly.md`).** The
-"song-data-sized vocabulary" holds for the cell-alphabet but **not for `gset`**:
-`analyze_ir` never de-specializes the guard set, so Vacuole `guards_closed` grows
-385→702 over 400→1600 f — un-recovered structure this rung must not carry.
-Disassembly-verified: 76% of that growth collapses under the existing cursor
-de-specialization once wired to `gset` (Vacuole raw 287→430 → 152→186; Take_Off /
-Sc00ter saturate). Wiring cursor de-specialization into `gset` is a hard
-prerequisite for this rung on the cfg-dominated tunes, alongside the cell-alphabet
-work. The open risk is that loop-saturation is inferred (finite
-looping orderlist) but not yet directly measured — reaching the `state_cycle`
-recurrence at full horizon is part of the revival's acceptance.
+**Guard-set de-specialization — LANDED** (`gset-despecialize` PR;
+`docs/fixture-disassembly.md` ground truth, `docs/seq-coverage-survey.md` §(c)).
+`analyze_ir` now routes `gset` through the same `despecialize_cursors`/
+`_link_evolved` maps as the cells: `guards_closed` reports the de-specialized
+distinct vocabulary. Vacuole distinct closed-guard growth `+143 → +38` (−73%; on
+the old list basis `385→702` i.e. `+317 → +38`, −88%); Take_Off/Sc00ter saturate
+(+6/+3), Old_Times −68%. The guard vocabulary is now bounded by song data on all
+RISK-1 witnesses — the cell-alphabet *and* guard-set prerequisites are met.
+
+Two items remain for the revival: **(i)** the seq rung must evaluate the
+de-specialized `cur(c)` guards with **intra-frame cursor ordering** (§2 model
+change, `cursor-recovery.md` §5) — feeding them to the *frame-entry* dispatch is
+unsound (measured Vacuole `coll 0→25`, so `analyze_ir`'s exactness proof keeps the
+original guards); **(ii)** loop-saturation is still inferred from the finite
+orderlist, not directly measured — no witness reaches `state_cycle` within 1600 f,
+so reaching that recurrence at full horizon is part of the revival's acceptance.
 
 ## 0. Why this rung and not the two existing ones
 
