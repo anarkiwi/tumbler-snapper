@@ -52,15 +52,18 @@ the module wiring and the current status only — no design doctrine (that is
 Ranked open work is tracked in [`follow-ups.md`](follow-ups.md); driver-model
 gaps in [`driver-model.md`](driver-model.md). The highest-leverage item is #1:
 
-1. **Sequencer-driven replay token rung — model validated, blocked upstream.**
-   The machine-order CFG-interpreter model is validated (residual-free on the
-   hermetic fixture) and its CFG topology bounded across horizon (~0.13 tok/frame
-   amortized), but **0/31 real tunes are residual-free**: each has nonfunc CFG
-   edges needing a selector the recovered model cannot express. The blocker is an
-   upstream **deity-informant SMC-operand-provenance** gap (operand address is the
-   cursor; deity emits no `place` fact) — see `follow-ups.md` §1c and the feasibility
-   assessment (`docs/deity-smc-provenance.md`). Until then the walk rung holds
-   (lossless, debt 0) but `cfg` grows on the cfg-dominated tail.
+1. **Sequencer-driven replay token rung — voice re-roll measured, does not
+   unblock; rung not built.** The machine-order CFG-interpreter model is validated
+   (residual-free on the hermetic fixture) but **0/31 real tunes are
+   residual-free**. The bespoke base+stride **voice** re-roll (Phase-A
+   make-or-break, `tools/reroll_audit.py`) collapses only the *bounded* per-voice
+   unroll (Vacuole voice-collapsed edges flat at 20 over 400→1600f) and does **not**
+   touch the horizon-growing `cfg` term: that term is the folded **row-position
+   read-index** (`M[cur($FB)+K]`, data-dependent range — the `follow-ups.md` §1a
+   `$96` fold) plus row-advance presence, neither a fixed-K constant-stride loop.
+   The gap is not purely a re-rollable per-voice loop (`docs/seq-replay-rung.md`
+   Status, `docs/deity-smc-provenance.md` §3). The walk rung holds (lossless,
+   debt 0) but `cfg` grows on the cfg-dominated tail.
 2. **Orderlist-role recovery** for 0-orderlist tunes (prerequisite for #1).
 3. **Non-structural rungs**: transcription rung for generative players. (The
    role-agnostic `tracker_view` pattern classifier landed; see docs/driver-model.md.)

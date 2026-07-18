@@ -170,6 +170,23 @@ the tumbler-snapper sequencer (over deity's already-exact per-voice reads), not
 in the deity recorder. Whether that re-roll meaningfully bounds the `cfg` tail is
 the open sequencer question, and it is independent of any deity change.
 
+**Measured (supersedes the open question above): the voice re-roll does NOT bound
+the `cfg` tail.** `tools/reroll_audit.py` implements the base+stride voice
+re-roll and measures the nonfunc CFG edges before/after (`seq-replay-rung.md`
+Status). On Vacuole the voice-collapsed edges are **flat at 20** over 400→1600f
+while the residual grows 30→42: the voice index is a bounded fixed-K=3 loop, so
+re-rolling it cannot touch the growing term. The horizon-growing residual is a
+**second** deity-specialised-away register IV — the `(zp),Y` **row-position
+index** folded to a per-frame constant `K` (`M[cur($FB)+K]`, `K` = the per-voice
+row cursor). Unlike the voice index (fixed 3 iterations, constant stride, so
+re-rollable exact-by-construction) the row index has a **data-dependent range**
+(advances per row, wraps at the pattern sentinel), so it is not a constant-stride
+unrolled loop. deity specialises it away identically (0 place facts); recovering
+it would need the same abandoned symbolic-loop-counter architecture as the voice
+index, but even given the provenance the re-roll is not exact-by-construction. The
+`cfg`-dominated tail (Vacuole) is therefore **not** unblocked by a sequencer-side
+voice re-roll.
+
 ## 4. Overall: is the deity investment worth it for constraint #4?
 
 **No.** The seq rung is not blocked on a deity provenance gap:

@@ -50,6 +50,17 @@ executes. The rung is **not one wiring away**; it is blocked on item 1c.
   the recovered accessor model directly (machine-order CFG-interpreter, §2 as
   corrected), gated byte-exact through `payload._verify` with fallback. **Blocked
   on 1c** (0/31 real tunes residual-free; every real tune rejects to walk).
+- **(c) Voice-index re-roll — MEASURED, does not unblock (see
+  `seq-replay-rung.md` Status).** The bespoke base+stride voice de-specialization
+  (`tools/reroll_audit.py`) collapses only the *bounded* per-voice unroll: Vacuole
+  voice-collapsed edges are flat at 20 over 400→1600f while the residual grows
+  30→42. The horizon-growing `cfg` driver is the folded **row-position read-index**
+  (`M[cur($FB)+K]`, `K` = row cursor, data-dependent range — the §1a `$96` fold)
+  plus row-advance presence, neither a fixed-K constant-stride loop. Re-rolling the
+  voice index cannot reduce a term the voice index does not drive. The gap is
+  **not** purely a re-rollable per-voice loop; recovering the folded row-index
+  exact-by-construction remains blocked by the same deity register-IV
+  specialisation (`deity-smc-provenance.md` §3).
 - **(b) History-trie minimization** via the recovered sentinel predicates
   (`res["tables"][*]["sentinel"]`), each discriminator evaluated at its own execution
   position, then DFA-minimized to the ≤6-outcome classifier.

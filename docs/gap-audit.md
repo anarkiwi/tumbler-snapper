@@ -108,6 +108,15 @@ Every `< 1.0` and growth-rate figure is in tokens; the `.sid` ground truth is in
 
 **Single largest proven-recoverable gap: `cfg` (walk context-trie (row-cursor history disambiguation))** -- 10.98 tok/frm summed growth across 30 tunes. This dictates the next code to write.
 
+**cfg-collapse probe (voice re-roll, measured — negative).** The bespoke base+stride
+**voice** re-roll (`tools/reroll_audit.py`) was measured against the CFG-interpreter's
+nonfunc edges as the make-or-break for collapsing `cfg`. It collapses only the *bounded*
+per-voice unroll (Vacuole voice-collapsed edges flat at 20 over 400->1600f) and does not
+touch the growing term: the `cfg` growth is the folded **row-position read-index**
+(`M[cur($FB)+K]`, `K` = per-voice row cursor, data-dependent range) plus row-advance
+presence -- the "un-recovered cursor indexing" attribution above, confirmed *not* to be
+the multi-voice interleaving. See `docs/seq-replay-rung.md` Status.
+
 - total measured growth rate across corpus: **11.06 tok/frm** (all un-recovered structure by the finite-`.sid` argument).
 - horizon-invariant: sum static tokens 56473 vs sum reached song-data bytes 51189 (**1.1x**, token/byte order-of-magnitude caveat).
 
