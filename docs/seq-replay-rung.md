@@ -10,53 +10,72 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status: parked — blocked on upstream cursor recovery
+## Status: model validated, build blocked upstream (deity SMC-operand provenance)
 
-The §2 accessor-evolution model was implemented and measured against real HVSC
-tunes (the engine is reverted, not in-tree). **Verdict: it cannot bound the
-`cfg`-dominated tunes, because the blocker is upstream of this rung.**
+Prerequisites landed — cursor de-specialization (#75,
+[`cursor-recovery.md`](cursor-recovery.md)), orderlist recovery (#75,
+[`orderlist-recovery.md`](orderlist-recovery.md)), guard-set de-specialization
+(#80) — and the replay model was measured against real HVSC tunes. **Verdict:
+the machine-order CFG-interpreter model is validated and its CFG topology is
+bounded across horizon, but 0 of 31 analyzable real tunes are residual-free; the
+blocker is a precise upstream deity-informant recorder-provenance gap, not a
+tsnap wiring gap.** The design below stands; the build is blocked upstream.
 
-`sequencer.analyze_ir` recovers the accessor *shape* but **inlines the row
-cursor as per-form constants**. On Vacuole (`MUSICIANS/I/Ilkke/Vacuole.sid`),
-cell `$96`'s update is a two-level pattern deref
-`M[(M[src+$1900]<<8 | M[src+$1800]) + off] << 1` with **17 distinct forms**
-that differ only in the pointer-source cell (`$12A4/$1351/$1194/$1186/…`) and a
-**constant** offset (`0x1/0x2/0x3/…`) — the row position is baked in, not read
-from an evolved cursor. So each song position mints a new accessor form and the
-recovered vocabulary **grows with horizon** (400→1600f: cell-alphabet 335→459,
-`$96` forms 17→27, closed guards 385→702) — upstream of any encoder. `build`
-accepts 0/32 HVSC fixtures for this reason; nothing was wired.
+**Model correction — machine-order, not frame-entry-pure (§2).** #80 proved the
+frame-entry-pure form of §2 unsound (feeding de-specialized `cur(c)` guards to
+the frame-entry dispatch collapses N fixed-position cursor reads to one: Vacuole
+`coll 0→25`, `resid 0→140`; `analyze_ir`'s exactness proof keeps the original
+guards). The correct form is a **CFG-interpreter over the machine-order store
+log**: reconstruct the player CFG as `(guard-site, taken) → store-block` from
+`ir["seg_pool"]`/`segs` (`(pos,addr,expr,sz)` whose exprs already carry `cur`
+evolved leaves), evaluate recovered guards inline against **machine-order-evolved
+memory** (cursor transitions applied before the derefs that read them — exactly
+`payload._walk_frames`'s `cur=mem` evolution), and apply each block. It needs
+**no history/context-trie** — which is what makes walk's `cfg` term grow. Uniform
+evolved reads (`M[c] ≡ cur[c]`, sound because deity records the frame-entry form
+only when `c` was not stored earlier in the frame) collapse the #80 "cur vs M for
+the same cursor cell" edges. §2's model text is retained below with this
+machine-order annotation.
 
-The engine is validated where a genuine single-deref rule exists (byte-exact,
-`cfg=guard_table=residual=0`, horizon-stable on trivial fixtures). The rung is
-sound; its **prerequisite** was cursor/orderlist recovery in
-`sequencer.analyze_ir` — now **landed**: cursor de-specialization
-([`cursor-recovery.md`](cursor-recovery.md)) and orderlist recovery
-([`orderlist-recovery.md`](orderlist-recovery.md)) collapse the inlined-cursor
-vocabulary and link the orderlist. Place-fact-keyed factoring of the remainder
-was then **measured non-viable** (`follow-ups.md` §1a): the provenance mechanism
-is absent for both witnesses and the residual is **~80% genuine song-data
-footprint** bounded by the orderlist loop — doctrine-fine, not un-recovered
-structure. **Revival is therefore the next step**: re-implement this engine
-against the now song-data-sized (bounded-at-loop) vocabulary and measure `<1.0`
-at full horizon.
+**CFG topology is bounded across horizon** (the genuine advance; walk's `cfg`
+growth is the history trie the interpreter avoids). Measured 400→1600 f:
 
-**Guard-set de-specialization — LANDED** (`gset-despecialize` PR;
-`docs/fixture-disassembly.md` ground truth, `docs/seq-coverage-survey.md` §(c)).
-`analyze_ir` now routes `gset` through the same `despecialize_cursors`/
-`_link_evolved` maps as the cells: `guards_closed` reports the de-specialized
-distinct vocabulary. Vacuole distinct closed-guard growth `+143 → +38` (−73%; on
-the old list basis `385→702` i.e. `+317 → +38`, −88%); Take_Off/Sc00ter saturate
-(+6/+3), Old_Times −68%. The guard vocabulary is now bounded by song data on all
-RISK-1 witnesses — the cell-alphabet *and* guard-set prerequisites are met.
+| tune | CFG edges | store-vocab |
+|---|---|---|
+| Sc00ter | 87 → 87 | 265 → 268 |
+| Old_Times | 127 → 127 | 290 → 304 |
+| Vacuole | 124 → 137 | 250 → 317 |
+| Smutta | 137 → 140 | 265 → 285 |
 
-Two items remain for the revival: **(i)** the seq rung must evaluate the
-de-specialized `cur(c)` guards with **intra-frame cursor ordering** (§2 model
-change, `cursor-recovery.md` §5) — feeding them to the *frame-entry* dispatch is
-unsound (measured Vacuole `coll 0→25`, so `analyze_ir`'s exactness proof keeps the
-original guards); **(ii)** loop-saturation is still inferred from the finite
-orderlist, not directly measured — no witness reaches `state_cycle` within 1600 f,
-so reaching that recurrence at full horizon is part of the revival's acceptance.
+The bounded part amortizes ~0.13 tok/frame at full horizon — under 1.0.
+
+**But 0/31 real tunes are residual-free.** Every real tune has 6–67 **nonfunc**
+CFG edges where `(site,taken)` maps to 2–3 distinct store-blocks needing a
+value/presence **selector** the recovered model cannot express with
+`cfg=guard_table=residual=0` (§4's requirement). The hermetic `orderlist_sid`
+fixture **is** residual-free (6 edges, 0 nonfunc, vocab flat 14→14) — the
+mechanism works there, so the model is sound; real tunes reject to walk.
+
+**The blocker is upstream, two kinds of deity recorder-provenance gap:**
+
+- **(a) SMC-absolute-indexed reads** — the operand *address* is itself the
+  cursor (Sc00ter `$f8 ← M[5895/5896/5897]`, Vacuole `M[5089]` vs `M[5040]`
+  per-voice column pointers). deity emits **0 `place` facts** for this idiom, so
+  the accessor carries no cursor cell to reference / de-specialize.
+- **(b) multi-voice-column / presence selection** — the interleaving §0/§8.1
+  flagged as "the whole bet"; discriminated by state rewritten before its
+  predicate executes (`follow-ups.md` item 1's rejected-prototype blocker,
+  independently reproduced).
+
+**Untested lever, not previously refuted.** `follow-ups.md` §1a measured
+*tsnap-side factoring using deity's EXISTING facts* as non-viable (≤4–6%, 0
+relevant `place` facts). It did **not** test ADDING a new deity capability. So
+the **deity SMC-operand-provenance** lever — emit the SMC-patched absolute
+operand as `M[base + cur(rowcell)]` — is **untested**, an open upstream option
+likely closing blocker-kind (a); kind (b) may need its own recorded
+discriminator. Constraint #4 is genuinely at stake: Vacuole on walk is ~0.993,
+trending over 1.0 at true full horizon. See the deity-informant SMC-operand
+provenance feasibility assessment (`docs/deity-smc-provenance.md`).
 
 ## 0. Why this rung and not the two existing ones
 
@@ -117,6 +136,13 @@ function of frame-entry state, but its *table* form is the debt. The rung
 re-expresses that function as per-cell structural rules (§2), which are bounded.
 
 ## 2. The replay model
+
+> **Machine-order correction (see Status).** The frame-entry-pure semantics
+> stated below (snapshot at frame entry, all exprs/guards against `snap`) were
+> proved unsound by #80. The validated form is a machine-order CFG-interpreter:
+> guards and derefs evaluate against **machine-order-evolved memory** (`cur=mem`,
+> cursor transitions applied before the derefs that read them), not a frame-entry
+> snapshot. Read `snap` below as the evolving `cur` image, per `payload._walk_frames`.
 
 One **static** closed model, evolved from `init_mem` every frame — no per-frame
 program table. Per frame, in **machine order** (like `payload._walk_frames`,

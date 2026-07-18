@@ -43,7 +43,7 @@ the module wiring and the current status only — no design doctrine (that is
 |---|---|
 | **Lossless** (byte-exact stream) | met — 33/33 fixtures vs deity `PcodeVM`; 32/32 vs sidtrace ([`survey.md`](survey.md), [`irvm.md`](irvm.md)) |
 | **Algorithmic / no fitting** | met — static P-Code dataflow + recorded guards + `init_mem`; dispatch lowered from CFG paths, not induced |
-| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung); not yet general (300-tune survey 4.3% < 1.0) ([`tokens.md`](tokens.md)) |
+| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung, lossless, debt 0), but walk `cfg` grows on the cfg-dominated tail (Vacuole ~0.993, trending over 1.0 at true full horizon); not yet general (300-tune survey 4.3% < 1.0). Seq rung model validated + CFG bounded but blocked on upstream deity provenance ([`seq-replay-rung.md`](seq-replay-rung.md), [`tokens.md`](tokens.md)) |
 | **Tracker structure recovered** | on fixtures — `sequencer.analyze_ir` → `exact+seq` on 27/33; model closure total on every analyzable tune ([`sequencer-survey.md`](sequencer-survey.md)) |
 | **Survey breadth** | partial — 73.4% lossless of classifiable, 95.1% cadence–oracle agreement over 300 tunes ([`survey.md`](survey.md)) |
 
@@ -52,13 +52,15 @@ the module wiring and the current status only — no design doctrine (that is
 Ranked open work is tracked in [`follow-ups.md`](follow-ups.md); driver-model
 gaps in [`driver-model.md`](driver-model.md). The highest-leverage item is #1:
 
-1. **Sequencer-driven replay token rung.** The sequencer already recovers a
-   **bounded** orderlist/pattern representation exactly, but `tokens.compress`
-   runs the walk model — whose `cfg` term re-encodes the note sequence as
-   backward history and grows with song length (Vacuole trends over 1.0 at its
-   true full horizon). Replaying from the recovered accessor model closes the
-   efficiency constraint durably and survey-wide. This is the structure work the
-   `< 1.0` verdict now depends on.
+1. **Sequencer-driven replay token rung — model validated, blocked upstream.**
+   The machine-order CFG-interpreter model is validated (residual-free on the
+   hermetic fixture) and its CFG topology bounded across horizon (~0.13 tok/frame
+   amortized), but **0/31 real tunes are residual-free**: each has nonfunc CFG
+   edges needing a selector the recovered model cannot express. The blocker is an
+   upstream **deity-informant SMC-operand-provenance** gap (operand address is the
+   cursor; deity emits no `place` fact) — see `follow-ups.md` §1c and the feasibility
+   assessment (`docs/deity-smc-provenance.md`). Until then the walk rung holds
+   (lossless, debt 0) but `cfg` grows on the cfg-dominated tail.
 2. **Orderlist-role recovery** for 0-orderlist tunes (prerequisite for #1).
 3. **Non-structural rungs**: transcription rung for generative players. (The
    role-agnostic `tracker_view` pattern classifier landed; see docs/driver-model.md.)
