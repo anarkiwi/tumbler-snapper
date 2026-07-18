@@ -30,18 +30,26 @@ growing nodes. Each growing node's outcome is already tiny (e.g. 38 trie leaves 
 interleavings**, not separable by any single read/predicate on evolved memory at the
 decision point (discriminating cells are rewritten before their predicate executes).
 
-**Measured (design + build): the replay rung is blocked upstream.** Design (a)
-below was scoped (`docs/seq-replay-rung.md`) and the accessor-evolution engine
-built and measured on real HVSC tunes. It cannot bound the `cfg`-dominated tunes
-because `sequencer.analyze_ir` **inlines the row cursor as per-form constants**
-(Vacuole `$96`: 17→27 forms over 400→1600f; recovered vocabulary grows with
-horizon, upstream of any encoder). The prerequisite is therefore a **sequencer**
-change, not an encoder change — see item 1a. The rung is parked pending it.
+**Measured (design + build): the replay model is validated, the build is blocked
+upstream.** Design (a) below was scoped (`docs/seq-replay-rung.md`) and the
+machine-order CFG-interpreter form investigated on real HVSC tunes. The model is
+**sound** (residual-free on the hermetic `orderlist_sid` fixture) and its CFG
+topology is **bounded** across horizon (Sc00ter edges 87→87, Old_Times 127→127,
+Vacuole 124→137 over 400→1600 f; ~0.13 tok/frame amortized). **But 0 of 31
+analyzable real tunes are residual-free**: each has 6–67 nonfunc CFG edges where
+`(site,taken)` maps to 2–3 distinct store-blocks needing a value/presence
+selector the recovered model cannot express with `cfg=guard_table=residual=0`.
+The blocker is a precise **upstream deity-informant recorder-provenance gap**,
+not a tsnap wiring gap: **(a)** SMC-absolute-indexed reads where the operand
+*address* is the cursor (Sc00ter `$f8 ← M[5895/5896/5897]`, Vacuole `M[5089]` vs
+`M[5040]`) — deity emits **0 `place` facts** for the idiom; **(b)** multi-voice
+presence selection discriminated by state rewritten before its predicate
+executes. The rung is **not one wiring away**; it is blocked on item 1c.
 
 - **(a) Sequencer-driven replay rung.** A rung in `tokens.compress` that evolves
-  the recovered accessor model directly, gated byte-exact through `payload._verify`
-  with fallback. **Blocked on 1a** (without cursor recovery it accepts 0/32
-  fixtures). Estimated footprint once unblocked ~programs+init, bounded < 1.0.
+  the recovered accessor model directly (machine-order CFG-interpreter, §2 as
+  corrected), gated byte-exact through `payload._verify` with fallback. **Blocked
+  on 1c** (0/31 real tunes residual-free; every real tune rejects to walk).
 - **(b) History-trie minimization** via the recovered sentinel predicates
   (`res["tables"][*]["sentinel"]`), each discriminator evaluated at its own execution
   position, then DFA-minimized to the ≤6-outcome classifier.
@@ -73,9 +81,18 @@ Decisively, **~80% of the residual accessor-vocabulary growth is genuine
 song-data footprint** (distinct patterns × field-offsets revealed as the orderlist
 cursor walks; `patterns` 66→90→121 over 400/1600/2400) — bounded by the orderlist
 loop, doctrine-fine (#4: bounded by song data, not horizon), **not un-recovered
-structure**. So the seq rung's prerequisite is effectively met: the remaining work
-is to **revive the seq rung** (item 1) against the song-data-sized vocabulary and
-measure `<1.0` at full horizon, not to chase the residual with more factoring.
+structure**.
+
+**Precise distinction — measured non-viable ≠ refuted.** §1a measured *tsnap-side
+place-fact factoring using deity's EXISTING facts* as non-viable (≤4–6%, 0
+relevant `place` facts for the witnesses). It did **not** test ADDING a new deity
+capability. When the seq rung was then investigated (item 1), the model proved
+sound and its CFG bounded, but **0/31 real tunes are residual-free**: the blocker
+is the same missing provenance, now localized as an upstream deity recorder gap —
+SMC-absolute-indexed reads whose operand *address* is the cursor, for which deity
+emits no `place` fact. So the seq rung is **blocked upstream**, not revivable as
+tsnap-side work. The closing lever is a **deity recorder change** (new item 1c),
+not more tsnap factoring.
 
 **Guard-set de-specialization — LANDED** (`gset-despecialize` PR;
 `docs/fixture-disassembly.md` ground truth, `docs/seq-coverage-survey.md` §(c)).
@@ -105,6 +122,23 @@ seq-rung model change (item 1), not an `analyze_ir` change. Mirrors the cells pa
 Doctrine: structure work outranks encoder work; the `cfg` term is the un-recovered
 structure, and its root was this cursor — now recovered (cells and guards), with the
 residual attributed to genuine song data.
+
+## 1c. deity-informant SMC-operand provenance (recorder change — the closing lever)
+
+The seq rung (item 1) is blocked on a **deity recorder-provenance gap**: for
+SMC-absolute-indexed reads the operand *address* is itself the cursor (Sc00ter
+`$f8 ← M[5895/5896/5897]`, Vacuole per-voice column pointers `M[5089]`/`M[5040]`),
+and deity emits **0 `place` facts** for the idiom, so the recovered accessor
+carries no cursor cell to reference. This is the cfg-dominated tail's remaining
+un-recovered structure. The lever: have the deity recorder emit the SMC-patched
+absolute operand symbolically as `M[base + cur(rowcell)]` (operand provenance),
+supplying the cursor cell the tsnap accessor needs. **Untested, not
+previously-refuted** (§1a rejected only tsnap-side factoring over deity's existing
+facts). Likely closes blocker-kind (a); the multi-voice presence-selection
+blocker-kind (b) may need its own recorded discriminator. **Gated on a feasibility
+assessment** (`docs/deity-smc-provenance.md`) before any recorder change. Outranks
+encoder work (doctrine #4: structure work first); constraint #4 is at stake
+(Vacuole ~0.993 on walk, trending over 1.0 at true full horizon).
 
 ## 2. Orderlist-role recovery for 0-orderlist tunes (LANDED)
 
