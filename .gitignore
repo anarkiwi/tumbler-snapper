@@ -220,6 +220,7 @@ __marimo__/
 # tumbler-snapper project artifacts
 *-ir.txt
 .oracle-cache/
+.disasm-cache/
 src/*.egg-info/
 
 # Core dumps

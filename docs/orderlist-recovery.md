@@ -107,6 +107,12 @@ as one named accessor.
 
 ## 1a. Ground truth (from disassembly — guides the design, not consumed by the codec)
 
+The disassemblies below are now cached and reproducible (`tools/disasm.py` →
+gitignored `.disasm-cache/`; addresses verifiable in `Take_Off-be101592ca.asm`,
+`Vacuole-21f5dcf05b.asm`). Full ground-truth analysis, including how this same
+factoring bounds the **guard set** (Vacuole `guards_closed` 385→702, 76%
+recoverable), is in `docs/fixture-disassembly.md`.
+
 A 6502 disassembly of each player (read by the developer to design the generic
 algorithm; the codec never consumes it — doctrine #2) confirms both witnesses are
 the **same abstract tracker** — orderlist → per-voice pattern pointer → pattern
