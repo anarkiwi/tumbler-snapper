@@ -222,6 +222,90 @@ def classify_cell(it, addr, sz, exprs):
     return info
 
 
+def _cursor_ref(a, sz):
+    """Canonical evolved-cursor reference node for cell ``(a, sz)`` (tsnap ``cur``)."""
+    return ("cur", ("const", a), sz, ((a, sz),))
+
+
+def _forwarded_source(cls, e, self_mem):
+    """Store-forwarded value a cursor transition proves preceded its own read.
+
+    A ``+step`` counter transition ``(X + k)`` and a pointer's held value are
+    both store-then-read within the frame **only** when ``X`` / the value is a
+    dynamic-address load (deity forwarded a same-frame store into it); the plain
+    ``M[const]`` frame-entry read carries no such ordering proof, so it is not a
+    de-specialization candidate.
+    """
+    if cls == "counter":
+        terms, _c = flat_add(peel_and(e)[0])
+        if (
+            len(terms) == 1
+            and terms[0] != self_mem
+            and terms[0][0] == "mem"
+            and (terms[0][1][0] != "const")
+        ):
+            return terms[0]
+        return None
+    if e[0] == "mem" and e[1][0] != "const":
+        return e
+    return None
+
+
+def cursor_alphabet(it, cells):
+    """Map each store-forwarded evolved-cursor value to its unique counter/pointer
+    cell. A value claimed by two cells is ambiguous and omitted (kept composed)."""
+    claims = defaultdict(set)
+    for (a, sz), info in cells.items():
+        if info["sid"] or info["cls"] not in ("counter", "pointer"):
+            continue
+        self_mem = it.tup(["mem", ["const", a], sz])
+        for e in info["exprs"]:
+            src = _forwarded_source(info["cls"], e, self_mem)
+            if src is not None:
+                claims[src].add((a, sz))
+    return {v: next(iter(cs)) for v, cs in claims.items() if len(cs) == 1}
+
+
+def _rewrite_cursors(it, e, cursors, owner, memo):
+    """Replace each store-forwarded index composition with its cursor reference."""
+    hit = memo.get(id(e))
+    if hit is not None:
+        return hit
+    if e[0] == "mem":
+        c = cursors.get(e)
+        if c is not None and c != owner:
+            memo[id(e)] = r = _cursor_ref(*c)
+            return r
+    t = e[0]
+    if t == "op":
+        r = it.tup(
+            ("op", e[1], tuple(_rewrite_cursors(it, k, cursors, owner, memo) for k in e[2]), e[3])
+        )
+    elif t == "mem":
+        r = it.tup(("mem", _rewrite_cursors(it, e[1], cursors, owner, memo), e[2]))
+    else:
+        r = e
+    memo[id(e)] = r
+    return r
+
+
+def despecialize_cursors(it, cells):
+    """Collapse position-specific accessor vocabulary by referencing recovered
+    cursor cells: rewrite each cell's transition alphabet, replacing an index
+    sub-expression that is a store-forwarded value of a unique recovered
+    counter/pointer with that cursor's evolved reference. Correctness-preserving
+    re-representation of the reported alphabet only -- the closure/prediction
+    path evaluates the original frame-entry-pure forms unchanged (see analyze_ir).
+    """
+    cursors = cursor_alphabet(it, cells)
+    if not cursors:
+        return
+    for (a, sz), info in cells.items():
+        owner = None if info["sid"] else (a, sz)
+        memo = {}
+        info["exprs"] = {_rewrite_cursors(it, e, cursors, owner, memo) for e in info["exprs"]}
+
+
 def guard_facts(it, guards):
     """Comparison consts read off guard shapes: cell bounds and read sentinels.
 
@@ -580,6 +664,7 @@ def analyze_ir(ir, path=""):
     for (a, _sz), info in cells.items():
         if not info["sid"]:
             ncls[info["cls"]] += 1
+    despecialize_cursors(it, cells)  # after predict/registry: reported alphabet only
     return {
         "path": path,
         "frames": ir["frames"],

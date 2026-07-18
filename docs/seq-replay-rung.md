@@ -1,0 +1,304 @@
+# Sequencer-driven replay rung (design)
+
+Design for `docs/follow-ups.md` item 1, option (a): a token rung in
+`tokens.compress` that reproduces the SID stream by **evolving the recovered
+accessor model** (`tsnap.sequencer`), so total tokens are recovered structure
+only, with **no horizon-growing term**. No code yet — this is the plan and the
+acceptance conditions. Doctrine (`CLAUDE.md`): P-Code-derived, no fitting, no
+per-tune cases, lossless byte-exact, structure work outranks encoder work.
+
+The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
+walk and dispatch rungs remain intact as fallback (§5).
+
+## Status: parked — blocked on upstream cursor recovery
+
+The §2 accessor-evolution model was implemented and measured against real HVSC
+tunes (the engine is reverted, not in-tree). **Verdict: it cannot bound the
+`cfg`-dominated tunes, because the blocker is upstream of this rung.**
+
+`sequencer.analyze_ir` recovers the accessor *shape* but **inlines the row
+cursor as per-form constants**. On Vacuole (`MUSICIANS/I/Ilkke/Vacuole.sid`),
+cell `$96`'s update is a two-level pattern deref
+`M[(M[src+$1900]<<8 | M[src+$1800]) + off] << 1` with **17 distinct forms**
+that differ only in the pointer-source cell (`$12A4/$1351/$1194/$1186/…`) and a
+**constant** offset (`0x1/0x2/0x3/…`) — the row position is baked in, not read
+from an evolved cursor. So each song position mints a new accessor form and the
+recovered vocabulary **grows with horizon** (400→1600f: cell-alphabet 335→459,
+`$96` forms 17→27, closed guards 385→702) — upstream of any encoder. `build`
+accepts 0/32 HVSC fixtures for this reason; nothing was wired.
+
+The engine is validated where a genuine single-deref rule exists (byte-exact,
+`cfg=guard_table=residual=0`, horizon-stable on trivial fixtures). The rung is
+sound; its **prerequisite** is not met: `sequencer.analyze_ir` must
+**de-specialize the inlined offsets + per-position pointer cells into an evolved
+row-cursor read** (root cause is the per-frame symbolic summary constant-folding
+a concretely-known index — the same class as `sequencer-survey.md` failure mode
+1 / the SMC-operand symbolization of #57). That upstream work is scoped in
+[`cursor-recovery.md`](cursor-recovery.md); revive this rung once it lands.
+
+## 0. Why this rung and not the two existing ones
+
+| rung | selection mechanism | bounded? | horizon-growing term |
+|---|---|---|---|
+| walk (`payload`) | predicate nodes + **context trie** of per-edge `(next, contrib)` | prog/guards yes | **`cfg`** — history suffix enumerating multi-voice cursor interleavings (`_context_trie`) |
+| dispatch (`tokens`) | per-cell slot alphabets + `build_path_tree` over ordered paths | no | **`guard_table` + `residual`** — whole-frame combination recombination |
+| **seq (this doc)** | **classified cell transitions + accessor deref**, control gated by recovered frame-entry-pure guards | target | **none** (else reject to fallback) |
+
+Both existing rungs enumerate a **product**: walk `cfg` over voice
+interleavings (`docs/tokens.md` §"Per-stream factoring": "14–24 edges per
+fixture ... discriminated by another voice's items with no dataflow trace"),
+dispatch `guard_table` over "distinct whole-frame behavior combinations"
+(`docs/tokens.md` §"Closed-model dispatch"). The rejected prototype
+(`follow-ups.md` item 1: cursor-read value-dispatch of walk edges, ~3/18
+Vacuole nodes) failed for the same reason — it relabels **whole-frame edges**,
+which carry the interleaving. This rung does not model control as branch-outcome
+correlations at all: the shared song cursor (Vacuole's `$1186`) is **one
+counter cell** evolved once and **dereferenced per voice**, so the product never
+forms. That is the sole reason it can be bounded where an edge relabeling
+cannot.
+
+## 1. Inventory of `sequencer.analyze_ir(ir)` → `res`
+
+Measured shapes below are from the hermetic `orderlist_sid` fixture
+(`tests/conftest.py::_orderlist_image`) at 400 frames unless noted.
+
+### Bounded, directly usable (capped by song-data / code-path footprint)
+
+| `res` field / analyze-local | content | role in seq replay |
+|---|---|---|
+| `res["cells"][(a,sz)]` → `classify_cell` info | `cls` ∈ {counter,accum,toggle,pointer,copy,selector,computed}; `steps`,`masks`,`consts`,`copies`,`reads`,`exprs` | per-cell **transition rule** (§2) |
+| `res["bounds"][(a,sz)]` | reload/limit consts off guard shapes (`guard_facts`) | counter reload trigger |
+| `res["tables"][*]` (`build_registry`) | `node` (parsed accessor), `base`, `strides`, `icells` (`[(addr, "idx"\|"ptr")]`), `feeds` (`("cell",a,sz)`/`("sid",reg)`), `sentinel`, `depth`, `chain`, `runs`, `payload` | **accessor deref** for SID writes / cell reloads; `sentinel` = pattern-end guard |
+| `res["model_cells"]`/`total_cells`, `res["dropped"]` | closed sub-model size; `{uni,reg,mem}` escapes | closure gate (§3) |
+| `res["guards_closed"]` / analyze `gset` | frame-entry-pure closed predicates | the guards control is gated on |
+| `res["pred"]` (`predict`) | `exact`,`frames`,`stop`,`cycle`,`residual`; `read_log` (`pred["reads"]`, per-node dereferenced addresses) | byte-exact frame-entry proof + payload footprint |
+| `restrict_programs` → `rprogs`, `rid_of` | each frame program projected to the closed model `(trans, regs, sid)` | the per-cell alphabets and ordered SID schedule to reproduce |
+| `ir["init_mem"]`, `ir["init_regs"]`, `ir["reset_regs"]` | post-init image + entry state | replay seed |
+
+`orderlist_sid`: `verdict=exact+seq`, `model=9/9`, `guards=3/3`, `rprogs=4`,
+`collisions=0`, `max_chain=2`, `pred.cycle=(1,96)`. Row timer recovered
+(`row_timers`: `cell=0x8100`, `reload_consts=[4]`, `bound=[1]`), two pattern
+accessors (`ptr` icells `0xFB/0xFC`), pattern payload emitted from `init_mem`
+(`242628292b2d2f30`, `2f2d2b2928 2624`) with `sentinel=[255]`.
+
+### Horizon-growing debt the seq rung must NOT carry
+
+| source | why it grows | disposition |
+|---|---|---|
+| `build_dispatch` `dmap` (`(closed-guard valuation → rid)`) + `collide` | `res["dispatch_keys"]` ≈ frames (survey: Old_Times 400→1531 keys over 400→1600f, Take_Off 332→1462) — one key per distinct frame-entry valuation | **not used** by replay; only as an internal exactness check (its collisions map to reject reasons, §3) |
+| `pred["residual"]` (counted collision residual) | grows with collisions on SMC-immediate / data-indexed tunes | **rejected**, never counted (§3) |
+| walk `cfg` (`payload.count_tokens`) | context-trie interleaving product | replaced wholesale |
+
+The seq rung consumes the **left column of the first table** and discards the
+`dmap`/`collide`/`residual` machinery: `predict` proves the closed model is a
+function of frame-entry state, but its *table* form is the debt. The rung
+re-expresses that function as per-cell structural rules (§2), which are bounded.
+
+## 2. The replay model
+
+One **static** closed model, evolved from `init_mem` every frame — no per-frame
+program table. Per frame, in **machine order** (like `payload._walk_frames`,
+so the SID write *sequence* is byte-exact):
+
+1. Snapshot `snap = bytes(mem)` at frame entry (frame-entry-pure semantics: all
+   recovered exprs/guards evaluate against `snap`, matching `irvm._run_ir` and
+   `predict`).
+2. Emit each **SID write** in schedule order: evaluate the accessor/const expr
+   for that `("sid", reg)` node (from `res["tables"]` `feeds`, or a closed const
+   expr from the rprog `sid` list) against `snap`; append `(reg, value & 0xFF)`.
+   A conditionally-present write carries a **presence guard** (a closed
+   frame-entry-pure predicate); absent when it evaluates false.
+3. Apply each closed **cell transition** by its classification rule (below),
+   evaluated against `snap`, writing evolved `mem`.
+
+### Per-cell transition rules (read off `classify_cell` + `guard_facts`, not learned)
+
+| `cls` | rule | control from |
+|---|---|---|
+| counter | `next = (self + step) & mask` (`steps`,`masks`) unless a reload guard fires → `consts`/`copies` value | `res["bounds"][(a,sz)]` (timer==bound) or a sentinel-terminated read |
+| pointer | `next = deref(node)` when its advance guard fires, else `self` | accessor `sentinel` (pattern-end) / orderlist advance |
+| copy | `next = M[src]` (`copies`), gated as above | reload guard |
+| toggle | `next = self ^ k` | unconditional or one guard |
+| accum | `next = self + data` | unconditional |
+| selector | held const between guarded reloads (`consts`) | reload guard |
+| computed | must reduce to a **guarded choice over `gset` of closed leaf exprs**; else **reject** (§3) |
+
+The essential point: a cell's **alphabet is symbolic** (`res["cells"][*]["exprs"]`
+is a few deref/step/const exprs — measured `cellalpha≈52` total on the
+arrangement fixture, invariant across horizon and arrangement length, §4), not
+one entry per concrete note. Position-varying note/effect **values** are
+supplied by evaluating the accessor deref against the evolved cursor cells and
+`init_mem` — never minted into vocabulary. This is what collapses the
+per-song-position growth that `docs/tokens.md` §"Pattern-relative
+normalization" identifies as the walk `prog`/`cfg` driver.
+
+### Control flow / store-set selection from evolved state
+
+No stored per-frame dispatch. Each conditional operation's guard is a recovered
+frame-entry-pure predicate evaluated on `snap`:
+
+- **row advance**: row-timer counter reaches its `res["bounds"]` reload → the
+  new-row block runs (pattern deref, cursor `+step`); else only wave/instrument
+  tables unfold. (`orderlist_sid`: timer `$8100`, bound `[1]`, reload `4`.)
+- **pattern end**: the pattern byte just dereferenced equals the accessor
+  `sentinel` (`0xFF`) → orderlist advance block runs.
+- **orderlist advance**: pointer cell reloaded from the orderlist deref; row
+  cursor reset. Recovered when an accessor **feeds another node's `ptr` icells**
+  (`tracker_view` orderlist role).
+
+Every guard here is closed (`expr_closed`) and evaluated on the frame-entry
+snapshot, so the "discriminating cell rewritten before its predicate executes"
+problem (`follow-ups.md` item 1) does not arise — the sequencer reads
+frame-entry state, not mid-frame evolved cells, exactly as `predict` does.
+
+## 3. Byte-exact gate + fallback
+
+**Gate** (adapt `payload._verify`): evolve the seq model to yield per-frame
+`(ordered SID writes, evolved model cells)`; compare against ground truth from
+`irvm.replay_frames(ir)` (ordered SID stream) and the end-of-frame image
+produced by applying `programs[trace[f]]["trans"]` in machine order (identical
+construction to `payload._verify`). Any mismatch ⇒ **reject** (return
+`(None, reason)`); `tokens.compress` falls through to walk, then dispatch. The
+rung is **total only via fallback**, never via a growing residual.
+
+**Reject reasons** (precise, each a known structural limit — a reject, not
+counted debt):
+
+| reason | detection | class |
+|---|---|---|
+| `non-reset-regs` | `ir["reset_regs"]` false and regs don't close (`res["dropped"]["reg"]`) | handler-driven (A_Mind_Is_Born) |
+| `no-sequencer` | `res["max_chain"] < 2` (no accessor arrangement) | generative (202212220942) |
+| `open-model` | a SID write / control guard reads a `res["dropped"]` cell (`expr_closed` false) | escapes closed model |
+| `guard-collision` | `collide` non-empty **or** a cell alphabet choice not separated by any `gset` guard | **SMC-immediate / data-indexed branch** (`sequencer-survey.md` failure mode 1: Degree carry immediate, A_Mind LFSR reload) |
+| `unclassified` | a `computed` cell not reducible to a guarded closed choice | irreducible cell |
+| `replay-divergence@f` | gate mismatch (SID or memory) | catch-all |
+
+The `guard-collision` reason is exactly the survey's counted-residual class
+(`pred["residual"]`, `Degree=77`, `Klemens=41`, `Vacuole=34` at 400f). Here it
+is a **reject**, so this rung's token count never carries a horizon-growing
+`residual` — the tune drops to walk (where those tunes already pass with
+`debt 0`: Degree 0.241, Klemens 0.283, Vacuole 0.993).
+
+## 4. Token accounting (`count_tokens`, `mode="seq"`)
+
+```
+tokens = programs + guards + init_mem      (cfg = guard_table = residual = 0)
+```
+
+| category | counts |
+|---|---|
+| `programs` | interned expr pool (deref/step/reload/toggle/const leaf exprs + accessor SID exprs) + per-cell rule entries (`(cell, cls, step/mask/reload-refs, control-guard-ref)`) + SID-schedule entries (`(reg, expr-ref, presence-guard-ref)`) |
+| `guards` | `len(gset)` closed frame-entry-pure predicates |
+| `init_mem` | dereferenced payload runs surviving dead-init elimination (from `pred["reads"]` / a `collect_reads`-style walk of the seq replay) |
+| `cfg`/`guard_table`/`residual` | **0 by construction**; any nonzero term ⇒ the design is wrong (a growing table crept back in) — surface it and reject, do not encode it |
+
+`structure = programs + guards + init_mem`, `debt = 0`. All three components are
+bounded by the tune's code paths and song-data footprint, none by horizon:
+per-cell rules and guards saturate once every reachable `(control-guard-value →
+alphabet-expr)` pair is seen; `init_mem` saturates once the arrangement has
+dereferenced every pattern/table byte. The measured invariance (§7) is the
+acceptance test, not the estimate.
+
+**Estimate (label: estimate).** `follow-ups.md` quotes ~0.24 tok/f. Basis
+(measurable now, `docs/tokens.md` full-horizon component table): Vacuole walk
+`(prog+guards+init)/frames = (2310+197+454)/11629 = 0.255`; Sc00ter
+`(3881+346+51)/36491 = 0.117`; Old_Times `(2147+263+63)/4862 = 0.508`. These are
+the walk rung's **non-`cfg`** share — an **upper bound** proxy, because seq
+`programs` replaces walk's per-song-position composed store exprs (the bulk of
+Vacuole's `prog=2310`, `docs/tokens.md` §"Pattern-relative normalization": 42
+composed-lhs variants at one site) with a single accessor deref + `init_mem`, so
+seq `programs` may be materially **lower** than walk `prog`. Net: `< 0.26` for
+the cfg-dominated tunes is a defensible estimate; the true figure needs the
+implemented rung measured at full horizon. Do **not** treat 0.24 as a target
+(doctrine #4: tokens/frame is acceptance-only).
+
+## 5. Integration
+
+- **`tokens.compress(ir)`**: try the seq rung first, then the existing chain.
+  ```
+  comp, reject = seqreplay.build(ir)      # new module tsnap/seqreplay.py
+  if comp is not None:
+      comp["init_mem"] = [run for run in ir["init_mem"] if _run_is_read(run, seqreplay.collect_reads(comp))]
+      return comp
+  comp, reject = payload.build(ir)        # walk rung, unchanged
+  if comp is not None: ... return comp
+  ...                                     # dispatch rung, unchanged
+  ```
+  `seqreplay.build(ir)` internally calls `sequencer.analyze_ir(ir)`, applies the
+  §3 gate, and returns `(comp, None)` or `(None, reason)`. Record the reason in
+  `comp["walk_reject"]`/a new `comp["seq_reject"]` for the report.
+- **`tokens.count_tokens`**: add `if comp.get("mode") == "seq": return seqreplay.count_tokens(comp)` alongside the existing `"walk"` branch.
+- **`tokens.replay_comp`**: add `if comp.get("mode") == "seq": return seqreplay.replay(comp)`. `seqreplay.replay`/`replay_frames` mirror `payload.replay`/`replay_frames` (flat and per-frame ordered `(reg, value)`), driven by a `_seq_frames` generator analogous to `payload._walk_frames`. No `decompress`-to-`irvm` path is needed (the seq comp replays itself, as walk does).
+- **`tokens.metric_ir`** already dispatches generically (`comp.get("mode")`, `c.get("cfg", 0)`); no change beyond `count_tokens` returning `cfg=guard_table=residual=0`.
+- **Gates unchanged**: `tests/test_tokens.py::test_hvsc_tokens_lossless` (`replay_comp(comp) == irvm.replay(ir)` over 33 fixtures) covers whichever rung each tune takes; the §3 gate is an additional build-time byte-exact check like `payload._verify`.
+
+## 6. Interaction with item 2 (0-orderlist tunes)
+
+`Take_Off`, `8_Bit-Maerchenland_V2` recover patterns but **0 orderlists**
+(`tracker_view["orderlists"] == []`): no accessor feeds another node's `ptr`
+cells, so the pattern-pointer **reload rule has no recovered source**. Under §2
+that pointer cell's advance is `unclassified`/`open-model` ⇒ the seq rung
+**rejects** those tunes to the walk rung, where they already pass (`docs/tokens.md`:
+Take_Off 0.496, 8_Bit 0.404, both `debt 0`). Therefore:
+
+- Item 2 is **not a prerequisite to land** the rung: it lands and bounds the
+  `cfg`-dominated tunes (Vacuole, Sc00ter, Old_Times) without it, and degrades
+  gracefully (falls back) on 0-orderlist tunes.
+- Item 2 **is** the prerequisite for the rung to *cover* those specific tunes at
+  their true full horizon (link the orderlist role so the pointer reload rule is
+  recovered). `follow-ups.md` labels item 2 "prerequisite for item 1" in that
+  narrower sense; the graceful-fallback design decouples landing from it.
+
+## 7. Test plan
+
+| test | fixtures | asserts |
+|---|---|---|
+| rung selection | `orderlist_sid`, `arrangement_builder(2)`/`(8)` | `compress(ir)["mode"] == "seq"` |
+| byte-exact replay | all 33 HVSC fixtures (existing `test_hvsc_tokens_lossless`) | `replay_comp(comp) == irvm.replay(ir)` on whichever rung |
+| **bounded tokens (position)** | `arrangement_builder(2)` vs `(8)` | seq `count_tokens` **token-identical** (mirrors `test_arrangement_vocabulary_position_independent`); measured now: `res` `rprogs/guards/cellalpha` identical for n=2,8 |
+| **bounded tokens (horizon)** | Old_Times / Vacuole (hvsc, slow-marked) | seq `count_tokens["tokens"]` **stable** 400 vs 1600 vs full (the property distinguishing this rung from walk `cfg`, which grows: Vacuole `cfg` 2623→6161 over 1600→4800f) |
+| reject → walk | `smc_sid` (SMC immediate = `guard-collision`), `202212220942` (`no-sequencer`), `Take_Off`/`8_Bit` (0-orderlist) | `mode == "walk"`, byte-exact |
+| reject → dispatch | `handler_sid` / `A_Mind_Is_Born` (`non-reset-regs`), `volatile_sid` (opaque guard) | `mode == "dispatch"`, byte-exact |
+
+Expected seq-path coverage: the 26 `exact+seq` fixtures whose controlling cells
+are all classified and whose SID exprs all close; measure this set from
+`res["ncls"]`/`res["dropped"]`/SID closure before implementing (a survey pass
+over the manifest is the first build step, so coverage is known, not assumed).
+
+## 8. Risks / open questions (ranked)
+
+1. **Multi-voice cursor interleaving is the whole bet.** The rung's boundedness
+   rests on the shared cursor being one cell dereferenced per voice (§0). If a
+   tune couples voices through state the accessor model does *not* factor (e.g.
+   the "control threading" `docs/tokens.md` §"Per-stream factoring" found on
+   29/32 fixtures — successors threaded voice-dependently), the per-cell rule
+   may be ambiguous and reject. **De-risk:** measure seq `count_tokens` on
+   Vacuole (`$1186` shared cursor) and Sc00ter (`cfg=6347`, dominant) at 400 vs
+   1600; bounded ⇒ hypothesis holds, growing ⇒ reject and the rung helps fewer
+   tunes than hoped. Do this measurement first.
+2. **Coverage: computed cells that don't close to a guarded rule.** Degree's
+   carry immediate and A_Mind's LFSR reload (`sequencer-survey.md` failure mode
+   1) reject. Risk: enough tunes carry such a cell that the rung's coverage is
+   small. **De-risk:** the pre-implementation survey (§7) counts, per fixture,
+   cells whose alphabet is not separated by any `gset` guard; if that set is
+   small on the `exact+seq` tunes, coverage is broad.
+3. **SID schedule not statically expressible.** Conditional/repeated SID writes
+   (digi-style, or writes gated by un-closed guards) may not reduce to a fixed
+   ordered schedule with closed presence guards ⇒ reject. **De-risk:** check
+   per-fixture that every `("sid",reg)` expr is `expr_closed` and its presence
+   is `gset`-separable; the `_verify` gate catches any residual case.
+4. **Sentinel/bound guards insufficient to derive advance.** Where row/orderlist
+   advance is gated by computed state rather than a recovered
+   `bounds`/`sentinel` (0-orderlist tunes, or advance via a computed cell), the
+   reload rule is unrecovered ⇒ reject (item-2 dependent, §6). **De-risk:**
+   graceful fallback makes this safe (no correctness loss), only coverage loss.
+5. **Cost.** `analyze_ir` is linear in frames; the seq build adds cheap per-cell
+   rule extraction plus one byte-exact evolve (`_verify`). Should stay within the
+   60 s advisory-horizon budget; full-horizon measurement is operator-invoked
+   like the existing token report (`docs/tokens.md`).
+
+Net: land the rung **behind the walk/dispatch fallback** with the §3 gate, run
+the risk-1/risk-2 measurements on the two `cfg`-dominated tunes first, and keep
+the rung only if seq `count_tokens` is measured bounded across horizons — the
+same evidence bar the walk rung's looping fixtures met
+(`test_orderlist_walk_saturates_across_repeat`).
