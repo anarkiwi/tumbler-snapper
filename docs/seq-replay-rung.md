@@ -29,12 +29,19 @@ accepts 0/32 HVSC fixtures for this reason; nothing was wired.
 
 The engine is validated where a genuine single-deref rule exists (byte-exact,
 `cfg=guard_table=residual=0`, horizon-stable on trivial fixtures). The rung is
-sound; its **prerequisite** is not met: `sequencer.analyze_ir` must
-**de-specialize the inlined offsets + per-position pointer cells into an evolved
-row-cursor read** (root cause is the per-frame symbolic summary constant-folding
-a concretely-known index — the same class as `sequencer-survey.md` failure mode
-1 / the SMC-operand symbolization of #57). That upstream work is scoped in
-[`cursor-recovery.md`](cursor-recovery.md); revive this rung once it lands.
+sound; its **prerequisite** was cursor/orderlist recovery in
+`sequencer.analyze_ir` — now **landed**: cursor de-specialization
+([`cursor-recovery.md`](cursor-recovery.md)) and orderlist recovery
+([`orderlist-recovery.md`](orderlist-recovery.md)) collapse the inlined-cursor
+vocabulary and link the orderlist. Place-fact-keyed factoring of the remainder
+was then **measured non-viable** (`follow-ups.md` §1a): the provenance mechanism
+is absent for both witnesses and the residual is **~80% genuine song-data
+footprint** bounded by the orderlist loop — doctrine-fine, not un-recovered
+structure. **Revival is therefore the next step**: re-implement this engine
+against the now song-data-sized (bounded-at-loop) vocabulary and measure `<1.0`
+at full horizon. The open risk is that loop-saturation is inferred (finite
+looping orderlist) but not yet directly measured — reaching the `state_cycle`
+recurrence at full horizon is part of the revival's acceptance.
 
 ## 0. Why this rung and not the two existing ones
 

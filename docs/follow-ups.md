@@ -57,8 +57,25 @@ data, not the horizon. Same class as the SMC-operand symbolization (#57) /
 `sequencer-survey.md` failure mode 1. Scoped in `docs/cursor-recovery.md`; this
 unblocks item 1 (and bounds the walk `cfg` term for the same tunes).
 
+**Measured outcome (cursor + orderlist landed; place-fact factoring rejected).**
+Cursor de-specialization (`cursor-recovery.md`) and orderlist recovery
+(`orderlist-recovery.md`) landed. Place-fact-keyed factoring of the remaining
+residual was then measured and **rejected** as non-viable: deity emits **0**
+`place` facts for the Vacuole idiom (SMC absolute-indexed) and Take_Off's `place`
+facts observe SID output registers, not the cursor/pattern cells — the provenance
+does not apply; the maximal *sound* collapse is ≤4–6% (`state_cycle` unreached by
+2400f, so the loop-saturation point is beyond a feasible serialize horizon).
+Decisively, **~80% of the residual accessor-vocabulary growth is genuine
+song-data footprint** (distinct patterns × field-offsets revealed as the orderlist
+cursor walks; `patterns` 66→90→121 over 400/1600/2400) — bounded by the orderlist
+loop, doctrine-fine (#4: bounded by song data, not horizon), **not un-recovered
+structure**. So the seq rung's prerequisite is effectively met: the remaining work
+is to **revive the seq rung** (item 1) against the song-data-sized vocabulary and
+measure `<1.0` at full horizon, not to chase the residual with more factoring.
+
 Doctrine: structure work outranks encoder work; the `cfg` term is the un-recovered
-structure, and its root is this un-recovered cursor.
+structure, and its root was this cursor — now recovered, with the residual
+attributed to genuine song data.
 
 ## 2. Orderlist-role recovery for 0-orderlist tunes (prerequisite for item 1)
 

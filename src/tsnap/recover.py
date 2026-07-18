@@ -494,13 +494,13 @@ def _value_cells_of(e):
 _POWERON_RAM = c64.poweron_ram()
 
 
-def setup(path, song):
+def setup(path, song, vm_class=EnvVM):
     data = open(path, "rb").read()
     h = p.parse_sid_header(data)
     mem = bytearray(_POWERON_RAM)
     body = data[h.data_start :]
     mem[h.real_load_address : h.real_load_address + len(body)] = body
-    vm = EnvVM(mem)
+    vm = vm_class(mem)
     vm.img = (h.real_load_address, h.real_load_address + len(body))
     vm.mem[0xD418] = 0x0F
     vm.reg[0] = song

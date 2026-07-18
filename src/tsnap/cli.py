@@ -3,7 +3,7 @@
 from __future__ import annotations
 import argparse
 import sys
-from tsnap import curate, irvm, recover, survey, tokens, tracker
+from tsnap import curate, density, irvm, recover, survey, tokens, tracker
 
 
 def main(argv=None):
@@ -14,6 +14,7 @@ def main(argv=None):
     sub.add_parser("tracker", help="build the tracker IR", add_help=False)
     sub.add_parser("irvm", help="prove the IR round-trip byte-exact", add_help=False)
     sub.add_parser("tokens", help="measure IR tokens/frame", add_help=False)
+    sub.add_parser("density", help="measure IR info-density / saturation", add_help=False)
     sub.add_parser("curate", help="build the HVSC fixture manifest", add_help=False)
     sub.add_parser("survey", help="stratified HVSC coverage survey", add_help=False)
     dispatch = {
@@ -21,6 +22,7 @@ def main(argv=None):
         "tracker": tracker.main,
         "irvm": irvm.main,
         "tokens": tokens.main,
+        "density": density.main,
         "curate": curate.main,
         "survey": survey.main,
     }
