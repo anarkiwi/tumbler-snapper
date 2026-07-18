@@ -43,7 +43,7 @@ the module wiring and the current status only — no design doctrine (that is
 |---|---|
 | **Lossless** (byte-exact stream) | met — 33/33 fixtures vs deity `PcodeVM`; 32/32 vs sidtrace ([`survey.md`](survey.md), [`irvm.md`](irvm.md)) |
 | **Algorithmic / no fitting** | met — static P-Code dataflow + recorded guards + `init_mem`; dispatch lowered from CFG paths, not induced |
-| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung, lossless, debt 0), but walk `cfg` grows on the cfg-dominated tail (Vacuole ~0.993, trending over 1.0 at true full horizon); not yet general (300-tune survey 4.3% < 1.0). Seq rung model validated + CFG bounded but blocked on upstream deity provenance ([`seq-replay-rung.md`](seq-replay-rung.md), [`tokens.md`](tokens.md)) |
+| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung, lossless, debt 0), but walk `cfg` grows on the cfg-dominated tail (Vacuole ~0.993, trending over 1.0 at true full horizon); not yet general (300-tune survey 4.3% < 1.0). Seq rung CFG-interpreter validated + bounded; the voice re-roll does **not** collapse the growing `cfg` (it is the folded row-position read-index, not the multi-voice loop) — deity ruled out as the blocker ([`seq-replay-rung.md`](seq-replay-rung.md), [`gap-audit.md`](gap-audit.md), [`tokens.md`](tokens.md)) |
 | **Tracker structure recovered** | on fixtures — `sequencer.analyze_ir` → `exact+seq` on 27/33; model closure total on every analyzable tune ([`sequencer-survey.md`](sequencer-survey.md)) |
 | **Survey breadth** | partial — 73.4% lossless of classifiable, 95.1% cadence–oracle agreement over 300 tunes ([`survey.md`](survey.md)) |
 
@@ -71,3 +71,24 @@ gaps in [`driver-model.md`](driver-model.md). The highest-leverage item is #1:
    ordered symbolic stores, driver/init gaps, multi-phase IRQ.
 5. **Measurement hygiene**: regenerate the full-horizon oracle column on deity
    0.3.2+; re-measure at true full horizons once #1 lands.
+
+## Prior art & design references
+
+Adversarial prior-art survey: [`prior-art.md`](prior-art.md). Verdict: the whole
+system is **not redundant** — no tool is *lossless* ∧ *format-agnostic* ∧
+*player-data-model-derived* ∧ *tracker-IR*. The field splits into lossless dumps
+(SIDdecompiler / SIDwinder / VGM — no structural decomposition) and lossy
+output-fitted decomposers (FXChainPlayer / siddump / SID2MIDI / ChiptuneSAK — the
+fit-to-output method HARD CONSTRAINT #2 forbids). Novelty = the doctrine +
+measured `<1 token/frame` bar + byte-exact dual-oracle proof; state it against
+**SIDdecompiler** (already lossless-from-code) as *tracker-IR decomposition +
+density*, not "we analyze the player".
+
+Per-component design references — **borrow the technique, not the tool**:
+
+| component | reference | how to use |
+|---|---|---|
+| `sequencer` table / cursor recovery | Value-Set Analysis (Balakrishnan & Reps: strided intervals + a-locs); dynamic: Howard | read only — VSA is static and unsound on SMC; the dynamic access-pattern pass is the correct (Howard) camp |
+| folded induction-variable recovery (`sequencer`) | rev.ng array-detection + SCEV IV recovery; polyhedral delinearization (the math) | **bespoke** base+stride pass — exact-by-construction for the fixed-K constant-stride *voice* loop (measured to collapse the bounded per-voice edges, `#89`). Does **not** cover the data-dependent **row-position** read-index (the growing `cfg` term) — that is not a constant-stride loop. LLVM `-loop-reroll` is dead; Polly is optimistic |
+| `deity-informant` `lift()` | Ghidra SLEIGH 6502 P-Code via `pypcode` | optional future lifter swap — needs 6510 I/O + illegal-opcode extension; cannot replace the VM + write-log |
+| `payload` context-trie collapse | equality saturation (`egg`) | optional downstream, sound rewrite-collapse on recovered mechanism only (doctrine #4); does **not** discover structure |
