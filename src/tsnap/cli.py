@@ -3,7 +3,7 @@
 from __future__ import annotations
 import argparse
 import sys
-from tsnap import curate, density, irvm, recover, survey, tokens, tracker
+from tsnap import corpus, curate, density, irvm, recover, survey, tokens, tracker
 
 
 def main(argv=None):
@@ -16,6 +16,7 @@ def main(argv=None):
     sub.add_parser("tokens", help="measure IR tokens/frame", add_help=False)
     sub.add_parser("density", help="measure IR info-density / saturation", add_help=False)
     sub.add_parser("curate", help="build the HVSC fixture manifest", add_help=False)
+    sub.add_parser("corpus", help="build the diverse verification corpus manifest", add_help=False)
     sub.add_parser("survey", help="stratified HVSC coverage survey", add_help=False)
     dispatch = {
         "recover": recover.main,
@@ -24,6 +25,7 @@ def main(argv=None):
         "tokens": tokens.main,
         "density": density.main,
         "curate": curate.main,
+        "corpus": corpus.main,
         "survey": survey.main,
     }
     if argv and argv[0] in dispatch:
