@@ -15,7 +15,12 @@ from concurrent.futures import ProcessPoolExecutor
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
 
-from fixtures import FIXTURES  # noqa: E402  pylint: disable=wrong-import-position,import-error
+from fixtures import (  # noqa: E402  pylint: disable=wrong-import-position,import-error
+    FIXTURES,
+    UNSUPPORTED,
+)
+
+_SUPPORTED = [fx for fx in FIXTURES if fx["relpath"] not in UNSUPPORTED]
 from pysidtracker.testing import (  # noqa: E402  pylint: disable=wrong-import-position
     resolve_tune,
 )
@@ -200,7 +205,7 @@ def report_full(use_oracle, workers=8):
         return None, "no Songlengths.md5 under $HVSC; cannot take full-tune horizons"
     db = horizon.parse_songlengths(db_path)
     tasks = []
-    for fx in FIXTURES:
+    for fx in _SUPPORTED:
         path = _resolve(fx["relpath"])
         secs = horizon.song_seconds(db, path, fx["song"]) if path else None
         tasks.append((fx["relpath"], fx["song"], secs, use_oracle))
@@ -243,7 +248,7 @@ def _growth(base, grown, comp):
 
 def report_fixed(frames):
     """Fixed-horizon advisory tables (token classes, closed-model facts, growth)."""
-    tasks = [(fx["relpath"], fx["song"], frames, True) for fx in FIXTURES]
+    tasks = [(fx["relpath"], fx["song"], frames, True) for fx in _SUPPORTED]
     with ProcessPoolExecutor(max_workers=8) as ex:
         rows = [r for r in ex.map(_one, tasks) if r[1]]
     rows.sort(key=lambda r: r[1]["tokens_per_frame"])

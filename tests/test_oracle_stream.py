@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -34,6 +35,17 @@ def test_render_sidtrace_missing_docker(tmp_path):
         oracle.render_sidtrace(
             tmp_path / "t.sid", tmp_path / "o.csv.zst", docker="tsnap-no-such-docker-binary"
         )
+
+
+def test_docker_timeout_raises_unavailable(monkeypatch):
+    """A stalled docker call becomes SidtraceUnavailable (a skip), never a hang."""
+
+    def _hang(*_a, timeout=None, **_k):
+        raise subprocess.TimeoutExpired(cmd="docker", timeout=timeout)
+
+    monkeypatch.setattr(oracle.subprocess, "run", _hang)
+    with pytest.raises(oracle.SidtraceUnavailable, match="timed out"):
+        oracle._docker(["start", "-a", "cid"], timeout=1)
 
 
 def _resolve(relpath):
