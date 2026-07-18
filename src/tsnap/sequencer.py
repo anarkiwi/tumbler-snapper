@@ -334,17 +334,72 @@ def _rewrite_cursors(it, e, cursors, owner, memo):
     return r
 
 
+def _evolved_claims(cells):
+    """Each post-transition value of a counter/pointer cursor cell -> claiming
+    cells. A value shared by two cursor cells is ambiguous provenance."""
+    ev = defaultdict(set)
+    for (a, sz), info in cells.items():
+        if info["sid"] or info["cls"] not in ("counter", "pointer"):
+            continue
+        self_mem = ("mem", ("const", a), sz)
+        for e in info["exprs"]:
+            if e != self_mem:
+                ev[e].add((a, sz))
+    return ev
+
+
+def _rewrite_evolved(it, e, uniq, owner, memo):
+    """Replace an accessor sub-node that is a unique cursor's evolved value with
+    that cursor's reference."""
+    hit = memo.get(id(e))
+    if hit is not None:
+        return hit
+    t = e[0]
+    if t == "op":
+        r = it.tup(
+            ("op", e[1], tuple(_rewrite_evolved(it, k, uniq, owner, memo) for k in e[2]), e[3])
+        )
+    elif t == "mem":
+        r = it.tup(("mem", _rewrite_evolved(it, e[1], uniq, owner, memo), e[2]))
+    else:
+        r = e
+    c = uniq.get(r)
+    if c is not None and c != owner:
+        r = _cursor_ref(*c)
+    memo[id(e)] = r
+    return r
+
+
+def _link_evolved(it, cells):
+    """Transitive value-numbering into consumer carry chains: rewrite a sub-node
+    that is a unique recovered cursor's evolved value to its reference, to
+    fixpoint; ambiguous provenance keeps the composition (alphabet only)."""
+    for _ in range(len(cells) + 1):
+        claims = _evolved_claims(cells)
+        uniq = {e: next(iter(cs)) for e, cs in claims.items() if len(cs) == 1}
+        if not uniq:
+            return
+        changed = False
+        for k, info in cells.items():
+            owner = None if info["sid"] else k
+            memo = {}
+            new = {_rewrite_evolved(it, e, uniq, owner, memo) for e in info["exprs"]}
+            if new != info["exprs"]:
+                info["exprs"] = new
+                changed = True
+        if not changed:
+            return
+
+
 def despecialize_cursors(it, cells):
-    """Collapse position-specific accessor vocabulary by referencing recovered
-    cursor cells: rewrite each cell's transition alphabet, replacing an index
-    sub-expression that is a store-forwarded value of a unique recovered
-    counter/pointer with that cursor's evolved reference. Correctness-preserving
-    re-representation of the reported alphabet only -- the closure/prediction
-    path evaluates the original frame-entry-pure forms unchanged (see analyze_ir).
-    """
+    """Collapse position-specific accessor vocabulary to recovered cursor
+    references: rewrite each store-forwarded index sub-expression of a unique
+    counter/pointer to its cursor reference, then link evolved values into
+    consumer carry chains (reported alphabet only; prediction unchanged)."""
     claims = _forwarded_claims(it, cells)
     cursors = {v: next(iter(cs)) for v, cs in claims.items() if len(cs) == 1}
     if not cursors:
+        _link_evolved(it, cells)
         return
     for (a, sz), info in cells.items():
         owner = None if info["sid"] else (a, sz)
@@ -354,6 +409,7 @@ def despecialize_cursors(it, cells):
     for info in cells.values():
         memo = {}
         info["exprs"] = {_canon_pointer_word(it, e, claims, ptr_cells, memo) for e in info["exprs"]}
+    _link_evolved(it, cells)
 
 
 def guard_facts(it, guards):

@@ -227,6 +227,57 @@ def test_despecialize_collapses_reload_vocabulary(it):
     assert any(e[0] == "mem" and "cur" in repr(e) for e in f2)
 
 
+def _masked_consumer_cells(it):
+    """A pointer cursor with masked (non-bare) reload transitions plus an accum
+    consumer dereferencing that cursor: only evolved-value linking collapses the
+    masked forms, which the store-forwarded source extraction cannot reach."""
+    word = ["mem", ["const", 0x20], 2]
+    reload0 = it.tup(["mem", _op("INT_ADD", [word, _c(0)]), 1])
+    masked = [
+        it.tup(_op("INT_AND", [["mem", _op("INT_ADD", [word, _c(i)]), 1], _c(0x7F)]))
+        for i in (1, 2)
+    ]
+    ptr_exprs = {reload0, *masked}
+    ptr = S.classify_cell(it, 0x40, 1, ptr_exprs)
+    ptr["exprs"], ptr["sid"] = ptr_exprs, False
+    feed = {
+        it.tup(_op("INT_ADD", [_mem(0x60), ["mem", _op("INT_ADD", [m, _c(0x1000)]), 1]]))
+        for m in masked
+    }
+    acc = S.classify_cell(it, 0x60, 1, feed)
+    acc["exprs"], acc["sid"] = feed, False
+    return {(0x40, 1): ptr, (0x60, 1): acc}
+
+
+def test_link_evolved_collapses_masked_cursor(it):
+    """A computed/accum consumer's carry chain that derefs a cursor via a masked
+    form (which store-forwarded extraction misses) collapses to one cursor-ref
+    form under transitive evolved-value linking, position-independent."""
+    cells = _masked_consumer_cells(it)
+    assert cells[(0x40, 1)]["cls"] == "pointer" and cells[(0x60, 1)]["cls"] == "accum"
+    S._link_evolved(it, cells)
+    forms = cells[(0x60, 1)]["exprs"]
+    assert len(forms) == 1
+    (only,) = forms
+    assert "cur" in repr(only) and S.R.pretty(only) == "(M[$0060] + M[(~M[$0040] + 0x1000)])"
+
+
+def test_accum_consumer_vocabulary_position_independent(arrangement_builder):
+    """A computed/accum consumer that accumulates pattern bytes through the
+    pattern pointer recovers one accessor vocabulary: its per-cell alphabet is
+    token-identical for a 2- and 8-position arrangement, byte-exact both."""
+    sig = {}
+    for n, frames in ((2, 400), (8, 1200)):
+        res = S.analyze(str(arrangement_builder(n, distinct=3, accum=True)), 0, frames)
+        assert res["collisions"] == 0 and res["pred"]["exact"] == res["pred"]["frames"]
+        assert S.tracker_view(res)["orderlists"]
+        acc = res["cells"][(0x9210, 1)]
+        assert acc["cls"] == "accum"
+        assert all("cur" in repr(e) for e in acc["exprs"])
+        sig[n] = {S.R.pretty(e) for e in acc["exprs"]}
+    assert sig[2] == sig[8]
+
+
 def test_cursor_vocabulary_position_independent(arrangement_builder):
     """One pattern arranged at N orderlist positions recovers one accessor
     vocabulary: analyze_ir's per-cell alphabet is identical for N=2 and N=8

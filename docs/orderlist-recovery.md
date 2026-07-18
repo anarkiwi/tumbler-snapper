@@ -5,6 +5,38 @@ de-specialization (`docs/cursor-recovery.md`) began. No code — plan + acceptan
 conditions. Doctrine (`CLAUDE.md`): P-Code-derived, algorithmic, no fitting, no
 per-tune cases, no tuned constants, byte-exact, holds survey-wide.
 
+## Status (landed)
+
+Part B nested-read orderlist surfacing landed (Take_Off/8_Bit now recover
+orderlists; Take_Off 6). Part B.3 accessor-identity factoring into computed/accum
+consumer carry chains landed as `sequencer._link_evolved` (called from
+`despecialize_cursors`): transitive value-numbering that rewrites a consumer
+sub-node equal to a **unique** recovered cursor's *evolved* value to `cur(c)` to
+fixpoint (ambiguous provenance or frame-entry reads keep the composition). It
+catches masked/transposed cursor forms (`(~M[$109F]+M[$134F])&0x7f → cur($13E1)`)
+the store-forwarded pass could not extract. Reported-alphabet re-representation
+only (runs after `predict`/`build_registry`); byte-exact by construction.
+
+Measured non-SID cell-alpha (byte-exact at every horizon, `collisions==0`):
+
+| tune | 400 | 1600 | 2400 |
+|---|---:|---:|---:|
+| Vacuole (before) | 277 | 376 | 481 |
+| Vacuole (after)  | 267 | 359 | 448 |
+| Take_Off (before)| 253 | 329 | 329 |
+| Take_Off (after) | 247 | 298 | 298 |
+
+Take_Off saturates by 1600f. The sound collapse is ~4-5% (Vacuole) / ~3%
+(Take_Off); the residual growth is **genuine song-data footprint** (distinct
+patterns × field-offsets × voice cursors as the orderlist walks; Vacuole
+`patterns` 66→90→121), bounded by the orderlist loop — doctrine #4-fine, not
+un-recovered structure. Proven three ways: the only larger collapse is the
+*unsound* frame-entry rewrite; sound-removed count stays flat while the base
+grows; growth tracks `patterns`. Confirms `follow-ups.md` #1a. Next lever is
+reviving the seq rung (`follow-ups.md` item 1) against this song-data-sized
+vocabulary — not chasing the residual. The plan below is retained as the design
+record.
+
 Cursor de-specialization (`sequencer.despecialize_cursors`) collapsed each SID
 feeder's per-position vocabulary by rewriting store-forwarded index compositions
 to `cur(c)` references of recovered cursor cells. It **relocated** the horizon
