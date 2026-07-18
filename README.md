@@ -28,6 +28,7 @@ pytest -n auto
 
 ## Docs
 
+- [docs/architecture.md](docs/architecture.md) — module pipeline + status against the goal.
 - [docs/prototype.md](docs/prototype.md) — symbolic P-Code recovery prototype.
 - [docs/tracker-model.md](docs/tracker-model.md) — tracker-IR model.
 - [docs/irvm.md](docs/irvm.md) — serializable generator-IR + lossless replay.

@@ -30,19 +30,35 @@ growing nodes. Each growing node's outcome is already tiny (e.g. 38 trie leaves 
 interleavings**, not separable by any single read/predicate on evolved memory at the
 decision point (discriminating cells are rewritten before their predicate executes).
 
-Two viable designs remain:
-- **(a) Sequencer-driven replay rung (recommended).** A new rung in `tokens.compress`
-  that evolves the recovered accessor model directly (the sequencer already predicts
-  exactly), instead of the walk model. Estimated footprint ~programs+init ≈ 0.24
-  tokens/frame — bounded, well under 1.0. Larger than a walk tweak: it consumes
-  `sequencer.analyze`'s `res` (accessor chains + cursor cells + `init_mem`) and must
-  gate byte-exact through `payload._verify` with fallback.
+**Measured (design + build): the replay rung is blocked upstream.** Design (a)
+below was scoped (`docs/seq-replay-rung.md`) and the accessor-evolution engine
+built and measured on real HVSC tunes. It cannot bound the `cfg`-dominated tunes
+because `sequencer.analyze_ir` **inlines the row cursor as per-form constants**
+(Vacuole `$96`: 17→27 forms over 400→1600f; recovered vocabulary grows with
+horizon, upstream of any encoder). The prerequisite is therefore a **sequencer**
+change, not an encoder change — see item 1a. The rung is parked pending it.
+
+- **(a) Sequencer-driven replay rung.** A rung in `tokens.compress` that evolves
+  the recovered accessor model directly, gated byte-exact through `payload._verify`
+  with fallback. **Blocked on 1a** (without cursor recovery it accepts 0/32
+  fixtures). Estimated footprint once unblocked ~programs+init, bounded < 1.0.
 - **(b) History-trie minimization** via the recovered sentinel predicates
   (`res["tables"][*]["sentinel"]`), each discriminator evaluated at its own execution
   position, then DFA-minimized to the ≤6-outcome classifier.
 
+## 1a. Cursor de-specialization in `sequencer.analyze_ir` (the real prerequisite)
+
+`sequencer.analyze_ir` recovers accessor *shapes* but the per-frame symbolic
+summary constant-folds concretely-known row indices, so one cursor-indexed read
+surfaces as N constant-specialized forms (Vacuole `$96`, above). Recover the
+cursor cell those constants range over — collapsing the N forms into one
+`M[patbase + M[cursor]]` — so the accessor vocabulary is bounded by the song
+data, not the horizon. Same class as the SMC-operand symbolization (#57) /
+`sequencer-survey.md` failure mode 1. Scoped in `docs/cursor-recovery.md`; this
+unblocks item 1 (and bounds the walk `cfg` term for the same tunes).
+
 Doctrine: structure work outranks encoder work; the `cfg` term is the un-recovered
-structure. Scope (a) as its own design.
+structure, and its root is this un-recovered cursor.
 
 ## 2. Orderlist-role recovery for 0-orderlist tunes (prerequisite for item 1)
 

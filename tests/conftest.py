@@ -519,6 +519,11 @@ N_SPEEDS = (3, 5)
 N_PAT_DATA = bytes((0x81, 0x30, 0x05, 0x82, 0x40, 0x06, 0xFF))
 
 
+def _n_pat_data(i):
+    """Distinct pattern ``i`` (same record structure, different note bytes)."""
+    return bytes((0x81, (0x30 + i) & 0x7F, 0x05, 0x82, (0x40 + i) & 0x7F, 0x06, 0xFF))
+
+
 def _n_voice_block(voice, olist):
     tlo, thi = _lohi(_N_TIM + 2 * voice)
     rlo, rhi = _lohi(_N_ROW + 2 * voice)
@@ -581,7 +586,7 @@ def _n_fetch_block():
     )
 
 
-def _n_arrangement_image(n):
+def _n_arrangement_image(n, distinct=1):
     tlo, thi = _lohi(_N_TIM)
     rlo, rhi = _lohi(_N_ROW)
     olo, ohi = _lohi(_N_OPOS)
@@ -622,24 +627,28 @@ def _n_arrangement_image(n):
         [0x60],
     )
     play = _n_voice_block(0, _N_OLA) + _n_voice_block(1, _N_OLB) + emit
-    pat_lo = _N_PAT & 0xFF
-    return {
+    img = {
         _N_INIT: init,
         _N_PLAY: play,
         _N_FETCH: _n_fetch_block(),
-        _N_OLA: bytes([pat_lo] * n + [0xFF]),
-        _N_OLB: bytes([pat_lo, 0xFF]),
-        _N_PAT: N_PAT_DATA,
+        _N_OLB: bytes([_N_PAT & 0xFF, 0xFF]),
     }
+    lows = []
+    for i in range(distinct):
+        img[_N_PAT + 0x10 * i] = _n_pat_data(i)
+        lows.append((_N_PAT + 0x10 * i) & 0xFF)
+    img[_N_OLA] = bytes([lows[i % distinct] for i in range(n)] + [0xFF])
+    return img
 
 
 @pytest.fixture
 def arrangement_builder(tmp_path):
-    """Builder ``fn(n) -> path``: the same pattern arranged at ``n`` positions."""
+    """Builder ``fn(n, distinct=1) -> path``: ``distinct`` patterns over ``n`` positions."""
 
-    def build(n):
-        data = assemble(_n_arrangement_image(n), load=_N_LOAD, init=_N_INIT, play=_N_PLAY)
-        return _write(tmp_path, f"arrangement{n}.sid", data)
+    def build(n, distinct=1):
+        img = _n_arrangement_image(n, distinct)
+        data = assemble(img, load=_N_LOAD, init=_N_INIT, play=_N_PLAY)
+        return _write(tmp_path, f"arrangement{n}_{distinct}.sid", data)
 
     return build
 

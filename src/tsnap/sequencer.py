@@ -222,6 +222,140 @@ def classify_cell(it, addr, sz, exprs):
     return info
 
 
+def _cursor_ref(a, sz):
+    """Canonical evolved-cursor reference node for cell ``(a, sz)`` (tsnap ``cur``)."""
+    return ("cur", ("const", a), sz, ((a, sz),))
+
+
+def _forwarded_source(cls, e, self_mem):
+    """Store-forwarded value a cursor transition proves preceded its own read.
+
+    A ``+step`` counter transition ``(X + k)`` and a pointer's held value are
+    both store-then-read within the frame **only** when ``X`` / the value is a
+    dynamic-address load (deity forwarded a same-frame store into it); the plain
+    ``M[const]`` frame-entry read carries no such ordering proof, so it is not a
+    de-specialization candidate.
+    """
+    if cls == "counter":
+        terms, _c = flat_add(peel_and(e)[0])
+        if (
+            len(terms) == 1
+            and terms[0] != self_mem
+            and terms[0][0] == "mem"
+            and (terms[0][1][0] != "const")
+        ):
+            return terms[0]
+        return None
+    if e[0] == "mem" and e[1][0] != "const":
+        return e
+    return None
+
+
+def _forwarded_claims(it, cells):
+    """Each store-forwarded evolved-cursor value -> set of counter/pointer cells
+    that claim it (a value claimed by two cells is ambiguous)."""
+    claims = defaultdict(set)
+    for (a, sz), info in cells.items():
+        if info["sid"] or info["cls"] not in ("counter", "pointer"):
+            continue
+        self_mem = it.tup(["mem", ["const", a], sz])
+        for e in info["exprs"]:
+            src = _forwarded_source(info["cls"], e, self_mem)
+            if src is not None:
+                claims[src].add((a, sz))
+    return claims
+
+
+def cursor_alphabet(it, cells):
+    """Unique store-forwarded value -> cursor cell; ambiguous values omitted."""
+    return {v: next(iter(cs)) for v, cs in _forwarded_claims(it, cells).items() if len(cs) == 1}
+
+
+def _canon_pointer_word(it, e, claims, ptr_cells, memo):
+    """Canonicalize an asymmetric pointer word ``(cur(C)<<8 | lo)`` to the
+    symmetric named pointer when the contiguous lo cell ``C-1`` is a pointer that
+    claims ``lo`` -- the two halves of a pointer word are its lo/hi pair."""
+    hit = memo.get(id(e))
+    if hit is not None:
+        return hit
+    if e[0] == "op" and e[1] == "INT_OR" and len(e[2]) == 2:
+        for hi, lo in (e[2], e[2][::-1]):
+            sh = (
+                hi[2][0]
+                if hi[0] == "op" and hi[1] == "INT_LEFT" and hi[2][1] == ("const", 8)
+                else None
+            )
+            if sh is not None and sh[0] == "cur" and sh[1][0] == "const":
+                c = sh[1][1]
+                if (
+                    (c, 1) in ptr_cells
+                    and (c - 1, 1) in ptr_cells
+                    and (c - 1, 1) in claims.get(lo, ())
+                ):
+                    memo[id(e)] = r = it.tup(("op", "INT_OR", (hi, _cursor_ref(c - 1, 1)), e[3]))
+                    return r
+    if e[0] == "op":
+        r = it.tup(
+            (
+                "op",
+                e[1],
+                tuple(_canon_pointer_word(it, k, claims, ptr_cells, memo) for k in e[2]),
+                e[3],
+            )
+        )
+    elif e[0] == "mem":
+        r = it.tup(("mem", _canon_pointer_word(it, e[1], claims, ptr_cells, memo), e[2]))
+    else:
+        r = e
+    memo[id(e)] = r
+    return r
+
+
+def _rewrite_cursors(it, e, cursors, owner, memo):
+    """Replace each store-forwarded index composition with its cursor reference."""
+    hit = memo.get(id(e))
+    if hit is not None:
+        return hit
+    if e[0] == "mem":
+        c = cursors.get(e)
+        if c is not None and c != owner:
+            memo[id(e)] = r = _cursor_ref(*c)
+            return r
+    t = e[0]
+    if t == "op":
+        r = it.tup(
+            ("op", e[1], tuple(_rewrite_cursors(it, k, cursors, owner, memo) for k in e[2]), e[3])
+        )
+    elif t == "mem":
+        r = it.tup(("mem", _rewrite_cursors(it, e[1], cursors, owner, memo), e[2]))
+    else:
+        r = e
+    memo[id(e)] = r
+    return r
+
+
+def despecialize_cursors(it, cells):
+    """Collapse position-specific accessor vocabulary by referencing recovered
+    cursor cells: rewrite each cell's transition alphabet, replacing an index
+    sub-expression that is a store-forwarded value of a unique recovered
+    counter/pointer with that cursor's evolved reference. Correctness-preserving
+    re-representation of the reported alphabet only -- the closure/prediction
+    path evaluates the original frame-entry-pure forms unchanged (see analyze_ir).
+    """
+    claims = _forwarded_claims(it, cells)
+    cursors = {v: next(iter(cs)) for v, cs in claims.items() if len(cs) == 1}
+    if not cursors:
+        return
+    for (a, sz), info in cells.items():
+        owner = None if info["sid"] else (a, sz)
+        memo = {}
+        info["exprs"] = {_rewrite_cursors(it, e, cursors, owner, memo) for e in info["exprs"]}
+    ptr_cells = {k for k, i in cells.items() if not i["sid"] and i["cls"] == "pointer"}
+    for info in cells.values():
+        memo = {}
+        info["exprs"] = {_canon_pointer_word(it, e, claims, ptr_cells, memo) for e in info["exprs"]}
+
+
 def guard_facts(it, guards):
     """Comparison consts read off guard shapes: cell bounds and read sentinels.
 
@@ -580,6 +714,7 @@ def analyze_ir(ir, path=""):
     for (a, _sz), info in cells.items():
         if not info["sid"]:
             ncls[info["cls"]] += 1
+    despecialize_cursors(it, cells)  # after predict/registry: reported alphabet only
     return {
         "path": path,
         "frames": ir["frames"],
@@ -621,12 +756,53 @@ def _addr_runs(addrs):
     return [tuple(r) for r in runs]
 
 
+def _direct_cells(node, out):
+    """Immediate index/pointer cells of a read node, not through nested reads."""
+    for _st, sub in node[2]:
+        k = sub[0]
+        if k in ("cell", "xf"):
+            out.append((sub[1], "idx"))
+        elif k == "word":
+            for half in (sub[1], sub[2]):
+                if half[0] in ("cell", "xf"):
+                    out.append((half[1], "ptr"))
+
+
+def _nested_reads(sub, acc):
+    """Every read sub-node reachable inside an accessor sub-tree (all levels)."""
+    if sub[0] == "read":
+        acc.add(sub)
+        for _st, s2 in sub[2]:
+            _nested_reads(s2, acc)
+    elif sub[0] == "word":
+        _nested_reads(sub[1], acc)
+        _nested_reads(sub[2], acc)
+
+
+def _refs_cell(e, a):
+    """Whether expr ``e`` reads cell ``a`` (const-address ``mem``/``cur`` leaf)."""
+    if e[0] in ("mem", "cur"):
+        return (e[1][0] == "const" and e[1][1] == a) or _refs_cell(e[1], a)
+    if e[0] == "op":
+        return any(_refs_cell(k, a) for k in e[2])
+    return False
+
+
+def _has_dyn_read(e):
+    """Whether expr ``e`` contains a dynamic-address (indexed) memory read."""
+    if e[0] in ("mem", "cur"):
+        return e[1][0] != "const" or _has_dyn_read(e[1])
+    if e[0] == "op":
+        return any(_has_dyn_read(k) for k in e[2])
+    return False
+
+
 def tracker_view(res):
     """Tracker-IR view over the recovered accessor chains (song-data payload).
 
-    Structural roles: pointer-indexed nodes are pattern data; nodes feeding
-    another node's pointer cells are orderlists; ``-1``-step counters reloaded
-    from cells/consts are row timers (reload values = frames-per-row).
+    Pointer-indexed nodes are pattern data; nodes feeding a pattern's pointer
+    (spilled cell, or nested inside its inline pointer word) are orderlists;
+    ``-1``-step counters reloaded from cells/consts are row timers.
     """
     if "error" in res:
         return {"error": res["error"]}
@@ -647,10 +823,32 @@ def tracker_view(res):
             "voices": voices(t),
         }
 
-    patterns = [entry(t) for t in tables if any(r == "ptr" for _a, r in t["icells"])]
-    orderlists = [
-        entry(t) for t in tables if any(k == "cell" and a in ptr_cells for k, a, *_ in t["feeds"])
-    ]
+    pattern_tables = [t for t in tables if any(r == "ptr" for _a, r in t["icells"])]
+    patterns = [entry(t) for t in pattern_tables]
+    inlined = set()
+    for t in pattern_tables:
+        for _st, sub in t["node"][2]:
+            _nested_reads(sub, inlined)
+
+    def bounded_position(a):
+        info = cells.get((a, 1))
+        if not info or info["cls"] != "counter":
+            return False
+        return all(_refs_cell(e, a) or not _has_dyn_read(e) for e in info["exprs"])
+
+    def nested_orderlist(t):
+        if t["node"] not in inlined or t["depth"] != 1:
+            return False
+        dc = []
+        _direct_cells(t["node"], dc)
+        return any(r == "idx" and bounded_position(a) for a, r in dc)
+
+    ol = {
+        t["node"]: entry(t)
+        for t in tables
+        if any(k == "cell" and a in ptr_cells for k, a, *_ in t["feeds"]) or nested_orderlist(t)
+    }
+    orderlists = list(ol.values())
     timers = []
     for (a, sz), info in cells.items():
         if info["cls"] == "counter" and info["steps"] == {(1 << (8 * sz)) - 1}:

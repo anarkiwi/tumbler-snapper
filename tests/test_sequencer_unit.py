@@ -197,6 +197,74 @@ def test_analyze_indexed_recovers_sequencer(indexed_sid):
     assert 0x2300 in by_base and 0x2360 in by_base
 
 
+def _reload_cells(it, n):
+    """Cursor counter reloaded from ``n`` distinct pointer positions, plus a
+    feeder dereferencing the cursor value: the per-position accessor vocabulary."""
+    ptr = ["mem", ["const", 0x20], 2]
+    sources = [_mem(0x10)] + [["mem", _op("INT_ADD", [ptr, _c(i)]), 1] for i in range(n)]
+    cur_exprs = {it.tup(_op("INT_ADD", [s, _c(1)])) for s in sources}
+    cur = S.classify_cell(it, 0x10, 1, cur_exprs)
+    cur["exprs"], cur["sid"] = cur_exprs, False
+    feed_exprs = {it.tup(["mem", _op("INT_ADD", [s, _c(0x1000)]), 1]) for s in sources}
+    feed = S.classify_cell(it, 0x30, 1, feed_exprs)
+    feed["exprs"], feed["sid"] = feed_exprs, False
+    return {(0x10, 1): cur, (0x30, 1): feed}
+
+
+def test_despecialize_collapses_reload_vocabulary(it):
+    """The feeder alphabet collapses to frame-entry + one cursor reference,
+    independent of orderlist length; the growth relocates into the cursor's own
+    reload alphabet (item-2 orderlist work)."""
+
+    def feeder(n):
+        cells = _reload_cells(it, n)
+        S.despecialize_cursors(it, cells)
+        return cells[(0x30, 1)]["exprs"]
+
+    f2, f8 = feeder(2), feeder(8)
+    assert {S.R.pretty(e) for e in f2} == {S.R.pretty(e) for e in f8}
+    assert len(f2) == 2
+    assert any(e[0] == "mem" and "cur" in repr(e) for e in f2)
+
+
+def test_cursor_vocabulary_position_independent(arrangement_builder):
+    """One pattern arranged at N orderlist positions recovers one accessor
+    vocabulary: analyze_ir's per-cell alphabet is identical for N=2 and N=8
+    (mirror of payload's evolved-state position independence), byte-exact both."""
+    sig = {}
+    for n, frames in ((2, 280), (8, 1000)):
+        res = S.analyze(str(arrangement_builder(n)), 0, frames)
+        assert res["collisions"] == 0 and res["pred"]["exact"] == res["pred"]["frames"]
+        sig[n] = {a: len(i["exprs"]) for a, i in res["cells"].items()}
+    assert sig[2] == sig[8]
+
+
+def test_orderlist_vocabulary_position_independent(arrangement_builder):
+    """Distinct patterns walked by the orderlist recover one accessor vocabulary:
+    the per-cell alphabet is identical for a 2- and an 8-position arrangement of
+    the same three patterns (fully bounded), an orderlist recovers, byte-exact both."""
+    sig = {}
+    for n, frames in ((2, 400), (8, 1200)):
+        path = str(arrangement_builder(n, distinct=3))
+        assert S.irvm.roundtrip(path, 0, frames)["match"]
+        res = S.analyze(path, 0, frames)
+        assert res["collisions"] == 0 and res["pred"]["exact"] == res["pred"]["frames"]
+        assert S.tracker_view(res)["orderlists"]
+        sig[n] = {a: len(i["exprs"]) for a, i in res["cells"].items()}
+    assert sig[2] == sig[8]
+
+
+def test_orderlist_accessor_position_independent(orderlist_sid):
+    """The recovered orderlist accessor (base/index) is horizon-independent."""
+
+    def ols(frames):
+        view = S.tracker_view(S.analyze(orderlist_sid, 0, frames))
+        return sorted((o["base"], tuple(o["index_cells"])) for o in view["orderlists"])
+
+    a, b = ols(200), ols(400)
+    assert a and a == b
+
+
 def test_analyze_direct(direct_sid):
     res = S.analyze(direct_sid, 0, 64)
     assert S.verdict(res) == "exact"
