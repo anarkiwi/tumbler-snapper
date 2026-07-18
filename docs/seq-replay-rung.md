@@ -10,7 +10,58 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status: voice re-roll measured — does NOT collapse the nonfunc edges (seq rung not built)
+## Status: accessor-deref rung LANDED — vocabulary saturates (song data), byte-exact replay covers the recovered-cursor case only
+
+The rung is built (`src/tsnap/seqreplay.py`, wired first in `tokens.compress`,
+`mode == "seq"`). It canonicalizes the walk model's store expressions against the
+cursor cells `sequencer.analyze_ir` recovers — each cell's frame-entry `M[c]` and
+store-forwarded `cur(c)` reads unify to one symbolic `cur(c)` (#80 canon, applied
+in machine order so it is value-preserving), keeping the pattern pointer symbolic
+so position-varying bytes deref `init_mem`. It is accepted only when the model is a
+**function of the recovered control** (context trie collapses to leaves,
+`cfg=guard_table=residual=0`); any nonfunctional edge (`guard-collision`) or
+byte-exact divergence rejects to walk. **Byte-exactness is never at risk.**
+
+**Make-or-break — the accessor-form vocabulary SATURATES (bounded song data).**
+`tools/seqforms_audit.py` canonicalizes each store to a cursor-symbolic form and
+re-rolls varying leaf constants per `(target, skeleton)` position (the folded
+intra-row index + SMC pointer stride). Distinct re-rolled forms across horizon:
+
+| witness | @400 | @1600 | @3200 | @4800 | edges | nonfunc |
+|---|---|---|---|---|---|---|
+| Vacuole | 188 | 208 | 231 | **231** | 144 (flat) | 52 (flat) |
+| Old_Times | 228 | 233 | 239 | — | 133 | 42 |
+| Take_Off | 242 | 267 | 272 | — | 136 | 53 |
+| Sc00ter | 228 | 231 | 278 | — | 104 | 51 |
+
+Vacuole is **flat 3200→4800** (deltas +20, +23, **+0**); Old_Times/Take_Off
+decelerate; Sc00ter climbs at 3200 (reaches a new song section, still bounded by
+song). This is **decelerating-saturation = Finding B** (bounded by the orderlist
+loop = genuine song data, doctrine #4-fine) and **refutes** the earlier
+"horizon-growing `dataconst`" reading below. The folded row index is bounded
+(Vacuole `$96` = `M[cur($FB)+K]`, K∈{0..7}, 8 forms, saturated by 400f); the
+grower is the per-voice **column-pointer advance** (`$1186`/`$120E`/`$1296`,
+SMC-modified via ADC/STA), which decelerates as the finite arrangement is
+traversed. Keeping the pointer symbolic is **necessary but not sufficient** — the
+term is bounded because it *saturates against the song*, not because symbolic
+derefs alone eliminate it.
+
+**Byte-exact replay coverage is the recovered-cursor case only.** Among 33
+fixtures the seq rung accepts the hermetic `orderlist_sid` (its row cursor is a
+recovered cell `$8101`, so the index is not folded); **0/31 real HVSC** accept —
+all reject `guard-collision` — and A_Mind rejects `non-reset-regs`. The
+saturating vocabulary does **not** translate to a bounded byte-exact seq replay
+of the cfg-dominated witnesses: the intra-row offset K and the SMC column-pointer
+stride are deity-**specialized index registers** with no recovered cell to
+evaluate at replay, so the nonfunctional-edge selector cannot be lowered to
+recovered state (the upstream deity register-IV / SMC-operand provenance blocker,
+`deity-smc-provenance.md`). To collapse the *token* term (not just the vocabulary
+count) both would have to be re-rolled to recovered cells: the folded index
+`M[const_K]` → `ptr[rowreg]` and the stride `ptr += const_K` → a stride cell. The
+rung therefore lands **behind the walk fallback**: it bounds the recovered-cursor
+case exactly and degrades gracefully everywhere else.
+
+## Status (superseded): voice re-roll measured — does NOT collapse the nonfunc edges (seq rung not built)
 
 The make-or-break Phase-A measurement (`tools/reroll_audit.py`, run per witness at
 400f/1600f) rebuilds the machine-order CFG-interpreter edges from `seg_pool`/`segs`

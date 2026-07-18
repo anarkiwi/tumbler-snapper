@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import sys
 
-from tsnap import exprkit, irvm, payload
+from tsnap import exprkit, irvm, payload, seqreplay
 
 # pylint: disable=protected-access
 
@@ -132,9 +132,16 @@ def compress(ir, walk=True):
     pipeline (slot alphabets + path-derived streams + combo residual).
     """
     reject = None
+    seq_reject = None
     if walk:
+        comp, seq_reject = seqreplay.build(ir)
+        if comp is not None:
+            seq_reads = seqreplay.collect_reads(comp)
+            comp["init_mem"] = [run for run in ir["init_mem"] if _run_is_read(run, seq_reads)]
+            return comp
         comp, reject = payload.build(ir)
         if comp is not None:
+            comp["seq_reject"] = seq_reject
             walk_reads = payload.collect_reads(comp)
             comp["init_mem"] = [run for run in ir["init_mem"] if _run_is_read(run, walk_reads)]
             return comp
@@ -181,6 +188,7 @@ def compress(ir, walk=True):
     return {
         "mode": "dispatch",
         "walk_reject": reject,
+        "seq_reject": seq_reject,
         "frames": ir["frames"],
         "init_mem": [run for run in ir["init_mem"] if _run_is_read(run, reads)],
         "init_regs": ir["init_regs"],
@@ -306,6 +314,8 @@ def decompress(comp):
 def count_tokens(comp):
     """Per-category token breakdown of a compressed IR, split into
     recovered-structure vs trace-model (debt) classes."""
+    if comp.get("mode") == "seq":
+        return seqreplay.count_tokens(comp)
     if comp.get("mode") == "walk":
         return payload.count_tokens(comp)
     slots = sum(len(a) for a in comp["alphabets"])
@@ -330,6 +340,8 @@ def count_tokens(comp):
 
 def replay_comp(comp):
     """Flat ordered write stream from a compressed IR, whichever rung it took."""
+    if comp.get("mode") == "seq":
+        return seqreplay.replay(comp)
     if comp.get("mode") == "walk":
         return payload.replay(comp)
     return irvm.replay(decompress(comp))

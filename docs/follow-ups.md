@@ -30,26 +30,32 @@ growing nodes. Each growing node's outcome is already tiny (e.g. 38 trie leaves 
 interleavings**, not separable by any single read/predicate on evolved memory at the
 decision point (discriminating cells are rewritten before their predicate executes).
 
-**Measured (design + build): the replay model is validated, the build is blocked
-upstream.** Design (a) below was scoped (`docs/seq-replay-rung.md`) and the
-machine-order CFG-interpreter form investigated on real HVSC tunes. The model is
-**sound** (residual-free on the hermetic `orderlist_sid` fixture) and its CFG
-topology is **bounded** across horizon (Sc00ter edges 87→87, Old_Times 127→127,
-Vacuole 124→137 over 400→1600 f; ~0.13 tok/frame amortized). **But 0 of 31
-analyzable real tunes are residual-free**: each has 6–67 nonfunc CFG edges where
-`(site,taken)` maps to 2–3 distinct store-blocks needing a value/presence
-selector the recovered model cannot express with `cfg=guard_table=residual=0`.
-The blocker is a precise **upstream deity-informant recorder-provenance gap**,
-not a tsnap wiring gap: **(a)** SMC-absolute-indexed reads where the operand
-*address* is the cursor (Sc00ter `$f8 ← M[5895/5896/5897]`, Vacuole `M[5089]` vs
-`M[5040]`) — deity emits **0 `place` facts** for the idiom; **(b)** multi-voice
-presence selection discriminated by state rewritten before its predicate
-executes. The rung is **not one wiring away**; it is blocked on item 1c.
+**LANDED (`seqreplay`): vocabulary saturates (bounded song data); byte-exact
+replay covers the recovered-cursor case only.** The accessor-deref rung is built
+(`src/tsnap/seqreplay.py`, first in `tokens.compress`, `mode=="seq"`, byte-exact,
+`cfg=guard_table=residual=0`). Make-or-break (`tools/seqforms_audit.py`): the
+accessor-form vocabulary **saturates** — Vacuole re-rolled forms 188→208→231→**231**
+(flat 3200→4800f), edges 144 flat, nonfunc 52 flat; Old_Times/Take_Off decelerate;
+Sc00ter climbs at 3200 (new song section, bounded by song). Decelerating-saturation
+is **Finding B** (bounded by the orderlist loop = song data, doctrine #4-fine),
+**refuting** the earlier "horizon-growing `dataconst`". The folded row index is
+bounded (`$96` = `M[cur($FB)+K]`, K∈{0..7}, saturated by 400f); the grower is the
+per-voice **column-pointer SMC advance** (`$1186`/`$120E`/`$1296`, ADC/STA),
+decelerating against the finite arrangement. Keeping the pointer symbolic is
+**necessary but not sufficient** — the term is bounded because it saturates against
+the song, not by symbolic derefs alone. **But byte-exact seq replay accepts only
+the hermetic `orderlist_sid` (row cursor = a recovered cell); 0/31 real HVSC** (all
+`guard-collision`): the folded index K and SMC stride are deity-**specialized index
+registers** with no recovered cell to evaluate, so the nonfunctional-edge selector
+cannot be lowered — the upstream deity register-IV/SMC-operand provenance gap.
 
-- **(a) Sequencer-driven replay rung.** A rung in `tokens.compress` that evolves
-  the recovered accessor model directly (machine-order CFG-interpreter, §2 as
-  corrected), gated byte-exact through `payload._verify` with fallback. **Blocked
-  on 1c** (0/31 real tunes residual-free; every real tune rejects to walk).
+- **(a) Sequencer-driven replay rung — LANDED behind the walk fallback.** A rung
+  in `tokens.compress` (`seqreplay.build`) canonicalizing the walk model's stores
+  against recovered cursors, accepted only when control is functional, byte-exact
+  with walk fallback. Bounds the recovered-cursor case exactly; degrades gracefully
+  on the cfg-dominated tail. Collapsing the *token* term there needs the folded
+  index `M[const_K]→ptr[rowreg]` and stride `ptr+=const_K→stride-cell` recovered as
+  cells — **blocked on 1c**.
 - **(c) Voice-index re-roll — MEASURED, does not unblock (see
   `seq-replay-rung.md` Status).** The bespoke base+stride voice de-specialization
   (`tools/reroll_audit.py`) collapses only the *bounded* per-voice unroll: Vacuole

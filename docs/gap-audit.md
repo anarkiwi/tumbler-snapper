@@ -50,6 +50,17 @@ Token/byte caveat: one recovered token is a small integer symbol (pool node / al
 / RLE run), broadly one-to-one with a stored byte at order-of-magnitude, not identical units.
 Every `< 1.0` and growth-rate figure is in tokens; the `.sid` ground truth is in bytes.
 
+**cfg-collapse note (`seqreplay`, `tools/seqforms_audit.py`).** The "dom growing cfg"
+column below is NOT unbounded: canonicalizing each store to a cursor-symbolic form
+(mem≡cur unified) and re-rolling the folded index + SMC stride, the distinct accessor-form
+vocabulary **saturates** (Vacuole re-rolled forms 188→208→231→**231** flat 3200→4800f,
+edges 144 flat, nonfunc 52 flat) — decelerating-saturation = bounded song data (Finding B).
+The seq rung realizes this as `cfg=0` for the recovered-cursor case (hermetic `orderlist_sid`);
+the real tunes here reject to walk (`guard-collision`) because the folded row index and the
+per-voice column-pointer SMC advance (`$1186`/`$120E`/`$1296`) have no recovered cell to
+evaluate at replay — so the walk `cfg` still re-encodes the note sequence and grows
+(decelerating) even though its vocabulary is bounded (upstream deity register-IV/SMC gap).
+
 ## Per-tune gap audit
 
 | tune | rung | sid song fp (code+reach) | img B | full frm | sid tpf | img tpf | our tok 400/1600 | grow rate | our tpf~ | static/reach | dom growing | attribution |
