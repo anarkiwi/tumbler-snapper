@@ -40,6 +40,11 @@ song-data bytes).
 - **attribution** -- dom term grounded in the recovered accessor chain
   (`sequencer.analyze_ir`/`tracker_view`): recovered pattern/orderlist bases, chain depth,
   and mechanism class (sequencer-/cursor-recoverable, or generative/procedural).
+  This column reads `tracker_view`'s pattern/orderlist counts; #78 regressed those to
+  0 on many tunes (the "no pattern/orderlist closed" labels here), fixed in #87 --
+  regenerate the table post-#87 so the labels reflect restored recovery. The CORE gap
+  proof (cfg is the recoverable gap; static at parity) is measured from **tokens**, not
+  `tracker_view`, so it is unaffected by the label and stands as-is.
 
 Token/byte caveat: one recovered token is a small integer symbol (pool node / alphabet slot
 / RLE run), broadly one-to-one with a stored byte at order-of-magnitude, not identical units.

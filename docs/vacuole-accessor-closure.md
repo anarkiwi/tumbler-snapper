@@ -1,10 +1,20 @@
 # Vacuole pattern/orderlist closure: root-cause diagnosis
 
-Read-only diagnosis (no `src/tsnap` change). Localizes why
-`sequencer.tracker_view` recovers **0 patterns / 0 orderlists** for Vacuole
-(`MUSICIANS/I/Ilkke/Vacuole.sid`, song 0) at HEAD (#83), even though
-`sequencer.analyze` recovers the full accessor chain (chain=6, 151 tables) and
-replay is `exact+seq`. Measured with `sequencer.analyze(path, 0, 400)`.
+**Status: FIXED.** The regression was introduced by **#78** (role-agnostic
+`is_pattern`) and is resolved in #87: `is_pattern` again admits any `ptr`-role
+node (restoring corpus pattern/orderlist counts to >= pre-#78) while additionally
+recognizing the class-I `idx`-encoded full pattern node (#78's authored-payload
+roundtrip stays green), and `ptr_cells` includes pointer-class `idx` words so
+orderlists link in either encoding. A breadth gate
+(`test_sequencer_unit.py::test_tracker_view_recovers_structure`) now pins the
+recovery so it cannot silently regress again. The diagnosis below stands as the
+record of the break.
+
+Localizes why `sequencer.tracker_view` recovered **0 patterns / 0 orderlists**
+for Vacuole (`MUSICIANS/I/Ilkke/Vacuole.sid`, song 0) after #78 (measured on main
+at #83), even though `sequencer.analyze` recovers the full accessor chain
+(chain=6, 151 tables) and replay is `exact+seq`. Measured with
+`sequencer.analyze(path, 0, 400)`.
 
 ## TL;DR
 
