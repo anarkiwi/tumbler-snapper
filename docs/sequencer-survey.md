@@ -1,4 +1,4 @@
-# Sequencer recovery survey (`prototypes/sequencer.py`)
+# Sequencer recovery survey (`src/tsnap/sequencer.py`)
 
 Prototype of docs/tokens.md course-correction step 2: recover the tune's own
 sequencer data (orderlist / pattern / table bytes) by **static dataflow over the
@@ -16,9 +16,8 @@ differed only in replay-dead register exprs, now excluded from program
 identity), and Degree's gate-1 pins moved accordingly
 (`tests/test_sequencer_unit.py::test_analyze_degree_gate1_pins`).
 
-Run: `python3 prototypes/sequencer.py <file.sid> [song] [frames]` or
-`python3 prototypes/sequencer.py --survey [frames]` (HVSC fixture manifest,
-multiprocessing, 55 s wall alarm per tune).
+Run: `tsnap.sequencer.analyze_ir(ir, path)` over an already-serialized IR;
+`tools/token_report.py` drives it per-fixture across the HVSC manifest.
 
 ## Method as implemented
 

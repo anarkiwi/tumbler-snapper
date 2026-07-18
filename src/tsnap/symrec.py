@@ -12,6 +12,8 @@ import bisect
 from deity_informant import expr as E
 from deity_informant import lift, record
 
+from tsnap import exprkit
+
 SID = 0xD400
 OUTPUTS = range(SID, 0xD419)
 
@@ -99,15 +101,7 @@ def entry_form(e):
     return r
 
 
-def _has_uni(e):
-    t = e[0]
-    if t == "uni":
-        return True
-    if t in ("mem", "cur"):
-        return _has_uni(e[1])
-    if t == "op":
-        return any(_has_uni(k) for k in e[2])
-    return False
+_has_uni = exprkit.has_uni
 
 
 def _guard(fact):

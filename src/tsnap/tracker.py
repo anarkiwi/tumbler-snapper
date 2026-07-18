@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 from functools import reduce
 from math import gcd
 import numpy as np
+from tsnap import exprkit
 from tsnap import recover as R
 
 PAL_CLOCK = 985248
@@ -395,17 +396,7 @@ def _flatten_add(e):
     return [e]
 
 
-def _peel_scale(e):
-    """Strip constant <<n / *k wrappers -> (stride, inner index expr)."""
-    stride = 1
-    while e[0] == "op" and e[1] in ("INT_LEFT", "INT_MULT"):
-        a, b = e[2][0], e[2][1]
-        k, inner = (b[1], a) if b[0] == "const" else (a[1], b) if a[0] == "const" else (None, None)
-        if k is None:
-            break
-        stride *= (1 << k) if e[1] == "INT_LEFT" else k
-        e = inner
-    return stride, e
+_peel_scale = exprkit.peel_scale
 
 
 def _index_read(addr):
@@ -548,14 +539,7 @@ def decode_instr(row):
     return d
 
 
-def _rle(seq):
-    out = []
-    for x in seq:
-        if out and out[-1][0] == x:
-            out[-1][1] += 1
-        else:
-            out.append([x, 1])
-    return out
+_rle = exprkit.rle
 
 
 def _cycle(seq):

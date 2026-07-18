@@ -16,7 +16,7 @@ from deity_informant import lift, c64
 from deity_informant import expr as E
 from deity_informant.expr import ExprTooComplex
 from deity_informant.vm import PcodeVM
-from tsnap import symrec
+from tsnap import exprkit, symrec
 
 SID = 0xD400
 _VREG = ("freq_lo", "freq_hi", "pw_lo", "pw_hi", "ctrl", "ad", "sr")
@@ -61,33 +61,7 @@ WATCH = {
 MIN_CIA_LATCH = 256
 
 
-def apply_op(mn, a, b, sz):
-    mask = (1 << (8 * sz)) - 1
-    if mn == "INT_ADD":
-        return (a + b) & mask
-    if mn == "INT_SUB":
-        return (a - b) & mask
-    if mn == "INT_AND":
-        return a & b
-    if mn == "INT_OR":
-        return a | b
-    if mn == "INT_XOR":
-        return a ^ b
-    if mn == "INT_LEFT":
-        return (a << b) & mask
-    if mn == "INT_RIGHT":
-        return a >> b
-    if mn == "INT_EQUAL":
-        return 1 if a == b else 0
-    if mn == "INT_NOTEQUAL":
-        return 1 if a != b else 0
-    if mn == "INT_LESS":
-        return 1 if a < b else 0
-    if mn == "INT_LESSEQUAL":
-        return 1 if a <= b else 0
-    if mn == "INT_CARRY":
-        return 1 if (a + b) > mask else 0
-    raise NotImplementedError(mn)
+apply_op = exprkit.apply_op
 
 
 def _add_terms(kids, sz):
@@ -172,29 +146,7 @@ def clear_simplify_memo():
 
 
 def eval_expr(e, mem, regs, memo=None):
-    if memo is None:
-        memo = {}
-    t = e[0]
-    if t == "const":
-        return e[1]
-    if t == "reg":
-        return regs[e[1]]
-    if t == "uni":
-        return 0
-    k = id(e)
-    if k in memo:
-        return memo[k]
-    if t == "mem":
-        addr = eval_expr(e[1], mem, regs, memo) & 0xFFFF
-        r = 0
-        for i in range(e[2]):
-            r |= mem[(addr + i) & 0xFFFF] << (8 * i)
-    else:
-        a = eval_expr(e[2][0], mem, regs, memo)
-        b = eval_expr(e[2][1], mem, regs, memo) if len(e[2]) > 1 else 0
-        r = apply_op(e[1], a, b, e[3])
-    memo[k] = r
-    return r
+    return exprkit.eval_expr(e, mem, regs, memo=memo if memo is not None else {})
 
 
 _OPSYM = {
@@ -258,16 +210,7 @@ def _value_cells(e, out):
             _value_cells(k, out)
 
 
-def _has_uni(e):
-    """Whether an expr references an unresolved unique (``uni``) temporary."""
-    t = e[0]
-    if t == "uni":
-        return True
-    if t in ("mem", "cur"):
-        return _has_uni(e[1])
-    if t == "op":
-        return any(_has_uni(k) for k in e[2])
-    return False
+_has_uni = exprkit.has_uni
 
 
 class EnvVM(PcodeVM):
@@ -530,9 +473,10 @@ def classify(F, reg):
     e = F.get(reg)
     if e is None:
         return None
-    for c in dict.fromkeys(_value_cells_of(e)):
+    cells = _value_cells_of(e)
+    for c in dict.fromkeys(cells):
         fc = F.get(c)
-        if fc == e and c in _value_cells_of(fc):
+        if fc == e and c in cells:
             return ("ACCUM", c, simplify(subst_zero(e, c)))
     if e[0] == "const":
         return ("CONST", e[1], None)
