@@ -221,3 +221,6 @@ __marimo__/
 *-ir.txt
 .oracle-cache/
 src/*.egg-info/
+
+# Core dumps
+core

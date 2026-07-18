@@ -11,78 +11,24 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 
-from tsnap import irvm
+from tsnap import exprkit, irvm
 
 SID_LO, SID_HI = 0xD400, 0xD418
 CASE, BRANCH = 0, 1
 
+_intern = exprkit.intern
+_expand = exprkit.expand
+
 
 def _eq_parts(g):
     """lhs / K of a recorded predicate (always ``INT_EQUAL(lhs, const)``)."""
-    if g[0] == "op" and g[1] == "INT_EQUAL" and g[2][1][0] == "const":
-        return g[2][0], g[2][1][1]
-    return None, None
-
-
-def _intern(e, pool, index):
-    """Intern a serialized expr into a shared DAG pool; return its node id."""
-    tag = e[0]
-    if tag == "op":
-        node = ("op", e[1], tuple(_intern(k, pool, index) for k in e[2]), e[3])
-    elif tag in ("mem", "cur"):
-        node = (tag, _intern(e[1], pool, index), e[2])
-    else:
-        node = tuple(e)
-    nid = index.get(node)
-    if nid is None:
-        nid = len(pool)
-        index[node] = nid
-        if tag == "op":
-            pool.append(["op", node[1], list(node[2]), node[3]])
-        elif tag in ("mem", "cur"):
-            pool.append([tag, node[1], node[2]])
-        else:
-            pool.append(list(node))
-    return nid
-
-
-def _expand(nid, pool, memo):
-    got = memo.get(nid)
-    if got is not None:
-        return got
-    node = pool[nid]
-    tag = node[0]
-    if tag == "op":
-        out = ["op", node[1], [_expand(k, pool, memo) for k in node[2]], node[3]]
-    elif tag in ("mem", "cur"):
-        out = [tag, _expand(node[1], pool, memo), node[2]]
-    else:
-        out = list(node)
-    memo[nid] = out
-    return out
+    return exprkit.eq_case(g) or (None, None)
 
 
 def _eval(e, snap, mem, regs):
     """Evaluate an expr: ``mem`` leaves read the frame-entry snapshot, ``cur``
     leaves read the walk-evolved memory at the evaluation point."""
-    t = e[0]
-    if t == "const":
-        return e[1]
-    if t == "reg":
-        return regs[e[1]]
-    if t == "uni":
-        return 0
-    if t in ("mem", "cur"):
-        addr = _eval(e[1], snap, mem, regs) & 0xFFFF
-        src = snap if t == "mem" else mem
-        r = 0
-        for i in range(e[2]):
-            r |= src[(addr + i) & 0xFFFF] << (8 * i)
-        return r
-    kids = e[2]
-    a = _eval(kids[0], snap, mem, regs)
-    b = _eval(kids[1], snap, mem, regs) if len(kids) > 1 else 0
-    return irvm._apply(e[1], a, b, e[3])  # pylint: disable=protected-access
+    return exprkit.eval_expr(e, snap, regs, cur=mem)
 
 
 def _context_trie(occ, d0):
@@ -316,26 +262,7 @@ def collect_reads(comp):
     reads = set()
 
     def evalf(e, snap, mem, regs):
-        t = e[0]
-        if t == "const":
-            return e[1]
-        if t == "reg":
-            return regs[e[1]]
-        if t == "uni":
-            return 0
-        if t in ("mem", "cur"):
-            addr = evalf(e[1], snap, mem, regs) & 0xFFFF
-            src = snap if t == "mem" else mem
-            r = 0
-            for i in range(e[2]):
-                a = (addr + i) & 0xFFFF
-                reads.add(a)
-                r |= src[a] << (8 * i)
-            return r
-        kids = e[2]
-        a = evalf(kids[0], snap, mem, regs)
-        b = evalf(kids[1], snap, mem, regs) if len(kids) > 1 else 0
-        return irvm._apply(e[1], a, b, e[3])  # pylint: disable=protected-access
+        return exprkit.eval_expr(e, snap, regs, cur=mem, reads=reads)
 
     for _ in _walk_frames(comp, evalf):
         pass

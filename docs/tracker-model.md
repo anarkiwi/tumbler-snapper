@@ -5,7 +5,7 @@
 > per-frame dispatch — docs/tokens.md) + `tsnap.sequencer.tracker_view`
 > (orderlist / pattern / row-timer / frames-per-row roles over the recovered
 > accessor chains, payload dereferenced from `init_mem`). `tsnap.tracker`
-> (`tsnap tracker <file.sid>`; frozen reference `prototypes/tracker.py`) is a
+> (`tsnap tracker <file.sid>`) is a
 > **display-only diagnostic view** (tuning, human-readable instrument/table
 > summaries); its trace-sampled sections must not be built upon (doctrine #1)
 > and it plays no role in the emitted IR.
@@ -183,7 +183,7 @@ dropped.
    defMON has it; they are authoring formats, TT-IR is a recovered lossless codec
    IR. This is what lets the tracker view be a *view*, with raw-generator fallback.
 
-## Prototype status (`prototypes/tracker.py`)
+## Prototype status (`src/tsnap/tracker.py`)
 
 > **Phase-4 note:** steps 3–5 below (and the wave/mod parts of step 4) infer
 > structure from concrete `capture_trace` output with tuned thresholds
@@ -221,7 +221,7 @@ Consumes `recover.py`'s generators + memory image and emits the text IR. Pipelin
    sounding freq; per-voice patterns + orderlist via period/repetition
    (`factor_voice`). SID model + clock from the `.sid` header (`read_header`).
 
-Run: `python3 prototypes/tracker.py <file.sid> [subtune] [frames]`. Clean on
+Run: `tsnap tracker <file.sid> [subtune] [frames]`. Clean on
 `Commando` (instrument+pitch tables resolved, records materialized, instruments
 bound). `Grid_Runner` (GoatTracker) recovers chromatic tuning + structure.
 

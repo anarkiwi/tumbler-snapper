@@ -10,32 +10,12 @@ from __future__ import annotations
 import json
 import sys
 
-from tsnap import irvm, payload
+from tsnap import exprkit, irvm, payload
 
 # pylint: disable=protected-access
 
-
-def _eval_rd(e, mem, regs, reads):
-    """``irvm._eval`` that records every memory address it reads."""
-    t = e[0]
-    if t == "const":
-        return e[1]
-    if t == "reg":
-        return regs[e[1]]
-    if t == "uni":
-        return 0
-    if t == "mem":
-        addr = _eval_rd(e[1], mem, regs, reads) & 0xFFFF
-        r = 0
-        for i in range(e[2]):
-            a = (addr + i) & 0xFFFF
-            reads.add(a)
-            r |= mem[a] << (8 * i)
-        return r
-    kids = e[2]
-    a = _eval_rd(kids[0], mem, regs, reads)
-    b = _eval_rd(kids[1], mem, regs, reads) if len(kids) > 1 else 0
-    return irvm._apply(e[1], a, b, e[3])
+_intern = exprkit.intern
+_rle = exprkit.rle
 
 
 def _collect_reads(ir, guards):
@@ -57,15 +37,15 @@ def _collect_reads(ir, guards):
         pr = programs[pi]
         snap = bytes(mem)
         for g in guards:
-            _eval_rd(g, snap, regs, reads)
+            exprkit.eval_expr(g, snap, regs, reads=reads)
         for _ri, e in pr["sid"]:
-            _eval_rd(e, snap, regs, reads)
+            exprkit.eval_expr(e, snap, regs, reads=reads)
         for addr, e, sz in pr["trans"]:
-            v = _eval_rd(e, snap, regs, reads)
+            v = exprkit.eval_expr(e, snap, regs, reads=reads)
             for i in range(sz):
                 mem[(addr + i) & 0xFFFF] = (v >> (8 * i)) & 0xFF
         if not reset:
-            regs = [_eval_rd(e, snap, regs, reads) for e in pr["regs"]]
+            regs = [exprkit.eval_expr(e, snap, regs, reads=reads) for e in pr["regs"]]
     return reads
 
 
@@ -79,33 +59,6 @@ def _node_json(node):
     if node[0] == "op":
         return ["op", node[1], list(node[2]), node[3]]
     return ["mem", node[1], node[2]]
-
-
-def _intern(e, pool, index):
-    """Intern a serialized generator into a shared DAG pool; return its node id."""
-    tag = e[0]
-    if tag == "op":
-        node = ("op", e[1], tuple(_intern(k, pool, index) for k in e[2]), e[3])
-    elif tag == "mem":
-        node = ("mem", _intern(e[1], pool, index), e[2])
-    else:
-        node = tuple(e)
-    nid = index.get(node)
-    if nid is None:
-        nid = len(pool)
-        index[node] = nid
-        pool.append(_node_json(node) if tag in ("op", "mem") else list(node))
-    return nid
-
-
-def _rle(trace):
-    runs = []
-    for pi in trace:
-        if runs and runs[-1][0] == pi:
-            runs[-1][1] += 1
-        else:
-            runs.append([pi, 1])
-    return runs
 
 
 def _decompose(programs, trace):
@@ -249,21 +202,6 @@ def compress(ir, walk=True):
     }
 
 
-def _expand(nid, pool, memo):
-    if nid in memo:
-        return memo[nid]
-    node = pool[nid]
-    tag = node[0]
-    if tag == "op":
-        out = ["op", node[1], [_expand(k, pool, memo) for k in node[2]], node[3]]
-    elif tag == "mem":
-        out = ["mem", _expand(node[1], pool, memo), node[2]]
-    else:
-        out = list(node)
-    memo[nid] = out
-    return out
-
-
 def _memo_eval(guards, snap, regs, cache):
     def evalg(gid):
         v = cache.get(gid)
@@ -303,9 +241,9 @@ def decompress(comp):
     factored streams reproduce the recorded selection.
     """
     pool, memo = comp["pool"], {}
-    cell_exprs = [[_expand(g, pool, memo) for g in alpha] for alpha in comp["alphabets"]]
+    cell_exprs = [[exprkit.expand(g, pool, memo) for g in alpha] for alpha in comp["alphabets"]]
     cells = comp["cells"]
-    guards = [_expand(r, comp["guard_pool"], {}) for r in comp["guard_roots"]]
+    guards = [exprkit.expand(r, comp["guard_pool"], {}) for r in comp["guard_roots"]]
     m_cells = sorted((c[1], ci) for ci, c in enumerate(cells) if c[0] == "M")
     r_cells = sorted((c[1], ci) for ci, c in enumerate(cells) if c[0] == "R")
     streams = ([(0, comp["struct_root"])] if comp["struct_root"] is not None else []) + [

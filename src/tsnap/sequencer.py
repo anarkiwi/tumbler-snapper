@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from tsnap import irvm
+from tsnap import exprkit, irvm
 from tsnap import recover as R
 
 SID_LO, SID_HI = 0xD400, 0xD418
@@ -98,17 +98,7 @@ def peel_and(e):
     return e, None
 
 
-def peel_scale(e):
-    """Strip constant << / * wrappers -> (stride, inner)."""
-    stride = 1
-    while e[0] == "op" and e[1] in ("INT_LEFT", "INT_MULT"):
-        a, b = e[2]
-        k, inner = (b[1], a) if b[0] == "const" else (a[1], b) if a[0] == "const" else (None, None)
-        if k is None:
-            break
-        stride *= (1 << k) if e[1] == "INT_LEFT" else k
-        e = inner
-    return stride, e
+peel_scale = exprkit.peel_scale
 
 
 def parse_sub(it, e):
