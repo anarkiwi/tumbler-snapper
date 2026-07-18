@@ -51,22 +51,23 @@ def test_build_rejects_unrecorded_ir():
 # --- rung assignment ---------------------------------------------------------
 
 
-def test_orderlist_lands_walk_rung(orderlist_sid):
-    """Authored orderlist/pattern tune: structural rung, no per-frame dispatch."""
+def test_orderlist_walk_model_byte_exact(orderlist_sid):
+    """Authored orderlist/pattern tune: the walk model is structural (no per-frame
+    dispatch) and byte-exact (``tokens.compress`` prefers the seq rung, below)."""
     ir = irvm.serialize(orderlist_sid, 0, 400)
-    comp = json.loads(json.dumps(tokens.compress(ir)))
+    comp = json.loads(json.dumps(payload.build(ir)[0]))
     assert comp["mode"] == "walk"
     for per_frame in ("trace", "paths", "path_pool", "dnodes", "residual_rle"):
         assert per_frame not in comp
-    assert tokens.replay_comp(comp) == irvm.replay(ir)
+    assert payload.replay(comp) == irvm.replay(ir)
 
 
 def test_orderlist_walk_saturates_across_repeat(orderlist_sid):
-    """The stored model is identical once the arrangement repeats."""
-    c1 = tokens.compress(irvm.serialize(orderlist_sid, 0, 200))
-    c2 = tokens.compress(irvm.serialize(orderlist_sid, 0, 400))
+    """The stored walk model is identical once the arrangement repeats."""
+    c1, _ = payload.build(irvm.serialize(orderlist_sid, 0, 200))
+    c2, _ = payload.build(irvm.serialize(orderlist_sid, 0, 400))
     assert c1["mode"] == c2["mode"] == "walk"
-    assert tokens.count_tokens(c1) == tokens.count_tokens(c2)
+    assert payload.count_tokens(c1) == payload.count_tokens(c2)
     assert c1["nodes"] == c2["nodes"] and c1["table"] == c2["table"]
     assert c1["contribs"] == c2["contribs"] and c1["init_mem"] == c2["init_mem"]
 
@@ -113,14 +114,15 @@ def test_volatile_falls_back(volatile_sid):
 
 def test_walk_replay_frames_lead_with_init_sid(orderlist_sid):
     ir = irvm.serialize(orderlist_sid, 0, 40)
-    comp = tokens.compress(ir)
+    comp, _ = payload.build(ir)
     frames = payload.replay_frames(comp)
     assert frames[0] == [(r, v & 0xFF) for r, v in ir["init_sid"]]
     assert frames[1:] == irvm.replay_frames(ir)[1:]
 
 
-def test_walk_metric_tokens(orderlist_sid):
-    m = tokens.metric(orderlist_sid, 0, 400)
+def test_walk_metric_tokens(arrangement_builder):
+    """A tune the seq rung rejects (nonfunctional control) lands the walk rung."""
+    m = tokens.metric(arrangement_builder(4), 0, 400)
     assert m["mode"] == "walk" and m["debt"] == 0
     assert m["tokens"] == m["programs"] + m["guards"] + m["cfg"] + m["init_mem"]
     assert m["tokens_per_frame"] < 1.0

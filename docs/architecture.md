@@ -9,7 +9,7 @@ the module wiring and the current status only — no design doctrine (that is
 
 ```
 .sid ──setup/record──▶ generator-IR ──compress──▶ tokens/frame
-       (recover+symrec)  (irvm)        walk│dispatch  (tokens)
+       (recover+symrec)  (irvm)      seq│walk│dispatch (tokens)
                                           │
        sequencer.analyze_ir ◀────────────┘ (structural analysis of the same IR)
 ```
@@ -28,8 +28,9 @@ the module wiring and the current status only — no design doctrine (that is
 | `recover` | per-frame register generators from a symbolic one-frame summary; cadence/trigger discovery; driver selection (installed handler vs host play); classify/shadow |
 | `irvm` | serializable generator-IR + self-contained replay VM; CFG-path dispatch lowering; byte-exact roundtrip |
 | `payload` | structural **walk rung** — player-walk model over recorded branch facts (predicate nodes + context trie + per-edge stores), verified byte-exact; no stored per-frame dispatch |
+| `seqreplay` | **seq rung** — accessor-deref: canonicalizes the walk model's stores against recovered cursor cells (mem≡cur unify, pointer symbolic), accepted only when control is functional (`cfg=guard_table=residual=0`), else rejects to walk byte-exact |
 | `sequencer` | sequencer recovery — state-cell dataflow, accessor-chain dereference, model closure, forward prediction from `init_mem`; `tracker_view` emits orderlist/patterns/rows |
-| `tokens` | IR tokenization + lossless compression (walk rung, else **dispatch rung** fallback); `tokens / frames` metric (HARD CONSTRAINT #4) |
+| `tokens` | IR tokenization + lossless compression (**seq rung** first, else walk, else **dispatch** fallback); `tokens / frames` metric (HARD CONSTRAINT #4) |
 | `tracker` | display-only tracker text view (diagnostics: A440/12-TET tuning, tables, instruments) — not part of the emitted IR |
 | `curate` | HVSC fixture-manifest builder (P-Code player fingerprint, complexity score, full-faithfulness gate) |
 | `survey` | stratified HVSC coverage matrix over the full pipeline |
@@ -43,7 +44,7 @@ the module wiring and the current status only — no design doctrine (that is
 |---|---|
 | **Lossless** (byte-exact stream) | met — 33/33 fixtures vs deity `PcodeVM`; 32/32 vs sidtrace ([`survey.md`](survey.md), [`irvm.md`](irvm.md)) |
 | **Algorithmic / no fitting** | met — static P-Code dataflow + recorded guards + `init_mem`; dispatch lowered from CFG paths, not induced |
-| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung, lossless, debt 0), but walk `cfg` grows on the cfg-dominated tail (Vacuole ~0.993, trending over 1.0 at true full horizon); not yet general (300-tune survey 4.3% < 1.0). Seq rung CFG-interpreter validated + bounded; the voice re-roll does **not** collapse the growing `cfg` (it is the folded row-position read-index, not the multi-voice loop) — deity ruled out as the blocker ([`seq-replay-rung.md`](seq-replay-rung.md), [`gap-audit.md`](gap-audit.md), [`tokens.md`](tokens.md)) |
+| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung, lossless, debt 0), but walk `cfg` grows on the cfg-dominated tail (Vacuole ~0.993, trending over 1.0 at true full horizon); not yet general (300-tune survey 4.3% < 1.0). **Seq rung landed** (`seqreplay`, byte-exact, `cfg=0`): the accessor-form vocabulary **saturates** (Vacuole re-rolled forms flat 231 at 3200→4800f = bounded song data, `tools/seqforms_audit.py`), refuting the earlier "unbounded `cfg`" reading — but byte-exact seq replay covers only the recovered-cursor case (hermetic `orderlist_sid`; 0/31 real HVSC, all `guard-collision`): the folded intra-row index + SMC column-pointer stride have no recovered cell to evaluate, the upstream deity register-IV/SMC blocker ([`seq-replay-rung.md`](seq-replay-rung.md), [`gap-audit.md`](gap-audit.md), [`tokens.md`](tokens.md)) |
 | **Tracker structure recovered** | on fixtures — `sequencer.analyze_ir` → `exact+seq` on 27/33; model closure total on every analyzable tune ([`sequencer-survey.md`](sequencer-survey.md)) |
 | **Survey breadth** | partial — 73.4% lossless of classifiable, 95.1% cadence–oracle agreement over 300 tunes ([`survey.md`](survey.md)) |
 
@@ -52,18 +53,20 @@ the module wiring and the current status only — no design doctrine (that is
 Ranked open work is tracked in [`follow-ups.md`](follow-ups.md); driver-model
 gaps in [`driver-model.md`](driver-model.md). The highest-leverage item is #1:
 
-1. **Sequencer-driven replay token rung — voice re-roll measured, does not
-   unblock; rung not built.** The machine-order CFG-interpreter model is validated
-   (residual-free on the hermetic fixture) but **0/31 real tunes are
-   residual-free**. The bespoke base+stride **voice** re-roll (Phase-A
-   make-or-break, `tools/reroll_audit.py`) collapses only the *bounded* per-voice
-   unroll (Vacuole voice-collapsed edges flat at 20 over 400→1600f) and does **not**
-   touch the horizon-growing `cfg` term: that term is the folded **row-position
-   read-index** (`M[cur($FB)+K]`, data-dependent range — the `follow-ups.md` §1a
-   `$96` fold) plus row-advance presence, neither a fixed-K constant-stride loop.
-   The gap is not purely a re-rollable per-voice loop (`docs/seq-replay-rung.md`
-   Status, `docs/deity-smc-provenance.md` §3). The walk rung holds (lossless,
-   debt 0) but `cfg` grows on the cfg-dominated tail.
+1. **Sequencer-driven replay token rung — LANDED (`seqreplay`); vocabulary
+   saturates, replay covers the recovered-cursor case only.** The accessor-deref
+   rung is built and byte-exact (`cfg=guard_table=residual=0`). Make-or-break: the
+   accessor-form vocabulary **saturates** across horizon (Vacuole re-rolled forms
+   188→208→231→**231** flat 3200→4800f, edges 144 flat, nonfunc 52 flat,
+   `tools/seqforms_audit.py`) — decelerating-saturation = bounded song data
+   (Finding B), refuting the earlier "horizon-growing `dataconst`". The folded row
+   index is bounded (`$96` = K∈{0..7}); the grower is the per-voice column-pointer
+   SMC advance (`$1186`/`$120E`/`$1296`), which saturates against the finite
+   arrangement. But seq replay accepts only the hermetic `orderlist_sid`; **0/31
+   real HVSC** (all `guard-collision`) — the folded index + SMC stride are
+   deity-specialized registers with no recovered cell, so the nonfunctional-edge
+   selector cannot be lowered (upstream deity register-IV/SMC provenance,
+   `docs/deity-smc-provenance.md`). The walk rung holds (lossless, debt 0).
 2. **Orderlist-role recovery** for 0-orderlist tunes (prerequisite for #1).
 3. **Non-structural rungs**: transcription rung for generative players. (The
    role-agnostic `tracker_view` pattern classifier landed; see docs/driver-model.md.)
