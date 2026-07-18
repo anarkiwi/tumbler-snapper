@@ -10,7 +10,61 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status: model validated, build blocked upstream (deity SMC-operand provenance)
+## Status: voice re-roll measured — does NOT collapse the nonfunc edges (seq rung not built)
+
+The make-or-break Phase-A measurement (`tools/reroll_audit.py`, run per witness at
+400f/1600f) rebuilds the machine-order CFG-interpreter edges from `seg_pool`/`segs`
+with evolved reads unified (`mem[c]≡cur[c]`, the #80 canon) and applies a bespoke
+base+stride **voice** re-roll (cluster of stores at a common base with constant
+stride = an unrolled per-voice loop → one block parametrised by the voice index).
+**Verdict: the voice re-roll does not collapse the nonfunc edges to near-zero on
+any witness, and — decisively — does not touch the horizon-growing term.** Per the
+build plan's explicit stop condition the seq rung was **not** built.
+
+Measured nonfunc CFG edges (`(site,taken) → N store-blocks`), 400f:
+
+| witness | edges | raw | after `mem≡cur` | after +voice-reroll | voice-collapsed | dominant residual |
+|---|---|---|---|---|---|---|
+| Vacuole | 124 | 50 | 36 | **30** | 20 | dataconst 23 (row-pos fold) + presence 7 |
+| Sc00ter | 87 | 55 | 34 | **14** | 41 | presence 7 + dataconst 7 (bounded) |
+| Old_Times | 127 | 65 | 38 | **16** | 49 | dataconst 12 + presence 4 |
+| Take_Off | 122 | 58 | 37 | **14** | 44 | dataconst 7 + presence 7 |
+| Superkid_in_Space | 46 | 26 | 22 | **15** | 11 | dataconst 9 + presence 6 |
+| Smutta | 137 | 81 | 67 | **66** | 15 | dataconst 35 + presence 31 |
+| Dancing_Donuts | 88 | 43 | 41 | **11** | 32 | presence 6 + dataconst 5 |
+
+**The horizon clincher (Vacuole 400→1600f):** voice-collapsed edges stay **flat at
+20** (the voice index is a bounded fixed-K=3 loop), while the residual **grows
+30→42** — dataconst 23→31, presence 7→11. The re-roll addresses only the *bounded*
+part and leaves the *entire* horizon-growing `cfg` driver intact. Sc00ter's residual
+is already bounded (14→14), consistent with its 0.037 walk grow-rate.
+
+**Precise structural reason the collapse fails.** The nonfunc residual is two
+dimensions, neither the multi-voice interleaving the earlier diagnosis assumed:
+
+- **Folded read-index / row position (`dataconst`, the growing term).** The `(zp),Y`
+  pattern read `M[cur($FB) + K]` folds the row-position index `Y` to a per-frame
+  constant `K`. Vacuole cell `$96` at site `0x1715` reads `M[cur(251)+K]` for
+  `K ∈ {1..7}` — the same destination, one code path, **no guard separates the K
+  values** (they are the specialised-away `Y` register). `K` is the value of a
+  per-voice row counter that advances per row and wraps at the pattern sentinel, so
+  its range is **data-dependent, not fixed-K** — the build plan's explicit
+  "genuinely data-dependent selection → STOP" case. This is exactly `follow-ups.md`
+  §1a's un-recovered `$96` fold; recovering it exact-by-construction is blocked by
+  the same deity register-IV specialisation as the voice index (deity emits 0 place
+  facts, `deity-smc-provenance.md` §3), but unlike the voice loop it is **not** a
+  constant-stride unrolled loop.
+- **Row-advance presence (`presence`).** An extra store (a row-timer decrement, or a
+  note-content SID write to the gate register, e.g. Sc00ter `$D404`) fires on some
+  frames only, gated by an elided/opaque predicate on evolved tempo state — a
+  genuine control decision the `(site,taken)` edge cannot express.
+
+Both trace to the **row-cursor / tempo** dimension, which is exactly the
+horizon-growing `cfg` term (`gap-audit.md`: Vacuole `cfg +1603` over 400→1600f).
+Re-rolling the bounded voice index cannot reduce it. The gap is **not** purely a
+re-rollable per-voice loop.
+
+## Status (superseded): model validated, build blocked upstream (deity SMC-operand provenance)
 
 Prerequisites landed — cursor de-specialization (#75,
 [`cursor-recovery.md`](cursor-recovery.md)), orderlist recovery (#75,
