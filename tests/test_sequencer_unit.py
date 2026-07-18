@@ -239,6 +239,32 @@ def test_cursor_vocabulary_position_independent(arrangement_builder):
     assert sig[2] == sig[8]
 
 
+def test_orderlist_vocabulary_position_independent(arrangement_builder):
+    """Distinct patterns walked by the orderlist recover one accessor vocabulary:
+    the per-cell alphabet is identical for a 2- and an 8-position arrangement of
+    the same three patterns (fully bounded), an orderlist recovers, byte-exact both."""
+    sig = {}
+    for n, frames in ((2, 400), (8, 1200)):
+        path = str(arrangement_builder(n, distinct=3))
+        assert S.irvm.roundtrip(path, 0, frames)["match"]
+        res = S.analyze(path, 0, frames)
+        assert res["collisions"] == 0 and res["pred"]["exact"] == res["pred"]["frames"]
+        assert S.tracker_view(res)["orderlists"]
+        sig[n] = {a: len(i["exprs"]) for a, i in res["cells"].items()}
+    assert sig[2] == sig[8]
+
+
+def test_orderlist_accessor_position_independent(orderlist_sid):
+    """The recovered orderlist accessor (base/index) is horizon-independent."""
+
+    def ols(frames):
+        view = S.tracker_view(S.analyze(orderlist_sid, 0, frames))
+        return sorted((o["base"], tuple(o["index_cells"])) for o in view["orderlists"])
+
+    a, b = ols(200), ols(400)
+    assert a and a == b
+
+
 def test_analyze_direct(direct_sid):
     res = S.analyze(direct_sid, 0, 64)
     assert S.verdict(res) == "exact"
