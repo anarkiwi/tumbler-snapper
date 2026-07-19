@@ -68,6 +68,7 @@ def _specs(draw):
 @settings(
     max_examples=30,
     deadline=None,
+    derandomize=True,
     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
 )
 @given(spec=_specs())
