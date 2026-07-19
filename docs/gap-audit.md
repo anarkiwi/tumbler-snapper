@@ -72,6 +72,18 @@ token term (`cfg=0`) projects to **~0.19 tpf** at Vacuole's full horizon — ref
 "walk ~1.1 is terminal" reading. No deity register-IV/SMC change required; the lever is a
 tsnap machine-order interpreter that re-executes the decode.
 
+**Update — schedule-interpreter measurement, 3/4 witnesses already bounded
+(`tools/seq_schedule_probe.py`, `seq-replay-rung.md` current Status).** The
+byte-exact machine-order cursor-canonicalized model has **0 frame-entry residual** on
+all four cfg-dominated witnesses (collisions resolve — the `~99.6%` frozen-guard figure
+was a boolean-vocabulary artifact). Measured seq tokens are **bounded < 1.0 on 3 of 4**
+(Sc00ter 0.084, Old_Times 0.684, Take_Off 0.792 proj); **only Vacuole grows** (1.775),
+and only through its packed-row decoder loop (`$96`-branches at `$16CD…$176A`, 11→18
+edges/400→1600 f). So the rejected tail is not uniform: only the packed-row-decoder tune
+needs the decode re-execution above; no build-time token threshold distinguishes it from
+the bounded tunes (they carry 1–2 decode edges too), so the fix must recover the decoder
+mechanism, never a tuned edge count (HARD CONSTRAINT #1).
+
 ## Per-tune gap audit
 
 | tune | rung | sid song fp (code+reach) | img B | full frm | sid tpf | img tpf | our tok 400/1600 | grow rate | our tpf~ | static/reach | dom growing | attribution |

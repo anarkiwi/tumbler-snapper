@@ -10,7 +10,67 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status: decoder RE-EXECUTION measured PROMISING (Phase A) — projects <1.0; byte-exact interpreter (Phase B) NOT yet built
+## Status (current): schedule interpreter measured — collisions resolve to 0; 3/4 witnesses bounded <1.0; only Vacuole needs decoder re-execution
+
+Measured with `tools/seq_schedule_probe.py` (400/1600 f). The machine-order
+schedule model is the **walk over the cursor-canonicalized IR**
+(`seqreplay._canon_ir`: each recovered cursor's frame-entry `M[c]` unified to the
+evolved `cur(c)`, pattern pointers kept symbolic so bytes deref `init_mem`),
+byte-exact by `payload._verify` (`payload.build` returns a comp only if the SID
+stream + end memory match the deity trace every frame).
+
+**1. The collisions resolve — measured 0, refuting the frozen-guard probe.**
+Evolving the closed cell model from `init_mem` and re-evaluating every branch
+against the **evolved** state routes every frame exactly on all four witnesses:
+`sequencer.predict` residual = 0, `build_dispatch` frame-entry collisions = 0,
+guard-DAG residual = 0 (400 and 1600 f). The prior `~99.6%` "collision"
+(`tools/seq_close_probe.py`, PR #95, unmerged) was an artifact of the **frozen
+frame-entry boolean guard vector** — a vocabulary that cannot represent a counter
+compared *mid-frame* (`$1716` decrements within the frame), exactly the reasoning
+error the build note flagged. The full closed model against evolved state has no
+such residual.
+
+**2. Byte-exact** at 400 and 1600 f on all four (the `_verify` gate). Full-horizon
+byte-exact not re-run here (build cost); the mechanism is horizon-independent.
+
+**3. Measured seq tokens (`programs + cfg + guards + dead-init-trimmed init_mem`),
+400→1600 f, projected to full horizon:**
+
+| witness | 400 f | 1600 f | grow/f | proj @ full | verdict |
+|---|---|---|---|---|---|
+| Sc00ter | 1795 | 1837 | 0.035 | **0.084** tpf @36491 | BOUNDED |
+| Old_Times | 2524 | 2739 | 0.179 | **0.684** tpf @4862 | BOUNDED |
+| Take_Off | 2168 | 2589 | 0.351 | **0.792** tpf @4600 | BOUNDED |
+| Vacuole | 2049 | 4036 | 1.656 | **1.775** tpf @11629 | DECODE-LOOP >1.0 |
+
+The three bounded witnesses' control **saturates** (Sc00ter non-leaf edges flat
+21→21, cfg 277→295); their programs shrink vs walk because the accessor deref
+replaces per-position stores. This is the seq rung's win, **measured**, for 3/4 —
+the cfg-dominated tail is not uniformly blocked; only the packed-row-decoder tune
+grows.
+
+**4. The exact gap on Vacuole — an un-recovered *mechanism*, not a missing cell.**
+Vacuole's tokens grow solely through its **packed-row decoder loop** (`$16B0–
+$1799`). Its non-leaf control edges branching on a **decoded pattern byte** grow
+11→18 over 400→1600 f (cfg 697→2208). The branch cell is `$96` (class `computed`,
+transition `$96 = 2·M[cur($FBFC)+K]`, K a bounded row-offset) at sites **`$16CD
+$16D9 $16E5 $1705 $1724 $1728 $1754 $176A`**. The outcome **is** a function of
+recovered state — the pattern pointer `$FB/$FC` (a recovered cursor) dereferencing
+pattern bytes in `init_mem` — so this is a recovery bug: the value vocabulary is
+bounded, but the decoder's **loop control is data-dependent** (a bytecode
+interpreter over the packed row), so a static edge table enumerates one branch-set
+per distinct decoded-byte sequence and grows with song data. The **missing
+recovered rule** is the decoder itself: re-execute the recovered packed-row decoder
+over the evolved pointer to the recovered sentinel (doctrine #2.i "Decode";
+Phase-A `tools/seq_decode_probe.py` projects **0.212 tpf**), bounding the loop
+uniformly. What blocks *building* it: generic identification of the decode region
+(Phase-A/probe hardcode `$16B0–$1799`) and a bounded pointer-driven unroll in seq
+replay. No build-time token gate separates a decode-loop tune from a bounded one —
+Sc00ter/Old_Times/Take_Off each carry 1–2 `computed`-cell edges too — so the fix
+must recover the decoder mechanism uniformly, never a tuned edge-count threshold
+(HARD CONSTRAINT #1).
+
+## Status (superseded): decoder RE-EXECUTION measured PROMISING (Phase A) — projects <1.0; byte-exact interpreter (Phase B) NOT yet built
 
 **Not proven.** The `<1.0` below is a **projection** from component measurements,
 not an end-to-end byte-exact replay. Phase B (the self-contained machine-order
