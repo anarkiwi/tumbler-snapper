@@ -61,6 +61,17 @@ per-voice column-pointer SMC advance (`$1186`/`$120E`/`$1296`) have no recovered
 evaluate at replay — so the walk `cfg` still re-encodes the note sequence and grows
 (decelerating) even though its vocabulary is bounded (upstream deity register-IV/SMC gap).
 
+**Update — re-execution closes the rejected tail without deity change
+(`tools/seq_decode_probe.py`, `seq-replay-rung.md` Status).** The rejection above is a
+consequence of *lowering* the folded index. *Re-executing* the packed-row decode loop
+regenerates those reads instead: on Vacuole the decoder is re-executable purely from
+recovered state (external inputs = pattern-pointer cursor + two transpose cells), the
+horizon-growing term is the **decode-internal** folded reads (regenerated), **not** the
+multi-voice interleaving this audit's "dom growing cfg" column implies, and the SEQ-DECODE
+token term (`cfg=0`) projects to **~0.19 tpf** at Vacuole's full horizon — refuting the
+"walk ~1.1 is terminal" reading. No deity register-IV/SMC change required; the lever is a
+tsnap machine-order interpreter that re-executes the decode.
+
 ## Per-tune gap audit
 
 | tune | rung | sid song fp (code+reach) | img B | full frm | sid tpf | img tpf | our tok 400/1600 | grow rate | our tpf~ | static/reach | dom growing | attribution |
