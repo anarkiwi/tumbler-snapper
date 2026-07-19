@@ -10,65 +10,66 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status (current): decoder re-execution RESOLVED analytically — register params slice to memory (static reaching-definitions), no threaded state (RETRACTS the live-in "gap")
+## Status (current): decoder DECOMPILED to a recovered schema — no re-execution (HARD BAN: never pass through the playroutine)
 
-The earlier "live-in register provenance" gap (retracted below) was an **analysis
-error**, not a real blocker. Byte-exact re-execution of the packed-row decoder is
-buildable from recovered state; the seed is recovered by a **static
-reaching-definitions pass at the `JSR` boundary**, no measurement. Ground truth is
-the static disassembly (deity `lift` over `init_mem`, no execution).
+**Re-execution is banned.** Replaying the tune's own 6502 code — whole *or* a
+scoped fragment (a "raw guarded generator" that runs `$16B0` on `PcodeVM`) — is the
+store-the-program non-solution: compute universality makes it byte-exact for any
+program, so it is zero evidence of recovery and voids the point of the IR. Doctrine
+#2.iii does **not** license running machine code. The unfactored decode region must
+be **decompiled to recovered structure and replayed by expr-eval**, never run.
+(Static analysis of the P-Code is required; executing it as the replay path is
+forbidden.) Ground truth is static disassembly (deity `lift` over `init_mem`).
 
-**The decoder `$16B0` is a memory→memory transform with two register parameters,
-both memory-rooted:**
-
-```
-$16B0  STA $FB          ; live-in A is spilled to $FB by the routine's OWN first instr
-$16B2  LDY #$00
-$16B4  LDA ($FB),Y      ; reads pattern data through $FB + init_mem
-$16B9  STA $96          ; the "computed" branch cell = 2*pattern_byte
-$16C0  STA $103B,X      ; per-voice output field, indexed by live-in X
-```
-
-Static reaching-defs at each `JSR $16B0` site (caller):
+**The decoder `$16B0` is not opaque computation — it is a presence-bitmask
+variable-length record.** Its control flow *is* the packed-row format spec:
 
 ```
-$1304  LDA $1800,Y      ; A = mem[$1800 + Y]  (pattern-ptr table; Y = per-voice index)
-$1308  STY $12EF        ; Y (the index cursor) is spilled to memory
-$130B  LDX #$00         ; X = a COMPILE-TIME IMMEDIATE per site (#$00/#$31/#$62 = voice offset)
-$130D  JSR $16B0
+$16B0  STA $FB          ; ptr = A  (recovered pattern-ptr accessor)
+$16B4  LDA ($FB),Y      ; header = pattern[ptr]        (deref via cursor + init_mem)
+$16B6  BEQ ...          ; header==0 -> empty row (no fields)
+$16B8  ASL A / STA $96  ; $96 = header<<1 (exposes header bits as N/V/C/AND masks)
+$16BB  BPL +; INY; LDA ($FB),Y; STA $103B,X   ; if bit6(header): fieldA[voice] = pattern[ptr + rank]
+$16C3  BCC +; INY; LDA ($FB),Y; STA $103D,X   ; if bit7(header): fieldB[voice] = pattern[ptr + rank]
+$16CD  BVC +; INY; LDA ($FB),Y; STA $1039,X   ; if bit5(header): fieldC[voice] = ...
+$16D9  AND #$20 BEQ +; INY; LDA ($FB),Y; STA $1037,X  ; if bit4(header): fieldD ...
+  ... bit3 -> transpose add ($16ED ADC $12ED) ...
 ```
 
-So the two live-ins resolve to recovered structure:
+Each header bit gates whether an optional field is present; a present field is the
+next packed byte (`INY` advances only when taken), stored to a fixed per-voice
+target. This is a **fully recoverable static schema**, not a computation to run:
 
-| live-in | reaching def | recovered form | bounded by |
-|---|---|---|---|
-| `X` | `LDX #imm` | `const` (per call site) | — (3 constants) |
-| `A` | `LDA $1800,Y` | `mem[$1800 + cur(idx)]`, `idx` the spilled counter `$12EF` | song data (accessor deref) |
-| `Y` | `LDY #$00` (in callee) | **dead** — not a live-in | — |
+| schema element | recovered form |
+|---|---|
+| header | `mem[cur(ptr)]` (accessor deref) |
+| field *j* present | `bit_{b_j}(header)` |
+| field *j* value | `mem[cur(ptr) + 1 + popcount(header & mask_{<j})]` (cumulative advance = prefix popcount) |
+| field *j* target | fixed cell `+ voice·stride` |
+| next-row advance | `ptr += 1 + popcount(present bits)` |
 
-**Why the prior "gap" was wrong.** `tools/seq_decode_livein_probe.py` correctly
-found `A`/`X` *live-in* (perturbation), but the "0 cells source it / unrecoverable"
-conclusion had two errors: (1) it snapshotted memory **one instruction before**
-`$16B0`'s own `STA $FB`, so `mem[$FB]` held the *previous* row's pointer; (2)
-**live-in ≠ unrecoverable** — a live-in register is recovered by slicing its
-reaching definition, which here terminates at a constant and an accessor deref.
-There is no threaded accumulator: `A` is a table entry, `X` an immediate. The
-"backward-growth engulfs the sequence" claim is also void — the region is just the
-`$16B0` subroutine; its register seed is recovered at the boundary, not by growing
-the region.
+The variable-length `INY` walk is a **closed-form prefix popcount** over the
+presence bits — the one nontrivial term, and it is expressible, not opaque. Lower
+the schema into the expr algebra and the growing `cfg` collapses: the decoder's
+branch path is *computed* from the recovered header byte, not enumerated as history.
+`cfg=0` for the region; tokens = schema rules (bounded, fixed field count) + the
+header/field accessor derefs + `init_mem`. Replayed by pure expr-eval, no VM.
 
-**The pass (generic, self-policing).** For a decode subroutine entered by `JSR t`:
-(1) static backward liveness on the callee → live-in registers (derives `A`/`X`
-live, `Y` dead, matching the probe by construction); (2) reaching-definitions in
-the caller lift each live-in to the codec's expr algebra — `LDX #k`→`const`,
-`LDA base,Y`→`mem[base+cur(idx)]`, recursing until the slice terminates at a
-recovered cursor / constant; (3) seed `$FB←A`, `X←const`, re-execute `$16B0`→`RTS`
-over walk-evolved memory + `init_mem`. Byte-exact by construction; `cfg=0` for the
-region (the growing context trie is regenerated by running the code). **Reject to
-walk** iff a slice reaches a register defined in a prior loop iteration with no
-memory spill (genuine threaded state) — a structural property of the slice, not a
-tuned threshold (HARD CONSTRAINT #1). Tokens = constant code blob + immediate +
-one accessor deref + `init_mem`, all bounded.
+**The register seed recovery (reaching-defs) still stands and feeds this**, but as
+*structure*, not a VM seed: the caller's `A = mem[$1800+Y]` is the recovered
+pattern-ptr accessor (`ptr`), `X = LDX #imm` the voice stride — the schema's `cur(ptr)`
+and `voice`. (Retracts the earlier live-in "gap": `tools/seq_decode_livein_probe.py`
+correctly found `A`/`X` live-in, but "0 cells source it" was a snapshot taken one
+instruction before `$16B0`'s own `STA $FB`, and live-in ≠ unrecoverable.)
+
+**The pass.** (1) Identify the decode subroutine (reads `(zp),Y` off a recovered
+cursor, branches on bits of the dereferenced byte). (2) Decompile its bit-gated
+read/store chain into the presence-schema above (each `bit-test → INY → LDA(ptr),Y
+→ STA field` block is one rule; the advance is the taken-`INY` prefix count). (3)
+Lower to expr-algebra rules; replay by expr-eval. **Reject to walk** iff a gated
+block is not a simple `pattern[ptr+rank] → field` (irreducible computation) — a
+structural property, not a tuned threshold (HARD CONSTRAINT #1). No machine code is
+ever executed at replay.
 
 **Consequence for the rung.** The analytic barrier is removed; the remaining work
 is engineering (the reaching-defs pass + the re-execution splice in `_walk_frames`),

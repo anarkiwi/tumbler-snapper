@@ -7,20 +7,23 @@ follow-ups (Goldberg multi-phase IRQ, tracker-view pattern classifier).
 
 ## 1. Sequencer-driven replay token rung (highest value — structure work)
 
-**Resolution (static reaching-defs, RETRACTS the live-in "gap").** The decoder
-re-execution is **not** blocked; the register seed is recovered by static analysis.
-Disassembly (deity `lift`, no execution): `$16B0`'s first instruction is `STA $FB`
-(it spills its own live-in `A` to memory); the caller sets `A = mem[$1800+Y]` (a
-pattern-ptr-table accessor, `Y` = a counter spilled to `$12EF`) and `X = LDX #imm`
-(a per-site constant). Both live-ins slice to memory-rooted exprs — no threaded
-accumulator. The prior "0 cells source `A` → unrecoverable" was two errors:
-snapshotting memory one instruction before `$16B0`'s own `STA $FB`, and treating
-live-in as unrecoverable (it is recovered by slicing its reaching definition). The
-pass: static callee liveness → live-in regs; caller reaching-definitions → lift
-each to the expr algebra; seed + re-execute; reject to walk only if a slice hits
-unspilled prior-iteration register state. Details in
-[`seq-replay-rung.md`](seq-replay-rung.md) top Status. Everything below is the
-prior (superseded) framing.
+**Resolution (decompile decoder to a recovered schema; re-execution BANNED).**
+Replaying the tune's own 6502 code — whole or a scoped fragment — is permanently
+banned (store-the-program non-solution; universality makes it byte-exact for any
+program, so it proves no recovery and voids the IR). The decoder must be
+**decompiled to structure**. Disassembly (deity `lift`, no execution) shows `$16B0`
+is a presence-bitmask variable-length record: `header = pattern[cur(ptr)]`; each
+header bit gates an optional field read as the next packed byte (`INY` advances only
+when present) into a fixed per-voice target; next-row advance = `1 + popcount(present
+bits)`. Recover this schema (header/field accessor derefs + prefix-popcount offsets)
+and lower to the expr algebra: the growing `cfg` collapses (branch path *computed*
+from the recovered header, not enumerated), replayed by pure expr-eval, no VM. The
+reaching-defs seed recovery still holds but as *structure* (`A=mem[$1800+Y]` is the
+recovered `ptr`, `X` the voice stride), retracting the earlier live-in "gap" (its "0
+cells source A" snapshot was one instruction before `$16B0`'s own `STA $FB`). Reject
+to walk iff a gated block is not a simple `pattern[ptr+rank]→field`. Details in
+[`seq-replay-rung.md`](seq-replay-rung.md) top Status. Everything below is the prior
+(superseded) framing.
 
 **Update (schedule-interpreter measurement, `tools/seq_schedule_probe.py`).** The
 machine-order cursor-canonicalized model is byte-exact (`payload._verify`) and the
