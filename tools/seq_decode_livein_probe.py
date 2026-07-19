@@ -1,7 +1,7 @@
-"""Named-gap probe: byte-exact decode re-execution is blocked on live-in registers.
+"""Liveness probe: which decoder-entry registers are live-in (perturbation).
 
-Derives the decoder entry generically (innermost play-frame subroutine) and
-measures whether it seeds from recovered state. See docs/seq-replay-rung.md.
+Live-in != unrecoverable: the seed is recovered by static reaching-defs at the JSR
+boundary (X=const, A=accessor deref). See docs/seq-replay-rung.md.
 """
 
 from __future__ import annotations

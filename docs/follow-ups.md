@@ -7,25 +7,20 @@ follow-ups (Goldberg multi-phase IRQ, tracker-view pattern classifier).
 
 ## 1. Sequencer-driven replay token rung (highest value — structure work)
 
-**Terminal update (live-in-register gap, `tools/seq_decode_livein_probe.py`).**
-Building the decoder-re-execution rung byte-exact is **blocked**, and the earlier
-`~0.19 tpf` projection is **refuted** (it assumed a decoder VM seedable from
-recovered state). The probe derives the decoder entry generically (innermost
-play-frame subroutine `$16B0`, by call depth — no hardcoded address) and measures
-its entry registers over the real execution: `A` and `X` are **live-in** (17/17
-perturbations change the byte-exact output) with entry values present in **0** of
-the 64 KiB memory addresses — they are register-carried from the caller, not
-spilled to any recoverable cell. Their last writers (`$1304/$1335/$1257/$133C/
-$1098`) sit in the per-voice sequence-processing code, so the only
-register-live-in-free re-execution cut is the whole play routine (the
-store-the-program non-solution). The codec is register-free below frame
-granularity and deity emits no per-region live-in provenance, so the sub-region VM
-cannot be seeded. **Named gap:** symbolic mid-frame register-liveness at the
-decoder entry (`A`/`X` as a function of recovered cells), an unbuilt producer;
-`recover.py`'s SSA one-frame summary is the candidate, but its recovered form
-re-inherits the bounded-vs-growing question. Details in
+**Resolution (static reaching-defs, RETRACTS the live-in "gap").** The decoder
+re-execution is **not** blocked; the register seed is recovered by static analysis.
+Disassembly (deity `lift`, no execution): `$16B0`'s first instruction is `STA $FB`
+(it spills its own live-in `A` to memory); the caller sets `A = mem[$1800+Y]` (a
+pattern-ptr-table accessor, `Y` = a counter spilled to `$12EF`) and `X = LDX #imm`
+(a per-site constant). Both live-ins slice to memory-rooted exprs — no threaded
+accumulator. The prior "0 cells source `A` → unrecoverable" was two errors:
+snapshotting memory one instruction before `$16B0`'s own `STA $FB`, and treating
+live-in as unrecoverable (it is recovered by slicing its reaching definition). The
+pass: static callee liveness → live-in regs; caller reaching-definitions → lift
+each to the expr algebra; seed + re-execute; reject to walk only if a slice hits
+unspilled prior-iteration register state. Details in
 [`seq-replay-rung.md`](seq-replay-rung.md) top Status. Everything below is the
-prior (now-superseded) framing.
+prior (superseded) framing.
 
 **Update (schedule-interpreter measurement, `tools/seq_schedule_probe.py`).** The
 machine-order cursor-canonicalized model is byte-exact (`payload._verify`) and the
