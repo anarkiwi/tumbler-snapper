@@ -10,7 +10,73 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status (current): schedule interpreter measured — collisions resolve to 0; 3/4 witnesses bounded <1.0; only Vacuole needs decoder re-execution
+## Status (current): decoder DECOMPILED to a recovered schema — no re-execution (HARD BAN: never pass through the playroutine)
+
+**Re-execution is banned.** Replaying the tune's own 6502 code — whole *or* a
+scoped fragment (a "raw guarded generator" that runs `$16B0` on `PcodeVM`) — is the
+store-the-program non-solution: compute universality makes it byte-exact for any
+program, so it is zero evidence of recovery and voids the point of the IR. Doctrine
+#2.iii does **not** license running machine code. The unfactored decode region must
+be **decompiled to recovered structure and replayed by expr-eval**, never run.
+(Static analysis of the P-Code is required; executing it as the replay path is
+forbidden.) Ground truth is static disassembly (deity `lift` over `init_mem`).
+
+**The decoder `$16B0` is not opaque computation — it is a presence-bitmask
+variable-length record.** Its control flow *is* the packed-row format spec:
+
+```
+$16B0  STA $FB          ; ptr = A  (recovered pattern-ptr accessor)
+$16B4  LDA ($FB),Y      ; header = pattern[ptr]        (deref via cursor + init_mem)
+$16B6  BEQ ...          ; header==0 -> empty row (no fields)
+$16B8  ASL A / STA $96  ; $96 = header<<1 (exposes header bits as N/V/C/AND masks)
+$16BB  BPL +; INY; LDA ($FB),Y; STA $103B,X   ; if bit6(header): fieldA[voice] = pattern[ptr + rank]
+$16C3  BCC +; INY; LDA ($FB),Y; STA $103D,X   ; if bit7(header): fieldB[voice] = pattern[ptr + rank]
+$16CD  BVC +; INY; LDA ($FB),Y; STA $1039,X   ; if bit5(header): fieldC[voice] = ...
+$16D9  AND #$20 BEQ +; INY; LDA ($FB),Y; STA $1037,X  ; if bit4(header): fieldD ...
+  ... bit3 -> transpose add ($16ED ADC $12ED) ...
+```
+
+Each header bit gates whether an optional field is present; a present field is the
+next packed byte (`INY` advances only when taken), stored to a fixed per-voice
+target. This is a **fully recoverable static schema**, not a computation to run:
+
+| schema element | recovered form |
+|---|---|
+| header | `mem[cur(ptr)]` (accessor deref) |
+| field *j* present | `bit_{b_j}(header)` |
+| field *j* value | `mem[cur(ptr) + 1 + popcount(header & mask_{<j})]` (cumulative advance = prefix popcount) |
+| field *j* target | fixed cell `+ voice·stride` |
+| next-row advance | `ptr += 1 + popcount(present bits)` |
+
+The variable-length `INY` walk is a **closed-form prefix popcount** over the
+presence bits — the one nontrivial term, and it is expressible, not opaque. Lower
+the schema into the expr algebra and the growing `cfg` collapses: the decoder's
+branch path is *computed* from the recovered header byte, not enumerated as history.
+`cfg=0` for the region; tokens = schema rules (bounded, fixed field count) + the
+header/field accessor derefs + `init_mem`. Replayed by pure expr-eval, no VM.
+
+**The register seed recovery (reaching-defs) still stands and feeds this**, but as
+*structure*, not a VM seed: the caller's `A = mem[$1800+Y]` is the recovered
+pattern-ptr accessor (`ptr`), `X = LDX #imm` the voice stride — the schema's `cur(ptr)`
+and `voice`. (Retracts the earlier live-in "gap": `tools/seq_decode_livein_probe.py`
+correctly found `A`/`X` live-in, but "0 cells source it" was a snapshot taken one
+instruction before `$16B0`'s own `STA $FB`, and live-in ≠ unrecoverable.)
+
+**The pass.** (1) Identify the decode subroutine (reads `(zp),Y` off a recovered
+cursor, branches on bits of the dereferenced byte). (2) Decompile its bit-gated
+read/store chain into the presence-schema above (each `bit-test → INY → LDA(ptr),Y
+→ STA field` block is one rule; the advance is the taken-`INY` prefix count). (3)
+Lower to expr-algebra rules; replay by expr-eval. **Reject to walk** iff a gated
+block is not a simple `pattern[ptr+rank] → field` (irreducible computation) — a
+structural property, not a tuned threshold (HARD CONSTRAINT #1). No machine code is
+ever executed at replay.
+
+**Consequence for the rung.** The analytic barrier is removed; the remaining work
+is engineering (the reaching-defs pass + the re-execution splice in `_walk_frames`),
+not a missing recovered artifact. Vacuole is on the walk fallback (~0.993) until
+that lands.
+
+## Status (superseded): schedule interpreter measured — collisions resolve to 0; 3/4 witnesses bounded <1.0; only Vacuole needs decoder re-execution
 
 Measured with `tools/seq_schedule_probe.py` (400/1600 f). The machine-order
 schedule model is the **walk over the cursor-canonicalized IR**
@@ -70,7 +136,12 @@ Sc00ter/Old_Times/Take_Off each carry 1–2 `computed`-cell edges too — so the
 must recover the decoder mechanism uniformly, never a tuned edge-count threshold
 (HARD CONSTRAINT #1).
 
-## Status (superseded): decoder RE-EXECUTION measured PROMISING (Phase A) — projects <1.0; byte-exact interpreter (Phase B) NOT yet built
+## Status (Phase A, component measurements): decoder RE-EXECUTION projects <1.0; byte-exact interpreter (Phase B) unbuilt but no longer blocked
+
+> The seed **is** recoverable (top Status: static reaching-defs give `X`=const,
+> `A`=accessor deref — both bounded), so Phase B is an engineering build, not
+> blocked. The `~0.19 tpf` below remains a projection pending the built rung's
+> full-horizon measurement; treat it as motivation, not proof.
 
 **Not proven.** The `<1.0` below is a **projection** from component measurements,
 not an end-to-end byte-exact replay. Phase B (the self-contained machine-order
