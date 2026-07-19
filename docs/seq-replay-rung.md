@@ -10,7 +10,14 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status: decoder RE-EXECUTION measured VIABLE — refutes the terminal-1.1 conclusion (Phase A)
+## Status: decoder RE-EXECUTION measured PROMISING (Phase A) — projects <1.0; byte-exact interpreter (Phase B) NOT yet built
+
+**Not proven.** The `<1.0` below is a **projection** from component measurements,
+not an end-to-end byte-exact replay. Phase B (the self-contained machine-order
+interpreter) is unbuilt; the projection *assumes* it closes the ~5-13 sequence
+nonfunc edges via evolved-`cur` guard re-eval. It strongly challenges the prior
+"walk ~1.1 is terminal" reading, but that is disproven only when Phase B measures
+a byte-exact `<1.0` at full horizon.
 
 The landed accessor-deref rung (Status below) covers only the recovered-cursor
 case and **rejects the cfg-dominated tail** (`guard-collision`): it *lowers* the
@@ -19,7 +26,8 @@ register-IV specialisation blocks (`deity-smc-provenance.md` §3). The
 **re-execution** path of §2 — *regenerate* the reads by re-running the decode loop
 over the evolved cursor, never lowering or storing the index — was prototyped and
 measured on Vacuole (`tools/seq_decode_probe.py`). **It drops the interleaving and
-projects `< 1.0`; the prior "walk ~1.1 is terminal for this tail" is refuted.**
+projects `< 1.0` (~0.19 tpf) — a projection pending the Phase-B byte-exact proof,
+not a settled refutation of "walk ~1.1 is terminal".**
 
 **Make-or-break measurements (Vacuole, `MUSICIANS/I/Ilkke/Vacuole.sid`):**
 
