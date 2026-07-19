@@ -709,6 +709,14 @@ def digi_sid(tmp_path):
     return _write(tmp_path, "digi.sid", data)
 
 
+@pytest.fixture
+def vacuole_idiom_sid(tmp_path):
+    """Hand-authored minimal Vacuole class-II packed-row-decoder anchor PSID."""
+    import schedplayer  # pylint: disable=import-outside-toplevel
+
+    return schedplayer.write_psid(schedplayer.VACUOLE_IDIOM_SPEC, tmp_path, "vacuole_idiom.sid")
+
+
 # Index-wrap tune: 8-bit INY wraps 0xFF->0 before a 16-bit table address.
 
 _W_LOAD = 0x4000

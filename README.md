@@ -34,4 +34,5 @@ pytest -n auto
 - [docs/irvm.md](docs/irvm.md) — serializable generator-IR + lossless replay.
 - [docs/tokens.md](docs/tokens.md) — tokens/frame metric + lossless compression.
 - [docs/survey.md](docs/survey.md) — stratified HVSC coverage matrix + oracle outcome.
+- [docs/recoverability-harness.md](docs/recoverability-harness.md) — synthetic scheduled-player generator + codec-recoverability CI invariant.
 - [CLAUDE.md](CLAUDE.md) — design constraints and correctness workflow.
