@@ -10,7 +10,58 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status (current): schedule interpreter measured — collisions resolve to 0; 3/4 witnesses bounded <1.0; only Vacuole needs decoder re-execution
+## Status (current): decoder re-execution BLOCKED — live-in register provenance (named engineering gap, refutes the Phase-A `<1.0` projection)
+
+The remaining rung (re-execute Vacuole's packed-row decoder as a bounded raw
+generator, doctrine #2.iii) is **not buildable byte-exact from recovered state**,
+and the Phase-A `~0.19 tpf` projection below is **unsound** — it silently assumed
+a decoder VM seedable from recovered cells. Measured with
+`tools/seq_decode_livein_probe.py` (Vacuole, 60 f); the probe derives the decoder
+entry generically as the **innermost play-frame subroutine** (`$16B0`, via
+call-depth — no hardcoded address), then runs it over each captured entry image
+with perturbed entry registers:
+
+| register | live-in? | distinct entry vals | memory addrs sourcing the entry value | last-writer PCs |
+|---|---|---|---|---|
+| A | **yes** (17/17 perturbations change byte-exact output) | 5 | **0** | `$1304 $1335` |
+| X | **yes** (17/17) | 2 | **0** | `$1257 $133C $1098` |
+| Y | no (0/17; loaded internally) | 5 | 0 | — |
+
+**The named gap: byte-exact decode re-execution needs mid-frame live-in register
+provenance the codec does not recover.** The decoder consumes register-carried
+live-ins (`A`, `X`) whose entry values are **absent from every one of the 64 KiB
+addresses** (0 cells source them across all invocations) — they are computed in
+registers by the caller, not spilled. Every rung (walk/seq/dispatch) is
+**register-free below frame granularity** (state = memory + frame-entry
+registers), and deity's recorder emits store facts + frame-entry-pure guards, not
+per-region live-in register provenance. So the sub-region VM **cannot be seeded
+from recovered state**. The Phase-A "seed `X`=voice, `A`=`$FB`" is not merely
+unbuilt — it is **wrong**: measured `X∈{0,49}` is not a voice index, `A∈{152,225,
+162,231,236}` matches no cell.
+
+**The backward-growth escape is measured closed.** The only register-live-in-free
+cut is one where every entry register is loaded from memory inside the region.
+`A`/`X` are last written at `$1304/$1335/$1257/$133C/$1098` — all inside the
+**per-voice sequence-processing code** ($10xx–$13xx), which computes them inline
+from the pattern data. Growing the region back to a memory-only cut therefore
+engulfs the sequence-processing code, collapsing to **whole-play-routine
+re-execution — the store-the-program non-solution** (recovers zero sequence
+structure, doctrine #2/#4). There is no cut isolating the fixed decode *mechanism*
+from the sequence: the decoder and its caller are register-coupled.
+
+**Consequence for the rung.** Vacuole stays on the walk fallback (~0.993, trending
+over 1.0 at true full horizon). Closing the gap requires a **new recovered
+artifact**: symbolic mid-frame register-liveness at the decoder entry (`A`/`X` as
+a function of recovered cells + `init_mem`), a producer that does not exist.
+`recover.py`'s SSA one-frame summary (`mem'=F(mem)`) is the candidate — it could
+snapshot the symbolic `A`/`X` at the `$16B0` call site — but the recovered form
+**re-inherits the bounded-vs-growing question** the re-execution was meant to
+sidestep (`A` is a *computed* value, not a raw deref; whether `A_entry=g(pattern)`
+closes or grows is unknown and unmeasured). Until that artifact is built and
+measured bounded, the decoder-re-execution rung has a **named blocker, not a
+`<1.0` projection**.
+
+## Status (superseded by the live-in gap above): schedule interpreter measured — collisions resolve to 0; 3/4 witnesses bounded <1.0; only Vacuole needs decoder re-execution
 
 Measured with `tools/seq_schedule_probe.py` (400/1600 f). The machine-order
 schedule model is the **walk over the cursor-canonicalized IR**
@@ -70,7 +121,14 @@ Sc00ter/Old_Times/Take_Off each carry 1–2 `computed`-cell edges too — so the
 must recover the decoder mechanism uniformly, never a tuned edge-count threshold
 (HARD CONSTRAINT #1).
 
-## Status (superseded): decoder RE-EXECUTION measured PROMISING (Phase A) — projects <1.0; byte-exact interpreter (Phase B) NOT yet built
+## Status (REFUTED by the live-in gap above): decoder RE-EXECUTION measured PROMISING (Phase A) — projects <1.0; byte-exact interpreter (Phase B) NOT yet built
+
+> **Refuted.** The `~0.19 tpf` projection below prices a byte-exact decoder
+> interpreter it never built and assumed seedable from recovered state. The
+> live-in-register measurement (top Status) shows the seed does not exist: `A`/`X`
+> are register-carried live-ins absent from every memory cell, so Phase B is not
+> "unbuilt" but **blocked**. Read the numbers below as the component measurements
+> that motivated Phase B, not as evidence the rung reaches `<1.0`.
 
 **Not proven.** The `<1.0` below is a **projection** from component measurements,
 not an end-to-end byte-exact replay. Phase B (the self-contained machine-order
