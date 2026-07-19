@@ -44,7 +44,7 @@ the module wiring and the current status only — no design doctrine (that is
 |---|---|
 | **Lossless** (byte-exact stream) | met — 33/33 fixtures vs deity `PcodeVM`; 32/32 vs sidtrace ([`survey.md`](survey.md), [`irvm.md`](irvm.md)) |
 | **Algorithmic / no fitting** | met — static P-Code dataflow + recorded guards + `init_mem`; dispatch lowered from CFG paths, not induced |
-| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung, lossless, debt 0), but walk `cfg` grows on the cfg-dominated tail (Vacuole ~0.993, trending over 1.0 at true full horizon); not yet general (300-tune survey 4.3% < 1.0). **Seq rung landed** (`seqreplay`, byte-exact, `cfg=0`): the accessor-form vocabulary **saturates** (Vacuole re-rolled forms flat 231 at 3200→4800f = bounded song data, `tools/seqforms_audit.py`), refuting the earlier "unbounded `cfg`" reading — but byte-exact seq replay covers only the recovered-cursor case (hermetic `orderlist_sid`; 0/31 real HVSC, all `guard-collision`): the folded intra-row index + SMC column-pointer stride have no recovered cell to evaluate, the upstream deity register-IV/SMC blocker ([`seq-replay-rung.md`](seq-replay-rung.md), [`gap-audit.md`](gap-audit.md), [`tokens.md`](tokens.md)) |
+| **< 1 token/frame** | on fixtures — 29/32 under 1.0 at full horizon (walk rung, lossless, debt 0), but walk `cfg` grows on the cfg-dominated tail (Vacuole ~0.993, trending over 1.0 at true full horizon); not yet general (300-tune survey 4.3% < 1.0). **Seq rung landed** (`seqreplay`, byte-exact, `cfg=0`): the accessor-form vocabulary **saturates** (Vacuole re-rolled forms flat 231 at 3200→4800f = bounded song data, `tools/seqforms_audit.py`), refuting the earlier "unbounded `cfg`" reading — but byte-exact seq replay covers only the recovered-cursor case (hermetic `orderlist_sid`; 0/31 real HVSC, all `guard-collision`): the folded intra-row index + SMC column-pointer stride have no recovered cell to evaluate, the upstream deity register-IV/SMC blocker ([`seq-replay-rung.md`](seq-replay-rung.md), [`gap-audit.md`](gap-audit.md), [`tokens.md`](tokens.md)). Decode RE-EXECUTION measured NOT general (STOP): closes Vacuole's decode-internal residual but the cfg-tail is dominated by non-decode row/tempo collisions it cannot touch (Sc00ter 99.6% of frames) — `tools/seq_close_probe.py`, walk ~1.1 terminal for that tail |
 | **Tracker structure recovered** | on fixtures — `sequencer.analyze_ir` → `exact+seq` on 27/33; model closure total on every analyzable tune ([`sequencer-survey.md`](sequencer-survey.md)) |
 | **Survey breadth** | partial — 73.4% lossless of classifiable, 95.1% cadence–oracle agreement over 300 tunes ([`survey.md`](survey.md)) |
 
@@ -67,6 +67,14 @@ gaps in [`driver-model.md`](driver-model.md). The highest-leverage item is #1:
    deity-specialized registers with no recovered cell, so the nonfunctional-edge
    selector cannot be lowered (upstream deity register-IV/SMC provenance,
    `docs/deity-smc-provenance.md`). The walk rung holds (lossless, debt 0).
+   **Decode RE-EXECUTION (regenerate, not lower) — measured NOT general, STOP**
+   (`tools/seq_close_probe.py`, `seq-replay-rung.md` Phase B): the faithful
+   machine-order interpreter (upper bound) closes Vacuole's residual (7/7 collision
+   sites decode-internal, byte-exact by construction; non-decode edges 63/63
+   guard-closed) but the cfg-tail is dominated by **non-decode** collisions decode
+   re-execution cannot touch (Sc00ter 99.6% of frames at a row/tempo branch,
+   Old_Times 38%, Take_Off 2 sites — Wall 1). It helps ~1/4 witnesses; a
+   Vacuole-class rung is barred by doctrine #1/#5 and not landed.
 2. **Orderlist-role recovery** for 0-orderlist tunes (prerequisite for #1).
 3. **Non-structural rungs**: transcription rung for generative players. (The
    role-agnostic `tracker_view` pattern classifier landed; see docs/driver-model.md.)

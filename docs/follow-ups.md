@@ -62,6 +62,22 @@ full horizon. **No deity change (1c) required**; the closing lever is a tsnap-si
 machine-order interpreter that re-executes the decode. Remaining: the self-contained
 byte-exact interpreter (0.19 prices its CFG control as bounded `edges+guards`).
 
+**Phase B — STOP: decode re-execution is not general (`tools/seq_close_probe.py`,
+`seq-replay-rung.md` Status).** The Phase-A 0.19 was measured on Vacuole alone. The
+faithful machine-order interpreter (walk-byte-exact evolved memory + all recovered
+guards re-evaluated frame-entry-pure — an **upper bound** on any decode-re-execution
+rung, since the evolved image already holds whatever the decoder regenerates) shows
+the residual sequence edges are **decode-internal only for Vacuole** (7/7 collision
+sites in the `$16B0` packed decoder, closed byte-exact by construction; every
+non-decode edge closes by guard re-eval, 63/63 at 1600f — so Vacuole is closeable).
+But the cfg-tail is **dominated by non-decode collisions** decode re-execution
+cannot touch: Sc00ter **99.6%** of frames at `$10BB` (a multi-stream row/tempo-timer
+branch, not a decoder), Old_Times 38% (3 non-decode sites), Take_Off 2 non-decode
+sites. These are Wall-1 multi-voice/stream row-advance selections no bounded
+frame-entry-pure guard separates. Decode re-execution addresses Wall 2 only, so it
+helps ~1/4 witnesses — a Vacuole-class special-case, barred by doctrine #1/#5, **not
+landed**. Walk ~1.1 is terminal for the non-decode tail.
+
 - **(a) Sequencer-driven replay rung — LANDED behind the walk fallback.** A rung
   in `tokens.compress` (`seqreplay.build`) canonicalizing the walk model's stores
   against recovered cursors, accepted only when control is functional, byte-exact

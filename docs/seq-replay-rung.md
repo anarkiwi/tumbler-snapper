@@ -10,7 +10,79 @@ per-tune cases, lossless byte-exact, structure work outranks encoder work.
 The rung's `mode` label is **`"seq"`**. It slots **before** the walk rung; the
 walk and dispatch rungs remain intact as fallback (§5).
 
-## Status: decoder RE-EXECUTION measured PROMISING (Phase A) — projects <1.0; byte-exact interpreter (Phase B) NOT yet built
+## Status: Phase B — STOP. Decode re-execution closes Vacuole's residual but is NOT general (measured)
+
+The Phase-A projection (~0.19 tpf, `seq_decode_probe.py`) assumed a machine-order
+interpreter closes the residual sequence edges via evolved-`cur` guard re-eval +
+decode re-execution. Phase B **measures that assumption directly**
+(`tools/seq_close_probe.py`) and the verdict is a **precise STOP on generality**:
+decode re-execution closes Vacuole's residual but the cfg-dominated tail is
+**not** uniformly decode-internal — 3/4 witnesses are dominated by **non-decode**
+collisions the packed-decoder re-execution cannot touch. Landing decode
+re-execution would therefore be a **Vacuole-class special-case** (helps ~1 of 4
+witnesses), barred by doctrine #1/#5. Walk ~1.1 is terminal for the non-decode tail.
+
+**The measurement is an upper bound on any decode-re-execution rung.** The probe is
+the faithful machine-order interpreter: it walks the recovered CFG evolving memory
+with the walk model's own **byte-exact** contribs (so the evolved image already
+holds *whatever the decoder would regenerate*, and mid-frame memory is byte-exact
+because the walk reproduces the exact store sequence). It asks whether each history
+split `(node,label) → (next, store-block)` is a **function of the recovered guard
+vector** (all recovered predicates re-evaluated frame-entry-pure: `mem` leaves =
+frame-entry snap, `cur` leaves = evolved memory — matching the walk). A residual
+**collision** (identical guard vector, distinct outcome) is a pure **selection**
+failure of the recovered guards, **independent of decode**: decode re-execution
+only regenerates decode *values*, which the byte-exact evolved image already has.
+
+A collision at a **decode-internal** site (the RTS-delimited routine holds a
+`($zp),Y` access + `INY` — the ctrl-byte-gated variable-length walk) **is** closed
+by decode re-execution, **byte-exact by construction**: re-running identical code
+over byte-exact evolved memory yields identical writes. A collision at any **other**
+site is not — decode re-execution never writes those cells.
+
+Measured (`tools/seq_close_probe.py all 400 1600`; `split`=history-split edges,
+`closed`=selection is a function of the guard vector, `STOP`=collision):
+
+| witness | horizon | split | closed | STOP-edges | colliding frames | decode-internal sites |
+|---|---|---|---|---|---|---|
+| Vacuole | 400f | 36 | 36 | 0 | 0 (0.0%) | — |
+| Vacuole | 1600f | 72 | 63 | 9 | 39 (2.4%) | **7/7** ($16B0 decoder) |
+| Sc00ter | 1600f | 24 | 22 | 2 | **1594 (99.6%)** | **0/1** ($10BB tempo branch) |
+| Old_Times | 1600f | 45 | 42 | 3 | 611 (38.2%) | **0/3** |
+| Take_Off | 1600f | 40 | 33 | 7 | ~386 (96.5%) | 4/6 (2 non-decode block it) |
+
+**Vacuole is NOT terminal — its residual is fully closeable.** Every non-decode
+edge closes by guard re-eval (63/63 at 1600f; 0 non-decode collisions), and every
+collision is decode-internal (all 7 sites inside the `$16B0` packed decoder),
+closed byte-exact by construction. So the Phase-A closure assumption **holds for
+Vacuole** and a Vacuole seq rung would reach ~0.25 tpf (walk's non-`cfg` share,
+`§4`). It is not landed because it is not general.
+
+**The tail is dominated by non-decode collisions — the real STOP.** Sc00ter's
+single collision is `$10BB` = `LDA $1716; CMP $1718; BNE` — a **multi-stream row
+/ tempo-timer branch** (not a decoder; the routine's `LDA ($f8),Y` at `$10D5` is a
+single table-indexed read with `LDY $1726,X`, no `INY` walk), and it collides on
+**99.6% of frames**: the frame-entry-pure guard on the row timers cannot
+distinguish the per-stream iterations, exactly the "row-advance presence" residual.
+Old_Times (38% of frames, 3 non-decode sites) and Take_Off (2 non-decode sites)
+are the same class. These are **multi-voice/stream tempo & row-advance control
+decisions** that no bounded frame-entry-pure recovered guard separates and that
+decode re-execution — which regenerates only the packed-row *bytes* — never
+touches. This is Wall 1 (multi-voice interleaving), unchanged by the decode lever;
+decode re-execution addresses Wall 2 (the variable-length packed walk) only.
+
+**Conclusion.** Re-executing the packed decoder is a real, byte-exact lever for the
+**decode-internal** residual (Wall 2), and it fully closes Vacuole. But the
+cfg-dominated tail is **not** decode-internal; it is the multi-voice/stream
+row-advance selection (Wall 1), and re-executing the decoder does nothing for it.
+A rung that closes only Vacuole-class packed decoders is a per-tune-class
+special-case (doctrine #1/#5), so it is **not landed**; the general codec stays on
+walk (~1.1 on the tail) and that is terminal for the non-decode-collision tunes.
+Closing Wall 1 would require re-executing the multi-voice row/tempo dispatch too,
+i.e. progressively the whole play routine — shipping the binary, not structure
+recovery (doctrine #4). Reproduce: `tools/seq_close_probe.py all 400 1600`.
+
+## Status (Phase A, superseded by Phase B): decoder RE-EXECUTION measured PROMISING — projects <1.0; byte-exact interpreter NOT yet built
 
 **Not proven.** The `<1.0` below is a **projection** from component measurements,
 not an end-to-end byte-exact replay. Phase B (the self-contained machine-order

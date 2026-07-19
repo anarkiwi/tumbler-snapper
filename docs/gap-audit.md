@@ -72,6 +72,17 @@ token term (`cfg=0`) projects to **~0.19 tpf** at Vacuole's full horizon — ref
 "walk ~1.1 is terminal" reading. No deity register-IV/SMC change required; the lever is a
 tsnap machine-order interpreter that re-executes the decode.
 
+**Phase B — STOP: the 0.19 does not generalize (`tools/seq_close_probe.py`).** The
+faithful machine-order interpreter (an upper bound on the decode-re-execution rung)
+measures the residual: **decode-internal only for Vacuole** (7/7 collision sites in the
+`$16B0` decoder, closeable byte-exact by construction; non-decode edges 63/63 guard-closed),
+but the cfg-tail is **dominated by non-decode collisions** — Sc00ter 99.6% of frames at a
+row/tempo-timer branch, Old_Times 38%, Take_Off 2 sites — that re-executing the packed
+decoder cannot touch (Wall 1 multi-voice/stream row-advance, not Wall 2). Decode
+re-execution therefore helps ~1/4 witnesses; landing it is a per-tune-class special-case
+(doctrine #1/#5), **not done**. Walk ~1.1 stands as terminal for the non-decode-collision
+tail; this audit's "dom growing cfg" is that tail.
+
 ## Per-tune gap audit
 
 | tune | rung | sid song fp (code+reach) | img B | full frm | sid tpf | img tpf | our tok 400/1600 | grow rate | our tpf~ | static/reach | dom growing | attribution |
