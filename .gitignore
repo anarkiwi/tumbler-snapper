@@ -225,3 +225,6 @@ src/*.egg-info/
 
 # Core dumps
 core
+
+# probe IR cache (HVSC-derived, never committed)
+scratchpad_ir/

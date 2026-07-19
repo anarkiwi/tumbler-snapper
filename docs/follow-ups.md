@@ -7,6 +7,19 @@ follow-ups (Goldberg multi-phase IRQ, tracker-view pattern classifier).
 
 ## 1. Sequencer-driven replay token rung (highest value — structure work)
 
+**Update (schedule-interpreter measurement, `tools/seq_schedule_probe.py`).** The
+machine-order cursor-canonicalized model is byte-exact (`payload._verify`) and the
+frame-entry closed-model residual is **0** on all four cfg-dominated witnesses
+(`predict` resid 0, `build_dispatch` collisions 0) — the collisions the frozen
+frame-entry guard-vector probe reported (`~99.6%`, `seq_close_probe.py`) **resolve
+to 0** once branches evaluate against evolved state. Measured seq tokens are
+**bounded < 1.0 on 3 of 4** (Sc00ter 0.084, Old_Times 0.684, Take_Off 0.792 proj);
+only **Vacuole grows** (1.775), solely via its **packed-row decoder loop** (branches
+on decoded byte `$96` at `$16CD…$176A`, grow 11→18 edges/400→1600 f). The remaining
+work is item 1's "Decode" step (re-execute the decoder, `seq-replay-rung.md` Status
+§4), not a token gate: no build-time threshold separates a decode-loop tune from a
+bounded one. Table below is the pre-measurement walk-cfg framing.
+
 For sequencer-driven tunes the walk model's control-flow context trie (`cfg` in
 `payload`/`tokens.count_tokens`) re-encodes the note/command **sequence** as backward
 history, so it grows with song length. Measured on current main (400→800f trend):
